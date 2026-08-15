@@ -1,5 +1,13 @@
 // Modelo de dominio — POS Juguería
 
+export interface Branch {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  active: boolean;
+}
+
 export type Role = 'admin' | 'cajero';
 
 export type StaffStatus = 'activo' | 'bloqueado';
@@ -14,6 +22,8 @@ export interface User {
   createdAt: string; // ISO — fecha de registro
   /** Administrador principal sembrado por el sistema: no se puede eliminar ni bloquear. */
   protected?: boolean;
+  /** Sucursales donde puede operar. 1 sola = entra directo; varias = elige al iniciar turno. */
+  branchIds: string[];
 }
 
 /** Estado operativo mostrado en el listado de Personal (además de activo/bloqueado). */
@@ -48,7 +58,8 @@ export interface Topping {
   id: string;
   name: string;
   priceExtra: number;
-  stock: number;
+  /** Stock independiente por sucursal: { [branchId]: cantidad }. */
+  stockByBranch: Record<string, number>;
   lowStockThreshold: number;
 }
 
@@ -65,7 +76,8 @@ export interface Product {
   allowSugarLevel: boolean;
   toppingIds: string[];
   active: boolean;
-  stock: number;
+  /** Stock independiente por sucursal: { [branchId]: cantidad }. */
+  stockByBranch: Record<string, number>;
   lowStockThreshold: number;
   unit: string; // 'unidades', 'porciones'
 }
@@ -106,6 +118,7 @@ export interface Sale {
   cashierId: string;
   cashierName: string;
   registerSessionId: string;
+  branchId: string;
   createdAt: string;
 }
 
@@ -115,6 +128,7 @@ export interface QrCode {
   bankOrHolder: string; // ej. "BMSC", "Banco Unión — Titular Valeria Ríos"
   image: string; // data URL (base64)
   active: boolean;
+  branchId: string;
   createdAt: string; // ISO
 }
 
@@ -124,6 +138,7 @@ export interface CashRegisterSession {
   id: string;
   cashierId: string;
   cashierName: string;
+  branchId: string;
   openedAt: string;
   closedAt?: string;
   openingAmount: number;

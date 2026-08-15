@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, KeyRound, Lock, Pencil, ShieldCheck, Trash2, Unlock, Wallet } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Lock, MapPin, Pencil, ShieldCheck, Trash2, Unlock, Wallet } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useRegisterStore } from '@/store/registerStore';
+import { useBranchStore } from '@/store/branchStore';
 import type { User } from '@/types';
 import { cn, formatDateTime } from '@/lib/utils';
 
@@ -20,7 +21,15 @@ export function StaffRow({ user, onEdit, onToggleBlocked, onResetPin, onDelete }
   const hasActiveSession = useRegisterStore((s) =>
     s.sessions.some((sess) => sess.cashierId === user.id && sess.status === 'abierta'),
   );
+  const allBranches = useBranchStore((s) => s.branches);
   const blocked = user.status === 'bloqueado';
+  const branchLabel =
+    user.branchIds.length === allBranches.length && allBranches.length > 0
+      ? 'Todas las sucursales'
+      : allBranches
+          .filter((b) => user.branchIds.includes(b.id))
+          .map((b) => b.name.replace('Sucursal ', ''))
+          .join(', ') || 'Sin sucursal asignada';
 
   return (
     <Card className={cn('flex flex-col gap-3 p-4 sm:flex-row sm:items-center', blocked && 'opacity-60')}>
@@ -59,7 +68,10 @@ export function StaffRow({ user, onEdit, onToggleBlocked, onResetPin, onDelete }
               <Badge tone="neutral">Inactivo</Badge>
             )}
           </div>
-          <p className="mt-1 text-xs text-ink-soft">Registrado el {formatDateTime(user.createdAt)}</p>
+          <p className="mt-1 flex items-center gap-1 text-xs text-ink-soft">
+            <MapPin size={11} className="flex-shrink-0" /> {branchLabel}
+          </p>
+          <p className="text-xs text-ink-soft">Registrado el {formatDateTime(user.createdAt)}</p>
         </div>
       </div>
 

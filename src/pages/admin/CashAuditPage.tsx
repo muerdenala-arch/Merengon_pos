@@ -1,14 +1,24 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useRegisterStore } from '@/store/registerStore';
+import { useBranchStore } from '@/store/branchStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 
 export default function CashAuditPage() {
-  const sessions = useRegisterStore((s) => s.sessions);
+  const allSessions = useRegisterStore((s) => s.sessions);
+  const branches = useBranchStore((s) => s.branches);
+  const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
+
+  const sessions = useMemo(
+    () => (adminFilterBranchId ? allSessions.filter((s) => s.branchId === adminFilterBranchId) : allSessions),
+    [allSessions, adminFilterBranchId],
+  );
+  const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? id;
 
   return (
     <AdminShell>
@@ -17,7 +27,11 @@ export default function CashAuditPage() {
           <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink">
             <ShieldCheck size={24} className="text-primary-500" /> Auditoría de cajas
           </h1>
-          <p className="text-sm text-ink-muted">Historial de aperturas y cierres de caja por cajero.</p>
+          <p className="text-sm text-ink-muted">
+            {adminFilterBranchId
+              ? `Historial de ${branchName(adminFilterBranchId)}`
+              : 'Historial de todas las sucursales'}
+          </p>
         </div>
 
         {sessions.length === 0 ? (
@@ -31,7 +45,10 @@ export default function CashAuditPage() {
                   <Card className="p-4">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="font-display font-bold text-ink">{session.cashierName}</p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="font-display font-bold text-ink">{session.cashierName}</p>
+                          <Badge tone="primary">{branchName(session.branchId)}</Badge>
+                        </div>
                         <p className="text-xs text-ink-muted">
                           Abrió {formatDateTime(session.openedAt)}
                           {session.closedAt && ` · Cerró ${formatDateTime(session.closedAt)}`}

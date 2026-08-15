@@ -4,6 +4,7 @@ import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { optionActiveClasses, optionInactiveClasses } from '@/lib/optionStyles';
 import { useCatalogStore } from '@/store/catalogStore';
+import { useBranchStore } from '@/store/branchStore';
 import { SIZES, CATEGORIES } from '@/data/seed';
 import { BASE_LIQUIDA_LABEL } from '@/types';
 import type { BaseLiquida, Product } from '@/types';
@@ -44,6 +45,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
   const toppings = useCatalogStore((s) => s.toppings);
   const upsertProduct = useCatalogStore((s) => s.upsertProduct);
   const createProduct = useCatalogStore((s) => s.createProduct);
+  const branches = useBranchStore((s) => s.branches);
   const [form, setForm] = useState(emptyForm);
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         category: product.category,
         description: product.description,
         basePrice: String(product.basePrice),
-        stock: String(product.stock),
+        stock: '0',
         lowStockThreshold: String(product.lowStockThreshold),
         emoji: product.emoji,
         gradient: product.gradient,
@@ -84,6 +86,9 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
 
   function handleSave() {
     if (!form.name.trim()) return;
+    const stockByBranch = product
+      ? product.stockByBranch
+      : Object.fromEntries(branches.map((b) => [b.id, Number(form.stock) || 0]));
     const base = {
       name: form.name.trim(),
       category: form.category,
@@ -96,7 +101,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       allowSugarLevel: form.allowSugarLevel,
       toppingIds: form.toppingIds,
       active: product?.active ?? true,
-      stock: Number(form.stock) || 0,
+      stockByBranch,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       unit: 'porciones',
     };
@@ -148,13 +153,22 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           value={form.basePrice}
           onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value }))}
         />
-        <Input
-          label="Stock inicial"
-          type="number"
-          min={0}
-          value={form.stock}
-          onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-        />
+        {product ? (
+          <div>
+            <p className={fieldLabelClasses}>Stock</p>
+            <p className="flex min-h-touch items-center rounded-xl border border-border-strong bg-field px-4 text-sm text-ink-muted">
+              Se ajusta por sucursal desde Inventario.
+            </p>
+          </div>
+        ) : (
+          <Input
+            label="Stock inicial (todas las sucursales)"
+            type="number"
+            min={0}
+            value={form.stock}
+            onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+          />
+        )}
         <Input
           label="Umbral de stock bajo"
           type="number"

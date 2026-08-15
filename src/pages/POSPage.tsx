@@ -18,6 +18,7 @@ import type { Payment, Product, Sale } from '@/types';
 
 export default function POSPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const activeSession = useRegisterStore((s) => s.activeSession());
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
@@ -32,6 +33,9 @@ export default function POSPage() {
   if (!activeSession) {
     return <Navigate to="/caja/apertura" replace />;
   }
+  if (!currentBranchId) {
+    return <Navigate to="/login" replace />;
+  }
 
   const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
 
@@ -44,12 +48,13 @@ export default function POSPage() {
       cashierId: currentUser.id,
       cashierName: currentUser.name,
       registerSessionId: activeSession!.id,
+      branchId: currentBranchId!,
       createdAt: new Date().toISOString(),
     });
 
     items.forEach((item) => {
-      adjustStock(item.product.id, -item.quantity);
-      item.modifiers.toppings.forEach((t) => adjustToppingStock(t.id, -item.quantity));
+      adjustStock(item.product.id, currentBranchId!, -item.quantity);
+      item.modifiers.toppings.forEach((t) => adjustToppingStock(t.id, currentBranchId!, -item.quantity));
     });
 
     clearCart();
@@ -60,7 +65,7 @@ export default function POSPage() {
   return (
     <CashierShell>
       <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[1fr_380px]">
-        <ProductGrid onSelect={setModifierProduct} />
+        <ProductGrid branchId={currentBranchId} onSelect={setModifierProduct} />
         <div className="hidden h-full min-h-0 md:block">
           <CartPanel onCheckout={() => setCheckoutOpen(true)} />
         </div>
@@ -79,7 +84,7 @@ export default function POSPage() {
         </motion.div>
       )}
 
-      <ModifierModal product={modifierProduct} onClose={() => setModifierProduct(null)} />
+      <ModifierModal branchId={currentBranchId} product={modifierProduct} onClose={() => setModifierProduct(null)} />
       <CheckoutModal
         open={checkoutOpen}
         total={total}

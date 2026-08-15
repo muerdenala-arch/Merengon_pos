@@ -11,15 +11,17 @@ interface CatalogState {
   createProduct: (data: Omit<Product, 'id'>) => Product;
   removeProduct: (id: string) => void;
   toggleActive: (id: string) => void;
-  adjustStock: (id: string, delta: number) => void;
-  setStock: (id: string, value: number) => void;
-  adjustToppingStock: (id: string, delta: number) => void;
+  adjustStock: (id: string, branchId: string, delta: number) => void;
+  setStock: (id: string, branchId: string, value: number) => void;
+  adjustToppingStock: (id: string, branchId: string, delta: number) => void;
+  setToppingStock: (id: string, branchId: string, value: number) => void;
+  stockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string) => number;
   resetCatalog: () => void;
 }
 
 export const useCatalogStore = create<CatalogState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       products: PRODUCTS,
       toppings: TOPPINGS,
       upsertProduct: (product) =>
@@ -39,26 +41,67 @@ export const useCatalogStore = create<CatalogState>()(
         set((state) => ({
           products: state.products.map((p) => (p.id === id ? { ...p, active: !p.active } : p)),
         })),
-      adjustStock: (id, delta) =>
+      adjustStock: (id, branchId, delta) =>
         set((state) => ({
           products: state.products.map((p) =>
-            p.id === id ? { ...p, stock: Math.max(0, p.stock + delta) } : p,
+            p.id === id
+              ? {
+                  ...p,
+                  stockByBranch: {
+                    ...p.stockByBranch,
+                    [branchId]: Math.max(0, (p.stockByBranch[branchId] ?? 0) + delta),
+                  },
+                }
+              : p,
           ),
         })),
-      setStock: (id, value) =>
+      setStock: (id, branchId, value) =>
         set((state) => ({
           products: state.products.map((p) =>
-            p.id === id ? { ...p, stock: Math.max(0, value) } : p,
+            p.id === id ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: Math.max(0, value) } } : p,
           ),
         })),
-      adjustToppingStock: (id, delta) =>
+      adjustToppingStock: (id, branchId, delta) =>
         set((state) => ({
           toppings: state.toppings.map((t) =>
-            t.id === id ? { ...t, stock: Math.max(0, t.stock + delta) } : t,
+            t.id === id
+              ? {
+                  ...t,
+                  stockByBranch: {
+                    ...t.stockByBranch,
+                    [branchId]: Math.max(0, (t.stockByBranch[branchId] ?? 0) + delta),
+                  },
+                }
+              : t,
           ),
         })),
+      setToppingStock: (id, branchId, value) =>
+        set((state) => ({
+          toppings: state.toppings.map((t) =>
+            t.id === id ? { ...t, stockByBranch: { ...t.stockByBranch, [branchId]: Math.max(0, value) } } : t,
+          ),
+        })),
+      stockFor: (product, branchId) => product.stockByBranch[branchId] ?? 0,
       resetCatalog: () => set({ products: PRODUCTS, toppings: TOPPINGS }),
     }),
-    { name: 'pos-jugueria/catalog' },
+    {
+      name: 'pos-jugueria/catalog',
+      version: 1,
+      // v0 -> v1: el stock era un número plano por producto/topping; ahora es por
+      // sucursal. El valor viejo pasa íntegro a "central" para no perder existencias.
+      migrate: (persisted) => {
+        const state = persisted as { products?: unknown[]; toppings?: unknown[] };
+        const migrateItem = (item: Record<string, unknown>) => {
+          if ('stockByBranch' in item) return item;
+          const { stock, ...rest } = item as { stock?: number };
+          return { ...rest, stockByBranch: { central: stock ?? 0 } };
+        };
+        return {
+          ...state,
+          products: (state.products ?? []).map((p) => migrateItem(p as Record<string, unknown>)),
+          toppings: (state.toppings ?? []).map((t) => migrateItem(t as Record<string, unknown>)),
+        };
+      },
+    },
   ),
 );

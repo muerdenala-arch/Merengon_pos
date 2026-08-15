@@ -8,12 +8,15 @@ import { Button } from '@/components/ui/Button';
 import { fieldClasses } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
+import { useBranchStore } from '@/store/branchStore';
 import { cn, formatCurrency } from '@/lib/utils';
 
 export default function CashOpenPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const activeSession = useRegisterStore((s) => s.activeSession());
   const openRegister = useRegisterStore((s) => s.openRegister);
+  const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const navigate = useNavigate();
@@ -21,9 +24,12 @@ export default function CashOpenPage() {
   if (activeSession) {
     return <Navigate to="/pos" replace />;
   }
+  if (!currentBranchId) {
+    return <Navigate to="/login" replace />;
+  }
 
   function handleOpen() {
-    openRegister(currentUser, Number(amount || 0), notes || undefined);
+    openRegister(currentUser, currentBranchId!, Number(amount || 0), notes || undefined);
     navigate('/pos', { replace: true });
   }
 
@@ -41,7 +47,9 @@ export default function CashOpenPage() {
               <Wallet size={26} />
             </div>
             <h1 className="font-display text-xl font-bold text-ink">Apertura de caja</h1>
-            <p className="text-sm text-ink-muted">Ingresa el monto inicial en efectivo</p>
+            <p className="text-sm text-ink-muted">
+              {branch ? `${branch.name} · ` : ''}Ingresa el monto inicial en efectivo
+            </p>
           </div>
 
           <div className="mb-4 rounded-xl2 bg-surface p-4 text-center shadow-soft">

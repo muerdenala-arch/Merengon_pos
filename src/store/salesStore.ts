@@ -23,6 +23,18 @@ export const useSalesStore = create<SalesState>()(
       },
       salesForSession: (sessionId) => get().sales.filter((s) => s.registerSessionId === sessionId),
     }),
-    { name: 'pos-jugueria/sales' },
+    {
+      name: 'pos-jugueria/sales',
+      version: 1,
+      // v0 -> v1: las ventas no tenían sucursal. Se asignan a "central" para conservar
+      // el historial de ventas registrado antes de esta actualización.
+      migrate: (persisted) => {
+        const state = persisted as { sales?: Array<Record<string, unknown>> };
+        return {
+          ...state,
+          sales: (state.sales ?? []).map((s) => ('branchId' in s ? s : { ...s, branchId: 'central' })),
+        };
+      },
+    },
   ),
 );

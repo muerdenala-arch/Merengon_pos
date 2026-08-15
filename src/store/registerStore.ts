@@ -6,7 +6,7 @@ import { uid } from '@/lib/utils';
 interface RegisterState {
   sessions: CashRegisterSession[];
   activeSessionId: string | null;
-  openRegister: (user: User, openingAmount: number, notes?: string) => CashRegisterSession;
+  openRegister: (user: User, branchId: string, openingAmount: number, notes?: string) => CashRegisterSession;
   closeRegister: (
     sessionId: string,
     data: {
@@ -27,11 +27,12 @@ export const useRegisterStore = create<RegisterState>()(
     (set, get) => ({
       sessions: [],
       activeSessionId: null,
-      openRegister: (user, openingAmount, notes) => {
+      openRegister: (user, branchId, openingAmount, notes) => {
         const session: CashRegisterSession = {
           id: uid('reg'),
           cashierId: user.id,
           cashierName: user.name,
+          branchId,
           openedAt: new Date().toISOString(),
           openingAmount,
           status: 'abierta',
@@ -63,6 +64,18 @@ export const useRegisterStore = create<RegisterState>()(
         })),
       activeSession: () => get().sessions.find((s) => s.id === get().activeSessionId) ?? null,
     }),
-    { name: 'pos-jugueria/register' },
+    {
+      name: 'pos-jugueria/register',
+      version: 1,
+      // v0 -> v1: las sesiones de caja no tenían sucursal. Se asignan a "central" para
+      // conservar el historial de aperturas/cierres previo a esta actualización.
+      migrate: (persisted) => {
+        const state = persisted as { sessions?: Array<Record<string, unknown>> };
+        return {
+          ...state,
+          sessions: (state.sessions ?? []).map((s) => ('branchId' in s ? s : { ...s, branchId: 'central' })),
+        };
+      },
+    },
   ),
 );

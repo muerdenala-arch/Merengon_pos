@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import { useQrCodeStore } from '@/store/qrCodeStore';
+import { useAuthStore } from '@/store/authStore';
 import { APP_CONFIG } from '@/config/app';
 import type { Payment, PaymentMethod } from '@/types';
 
@@ -17,7 +18,8 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModalProps) {
-  const activeQr = useQrCodeStore((s) => s.activeQrCode());
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
+  const activeQr = useQrCodeStore((s) => (currentBranchId ? s.activeQrCodeForBranch(currentBranchId) : null));
   const [method, setMethod] = useState<PaymentMethod>('efectivo');
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);

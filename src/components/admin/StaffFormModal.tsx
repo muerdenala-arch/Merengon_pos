@@ -4,6 +4,8 @@ import { Modal } from '@/components/ui/Modal';
 import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useStaffStore } from '@/store/staffStore';
+import { useBranchStore } from '@/store/branchStore';
+import { optionActiveClasses, optionInactiveClasses } from '@/lib/optionStyles';
 import { AVATAR_COLORS } from '@/data/seed';
 import type { Role, User } from '@/types';
 import { cn } from '@/lib/utils';
@@ -19,6 +21,7 @@ const emptyForm = {
   role: 'cajero' as Role,
   pin: '',
   color: AVATAR_COLORS[0],
+  branchIds: [] as string[],
 };
 
 function randomPin() {
@@ -29,17 +32,28 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
   const addUser = useStaffStore((s) => s.addUser);
   const updateUser = useStaffStore((s) => s.updateUser);
   const isPinTaken = useStaffStore((s) => s.isPinTaken);
+  const branches = useBranchStore((s) => s.branches);
   const [form, setForm] = useState(emptyForm);
   const [pinError, setPinError] = useState<string | null>(null);
+  const [branchError, setBranchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
-      setForm({ name: user.name, role: user.role, pin: user.pin, color: user.color });
+      setForm({ name: user.name, role: user.role, pin: user.pin, color: user.color, branchIds: user.branchIds });
     } else {
       setForm({ ...emptyForm, pin: randomPin() });
     }
     setPinError(null);
+    setBranchError(null);
   }, [user, open]);
+
+  function toggleBranch(id: string) {
+    setBranchError(null);
+    setForm((f) => ({
+      ...f,
+      branchIds: f.branchIds.includes(id) ? f.branchIds.filter((b) => b !== id) : [...f.branchIds, id],
+    }));
+  }
 
   function handlePinChange(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, 4);
@@ -57,8 +71,18 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
       setPinError('Ese PIN ya está en uso por otro miembro del personal.');
       return;
     }
+    if (form.branchIds.length === 0) {
+      setBranchError('Asigna al menos una sucursal.');
+      return;
+    }
 
-    const data = { name: form.name.trim(), role: form.role, pin: form.pin, color: form.color };
+    const data = {
+      name: form.name.trim(),
+      role: form.role,
+      pin: form.pin,
+      color: form.color,
+      branchIds: form.branchIds,
+    };
     if (user) {
       updateUser(user.id, data);
     } else {
@@ -135,6 +159,29 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
             className={cn(fieldClasses, 'min-h-touch text-center font-display text-2xl font-bold tracking-[0.5em]')}
           />
           {pinError && <p className="mt-1.5 text-xs font-semibold text-red-600">{pinError}</p>}
+        </div>
+
+        <div>
+          <p className={fieldLabelClasses}>Sucursales asignadas</p>
+          <p className="mb-2 text-xs text-ink-muted">
+            Con una sola sucursal entra directo; con varias, elige al iniciar turno.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => toggleBranch(b.id)}
+                className={cn(
+                  'rounded-full border px-3.5 py-2 text-sm transition-colors cursor-pointer',
+                  form.branchIds.includes(b.id) ? optionActiveClasses : optionInactiveClasses,
+                )}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+          {branchError && <p className="mt-1.5 text-xs font-semibold text-red-600">{branchError}</p>}
         </div>
 
         <div>

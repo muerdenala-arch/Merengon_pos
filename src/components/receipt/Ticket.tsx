@@ -6,6 +6,7 @@ import type { Sale } from '@/types';
 import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
+import { useBranchStore } from '@/store/branchStore';
 import logoMark from '@/assets/brand/logo-mark.png';
 import { logoGlowClasses } from '@/lib/brand';
 
@@ -15,6 +16,7 @@ interface TicketProps {
 }
 
 export function Ticket({ sale, onClose }: TicketProps) {
+  const branch = useBranchStore((s) => s.branches.find((b) => b.id === sale?.branchId));
   if (!sale) return null;
 
   return (
@@ -38,6 +40,12 @@ export function Ticket({ sale, onClose }: TicketProps) {
               className={cn('mx-auto mb-1.5 h-8 w-auto object-contain', logoGlowClasses)}
             />
             <p className="font-display text-sm font-extrabold tracking-tight">{APP_CONFIG.storeName}</p>
+            {branch && (
+              <>
+                <p className="text-[11px] font-semibold text-ink-muted">{branch.name}</p>
+                <p className="text-[11px] text-ink-muted">{branch.address}</p>
+              </>
+            )}
             <p className="text-[11px] text-ink-muted">Ticket #{sale.ticketNumber}</p>
             <p className="text-[11px] text-ink-muted">{formatDateTime(sale.createdAt)}</p>
             <p className="text-[11px] text-ink-muted">Cajero: {sale.cashierName}</p>

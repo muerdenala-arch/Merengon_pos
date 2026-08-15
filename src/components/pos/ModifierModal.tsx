@@ -13,12 +13,13 @@ import { cn, formatCurrency } from '@/lib/utils';
 
 interface ModifierModalProps {
   product: Product | null;
+  branchId: string;
   onClose: () => void;
 }
 
 const SUGAR_LEVELS: NivelAzucar[] = ['sin_azucar', 'poco', 'normal', 'extra'];
 
-export function ModifierModal({ product, onClose }: ModifierModalProps) {
+export function ModifierModal({ product, branchId, onClose }: ModifierModalProps) {
   const toppingsCatalog = useCatalogStore((s) => s.toppings);
   const addItem = useCartStore((s) => s.addItem);
 
@@ -113,7 +114,7 @@ export function ModifierModal({ product, onClose }: ModifierModalProps) {
           <Section title="Agregados / Toppings">
             <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
               {availableToppings.map((t) => {
-                const outOfStock = t.stock <= 0;
+                const outOfStock = (t.stockByBranch[branchId] ?? 0) <= 0;
                 const active = selectedToppings.includes(t.id);
                 return (
                   <button

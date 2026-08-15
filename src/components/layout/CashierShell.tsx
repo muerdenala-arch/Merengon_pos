@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, Wallet } from 'lucide-react';
+import { LogOut, MapPin, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
+import { useBranchStore } from '@/store/branchStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { APP_CONFIG } from '@/config/app';
 import logoMark from '@/assets/brand/logo-mark.png';
@@ -12,8 +13,10 @@ import { cn } from '@/lib/utils';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const logout = useAuthStore((s) => s.logout);
   const activeSession = useRegisterStore((s) => s.activeSession());
+  const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const navigate = useNavigate();
 
   return (
@@ -25,13 +28,21 @@ export function CashierShell({ children }: { children: ReactNode }) {
             <p className="font-display text-base font-bold leading-tight text-ink">
               {APP_CONFIG.storeName}
             </p>
-            <p className="text-xs text-ink-muted">
+            <p className="flex items-center gap-1.5 text-xs text-ink-muted">
               {activeSession ? (
                 <span className="inline-flex items-center gap-1 text-secondary-700">
                   <Wallet size={12} /> Caja abierta
                 </span>
               ) : (
                 <span className="text-amber-700">Caja cerrada</span>
+              )}
+              {branch && (
+                <>
+                  <span className="text-ink-soft">·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin size={11} /> {branch.name}
+                  </span>
+                </>
               )}
             </p>
           </div>

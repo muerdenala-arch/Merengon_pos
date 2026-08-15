@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { QrCode as QrCodeIcon, Upload } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
-import { Input, fieldLabelClasses } from '@/components/ui/Input';
+import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useQrCodeStore } from '@/store/qrCodeStore';
+import { useBranchStore } from '@/store/branchStore';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import type { QrCode } from '@/types';
 import { cn } from '@/lib/utils';
@@ -11,26 +12,30 @@ import { cn } from '@/lib/utils';
 interface QrFormModalProps {
   qr: QrCode | null;
   open: boolean;
+  defaultBranchId: string;
   onClose: () => void;
 }
 
-const emptyForm = { alias: '', bankOrHolder: '', image: '' };
+function emptyForm(branchId: string) {
+  return { alias: '', bankOrHolder: '', image: '', branchId };
+}
 
-export function QrFormModal({ qr, open, onClose }: QrFormModalProps) {
+export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalProps) {
   const addQrCode = useQrCodeStore((s) => s.addQrCode);
   const updateQrCode = useQrCodeStore((s) => s.updateQrCode);
-  const [form, setForm] = useState(emptyForm);
+  const branches = useBranchStore((s) => s.branches);
+  const [form, setForm] = useState(emptyForm(defaultBranchId));
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (qr) {
-      setForm({ alias: qr.alias, bankOrHolder: qr.bankOrHolder, image: qr.image });
+      setForm({ alias: qr.alias, bankOrHolder: qr.bankOrHolder, image: qr.image, branchId: qr.branchId });
     } else {
-      setForm(emptyForm);
+      setForm(emptyForm(defaultBranchId));
     }
     setError(null);
-  }, [qr, open]);
+  }, [qr, open, defaultBranchId]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -51,7 +56,12 @@ export function QrFormModal({ qr, open, onClose }: QrFormModalProps) {
       setError('Falta el alias o la imagen del QR.');
       return;
     }
-    const data = { alias: form.alias.trim(), bankOrHolder: form.bankOrHolder.trim(), image: form.image };
+    const data = {
+      alias: form.alias.trim(),
+      bankOrHolder: form.bankOrHolder.trim(),
+      image: form.image,
+      branchId: form.branchId,
+    };
     if (qr) {
       updateQrCode(qr.id, data);
     } else {
@@ -89,6 +99,21 @@ export function QrFormModal({ qr, open, onClose }: QrFormModalProps) {
             </button>
           )}
         </div>
+
+        <label className="flex flex-col">
+          <span className={fieldLabelClasses}>Sucursal</span>
+          <select
+            value={form.branchId}
+            onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
+            className={cn(fieldClasses, 'min-h-touch')}
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
 
         <Input
           label="Alias de la cuenta"

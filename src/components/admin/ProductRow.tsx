@@ -9,7 +9,8 @@ import { cn, formatCurrency } from '@/lib/utils';
 export function ProductRow({ product, onEdit }: { product: Product; onEdit: () => void }) {
   const toggleActive = useCatalogStore((s) => s.toggleActive);
   const removeProduct = useCatalogStore((s) => s.removeProduct);
-  const lowStock = product.stock <= product.lowStockThreshold;
+  const totalStock = Object.values(product.stockByBranch).reduce((sum, n) => sum + n, 0);
+  const lowStock = totalStock <= product.lowStockThreshold;
 
   return (
     <Card className="flex items-center gap-4 p-3.5">
@@ -23,7 +24,7 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
           {lowStock && product.active && <Badge tone="warning">Stock bajo</Badge>}
         </div>
         <p className="truncate text-sm text-ink-muted">
-          {product.category} · {formatCurrency(product.basePrice)} · Stock: {product.stock}
+          {product.category} · {formatCurrency(product.basePrice)} · Stock total: {totalStock}
         </p>
       </div>
 

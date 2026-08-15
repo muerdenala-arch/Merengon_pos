@@ -12,6 +12,7 @@ import CashAuditPage from '@/pages/admin/CashAuditPage';
 import ReportsPage from '@/pages/admin/ReportsPage';
 import StaffPage from '@/pages/admin/StaffPage';
 import QrConfigPage from '@/pages/admin/QrConfigPage';
+import BranchesPage from '@/pages/admin/BranchesPage';
 
 export default function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -75,6 +76,14 @@ export default function App() {
         element={
           <RequireAuth roles={['admin']}>
             <QrConfigPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/sucursales"
+        element={
+          <RequireAuth roles={['admin']}>
+            <BranchesPage />
           </RequireAuth>
         }
       />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, QrCode as QrCodeIcon } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
@@ -7,6 +7,7 @@ import { QrFormModal } from '@/components/admin/QrFormModal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
 import { useQrCodeStore } from '@/store/qrCodeStore';
+import { useBranchStore } from '@/store/branchStore';
 import { staggerContainer } from '@/lib/motion';
 import type { QrCode } from '@/types';
 
@@ -14,11 +15,21 @@ export default function QrConfigPage() {
   const qrCodes = useQrCodeStore((s) => s.qrCodes);
   const setActive = useQrCodeStore((s) => s.setActive);
   const removeQrCode = useQrCodeStore((s) => s.removeQrCode);
+  const branches = useBranchStore((s) => s.branches);
+  const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
 
   const [editing, setEditing] = useState<QrCode | null | 'new'>(null);
   const [pendingDelete, setPendingDelete] = useState<QrCode | null>(null);
 
-  const sorted = [...qrCodes].sort((a, b) => (a.active ? -1 : b.active ? 1 : b.createdAt.localeCompare(a.createdAt)));
+  // Respeta el filtro global de sucursal del sidebar; con "Todas" se ven los QR de
+  // cada local, etiquetados, porque un QR siempre pertenece a una sola sucursal.
+  const visible = useMemo(
+    () => (adminFilterBranchId ? qrCodes.filter((q) => q.branchId === adminFilterBranchId) : qrCodes),
+    [qrCodes, adminFilterBranchId],
+  );
+  const sorted = [...visible].sort((a, b) => (a.active ? -1 : b.active ? 1 : b.createdAt.localeCompare(a.createdAt)));
+  const defaultBranchId = adminFilterBranchId ?? branches[0]?.id ?? '';
+  const branchName = (id: string) => branches.find((b) => b.id === id)?.name;
 
   return (
     <AdminShell>
@@ -29,7 +40,7 @@ export default function QrConfigPage() {
               <QrCodeIcon size={24} className="text-primary-500" /> Configuración QR
             </h1>
             <p className="text-sm text-ink-muted">
-              Sube los QR de cobro de tus cuentas bancarias/billeteras y elige cuál usa el cajero.
+              Sube los QR de cobro de tus cuentas bancarias/billeteras y elige cuál usa cada sucursal.
             </p>
           </div>
           <Button onClick={() => setEditing('new')}>
@@ -59,6 +70,7 @@ export default function QrConfigPage() {
               <QrCard
                 key={qr.id}
                 qr={qr}
+                branchName={adminFilterBranchId ? undefined : branchName(qr.branchId)}
                 onActivate={() => setActive(qr.id)}
                 onEdit={() => setEditing(qr)}
                 onDelete={() => setPendingDelete(qr)}
@@ -68,7 +80,12 @@ export default function QrConfigPage() {
         )}
       </div>
 
-      <QrFormModal qr={editing === 'new' ? null : editing} open={editing !== null} onClose={() => setEditing(null)} />
+      <QrFormModal
+        qr={editing === 'new' ? null : editing}
+        open={editing !== null}
+        defaultBranchId={defaultBranchId}
+        onClose={() => setEditing(null)}
+      />
 
       <ConfirmDialog
         open={!!pendingDelete}

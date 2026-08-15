@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode } from 'lucide-react';
+import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useBranchStore } from '@/store/branchStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { fieldClasses } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
 import logoMark from '@/assets/brand/logo-mark.png';
@@ -15,12 +17,16 @@ const NAV_ITEMS = [
   { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
   { to: '/admin/personal', label: 'Personal / Cajeros', icon: Users },
   { to: '/admin/configuracion-qr', label: 'Configuración QR', icon: QrCode },
+  { to: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
   { to: '/admin/auditoria', label: 'Auditoría de cajas', icon: ShieldCheck },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
+  const branches = useBranchStore((s) => s.branches);
+  const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
+  const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
   const navigate = useNavigate();
 
   return (
@@ -35,6 +41,26 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-accent-600">Panel admin</p>
           </div>
           <ThemeToggle />
+        </div>
+
+        <div className="px-4 pb-3">
+          <label className="flex flex-col gap-1">
+            <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-soft">
+              <Store size={12} /> Viendo sucursal
+            </span>
+            <select
+              value={adminFilterBranchId ?? 'todas'}
+              onChange={(e) => setAdminFilterBranchId(e.target.value === 'todas' ? null : e.target.value)}
+              className={cn(fieldClasses, 'min-h-touch text-sm')}
+            >
+              <option value="todas">Todas las sucursales</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-3 py-2">

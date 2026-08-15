@@ -8,12 +8,13 @@ import { staggerItem } from '@/lib/motion';
 
 interface QrCardProps {
   qr: QrCode;
+  branchName?: string;
   onActivate: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-export function QrCard({ qr, onActivate, onEdit, onDelete }: QrCardProps) {
+export function QrCard({ qr, branchName, onActivate, onEdit, onDelete }: QrCardProps) {
   return (
     <motion.div variants={staggerItem}>
       <Card
@@ -40,6 +41,7 @@ export function QrCard({ qr, onActivate, onEdit, onDelete }: QrCardProps) {
 
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge tone={qr.active ? 'secondary' : 'neutral'}>{qr.active ? 'Activo' : 'Inactivo'}</Badge>
+            {branchName && <Badge tone="primary">{branchName}</Badge>}
           </div>
 
           <p className="text-xs text-ink-soft">Subido el {formatDateTime(qr.createdAt)}</p>

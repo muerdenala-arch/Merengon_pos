@@ -8,10 +8,11 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { fieldClasses } from '@/components/ui/Input';
 
 interface ProductGridProps {
+  branchId: string;
   onSelect: (product: Product) => void;
 }
 
-export function ProductGrid({ onSelect }: ProductGridProps) {
+export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   const products = useCatalogStore((s) => s.products);
   const [category, setCategory] = useState<string>('Todos');
   const [query, setQuery] = useState('');
@@ -69,7 +70,7 @@ export function ProductGrid({ onSelect }: ProductGridProps) {
         className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3.5 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4"
       >
         {filtered.map((product) => (
-          <ProductCard key={product.id} product={product} onSelect={onSelect} />
+          <ProductCard key={product.id} product={product} branchId={branchId} onSelect={onSelect} />
         ))}
         {filtered.length === 0 && (
           <p className="col-span-full py-16 text-center text-ink-soft">No se encontraron productos.</p>
@@ -79,9 +80,18 @@ export function ProductGrid({ onSelect }: ProductGridProps) {
   );
 }
 
-function ProductCard({ product, onSelect }: { product: Product; onSelect: (p: Product) => void }) {
-  const lowStock = product.stock <= product.lowStockThreshold;
-  const outOfStock = product.stock <= 0;
+function ProductCard({
+  product,
+  branchId,
+  onSelect,
+}: {
+  product: Product;
+  branchId: string;
+  onSelect: (p: Product) => void;
+}) {
+  const stock = product.stockByBranch[branchId] ?? 0;
+  const lowStock = stock <= product.lowStockThreshold;
+  const outOfStock = stock <= 0;
 
   return (
     <motion.button
@@ -105,7 +115,7 @@ function ProductCard({ product, onSelect }: { product: Product; onSelect: (p: Pr
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">Agotado</span>
           ) : lowStock ? (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">
-              Quedan {product.stock}
+              Quedan {stock}
             </span>
           ) : null}
         </div>

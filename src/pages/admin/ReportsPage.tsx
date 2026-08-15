@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Banknote, Eye, QrCode, Receipt, TrendingUp } from 'lucide-react';
+import { BarChart3, Banknote, Building2, Eye, QrCode, Receipt, TrendingUp } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { ReceiptViewerModal } from '@/components/admin/ReceiptViewerModal';
 import { useSalesStore } from '@/store/salesStore';
+import { useBranchStore } from '@/store/branchStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Sale } from '@/types';
@@ -14,14 +15,36 @@ type RangeFilter = 'hoy' | 'todo';
 
 export default function ReportsPage() {
   const sales = useSalesStore((s) => s.sales);
+  const branches = useBranchStore((s) => s.branches);
+  const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
   const [range, setRange] = useState<RangeFilter>('hoy');
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
-  const filtered = useMemo(() => {
+  // Filtro por fecha primero: la comparativa entre sucursales usa este set completo
+  // (todas las sucursales) para poder comparar; el resto de las métricas sí respeta
+  // el filtro global de sucursal del sidebar.
+  const dateFiltered = useMemo(() => {
     if (range === 'todo') return sales;
     const today = new Date().toDateString();
     return sales.filter((s) => new Date(s.createdAt).toDateString() === today);
   }, [sales, range]);
+
+  const filtered = useMemo(
+    () => (adminFilterBranchId ? dateFiltered.filter((s) => s.branchId === adminFilterBranchId) : dateFiltered),
+    [dateFiltered, adminFilterBranchId],
+  );
+
+  const salesByBranch = useMemo(() => {
+    return branches.map((b) => {
+      const branchSales = dateFiltered.filter((s) => s.branchId === b.id);
+      return {
+        branch: b,
+        total: branchSales.reduce((sum, s) => sum + s.total, 0),
+        count: branchSales.length,
+      };
+    });
+  }, [dateFiltered, branches]);
+  const maxBranchTotal = Math.max(1, ...salesByBranch.map((b) => b.total));
 
   const totalSales = filtered.reduce((sum, s) => sum + s.total, 0);
   const cashTotal = filtered.filter((s) => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
@@ -53,7 +76,11 @@ export default function ReportsPage() {
             <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink">
               <BarChart3 size={24} className="text-primary-500" /> Reportes de venta
             </h1>
-            <p className="text-sm text-ink-muted">Resumen de desempeño de la juguería.</p>
+            <p className="text-sm text-ink-muted">
+              {adminFilterBranchId
+                ? branches.find((b) => b.id === adminFilterBranchId)?.name
+                : 'Todas las sucursales'}
+            </p>
           </div>
           <div className="flex gap-2 rounded-full bg-cream-300 p-1">
             {(['hoy', 'todo'] as RangeFilter[]).map((r) => (
@@ -82,6 +109,37 @@ export default function ReportsPage() {
           <StatCard icon={<Banknote size={18} />} label="Ticket promedio" value={formatCurrency(avgTicket)} tone="accent" />
           <StatCard icon={<QrCode size={18} />} label="Ventas QR" value={formatCurrency(qrTotal)} tone="neutral" />
         </motion.div>
+
+        <Card className="mb-5 p-5">
+          <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-ink">
+            <Building2 size={18} className="text-primary-500" /> Ventas por sucursal
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {salesByBranch.map(({ branch, total, count }) => (
+              <div
+                key={branch.id}
+                className={cn(
+                  'rounded-xl2 border-2 p-3.5 transition-colors',
+                  adminFilterBranchId === branch.id
+                    ? 'border-primary-400 bg-primary-50 dark:bg-primary-500/10'
+                    : 'border-border bg-field',
+                )}
+              >
+                <p className="truncate text-sm font-semibold text-ink">{branch.name}</p>
+                <p className="font-display text-xl font-extrabold tabular-nums text-ink">{formatCurrency(total)}</p>
+                <p className="mb-2 text-xs text-ink-muted">{count} venta{count === 1 ? '' : 's'}</p>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-cream-300">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(total / maxBranchTotal) * 100}%` }}
+                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                    className="h-full rounded-full bg-gradient-to-r from-secondary-400 to-secondary-600"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <Card className="p-5">

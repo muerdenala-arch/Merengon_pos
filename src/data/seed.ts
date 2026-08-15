@@ -1,4 +1,37 @@
-import type { Product, SizeOption, Topping, User } from '@/types';
+import type { Branch, Product, SizeOption, Topping, User } from '@/types';
+
+export const BRANCHES: Branch[] = [
+  {
+    id: 'central',
+    name: 'Sucursal Central',
+    address: 'Av. Principal 123, Centro',
+    phone: '700-00001',
+    active: true,
+  },
+  {
+    id: 'norte',
+    name: 'Sucursal Norte',
+    address: 'Av. Norte 456, Zona Norte',
+    phone: '700-00002',
+    active: true,
+  },
+  {
+    id: 'sur',
+    name: 'Sucursal Sur',
+    address: 'Av. Sur 789, Zona Sur',
+    phone: '700-00003',
+    active: true,
+  },
+];
+
+/** Reparte un stock base entre las 3 sucursales semilla (60% / 35% sobre el valor central). */
+function stockPerBranch(central: number): Record<string, number> {
+  return {
+    central,
+    norte: Math.max(0, Math.round(central * 0.6)),
+    sur: Math.max(0, Math.round(central * 0.35)),
+  };
+}
 
 export const SIZES: SizeOption[] = [
   { id: 'personal', label: 'Personal', ounces: 12, priceDelta: 0 },
@@ -7,12 +40,12 @@ export const SIZES: SizeOption[] = [
 ];
 
 export const TOPPINGS: Topping[] = [
-  { id: 'chia', name: 'Chía', priceExtra: 2, stock: 40, lowStockThreshold: 8 },
-  { id: 'granola', name: 'Granola', priceExtra: 2.5, stock: 35, lowStockThreshold: 8 },
-  { id: 'coco', name: 'Coco rallado', priceExtra: 2, stock: 30, lowStockThreshold: 6 },
-  { id: 'miel', name: 'Miel de abeja', priceExtra: 1.5, stock: 25, lowStockThreshold: 5 },
-  { id: 'avena', name: 'Avena', priceExtra: 1.5, stock: 5, lowStockThreshold: 8 },
-  { id: 'colageno', name: 'Colágeno', priceExtra: 4, stock: 18, lowStockThreshold: 5 },
+  { id: 'chia', name: 'Chía', priceExtra: 2, stockByBranch: stockPerBranch(40), lowStockThreshold: 8 },
+  { id: 'granola', name: 'Granola', priceExtra: 2.5, stockByBranch: stockPerBranch(35), lowStockThreshold: 8 },
+  { id: 'coco', name: 'Coco rallado', priceExtra: 2, stockByBranch: stockPerBranch(30), lowStockThreshold: 6 },
+  { id: 'miel', name: 'Miel de abeja', priceExtra: 1.5, stockByBranch: stockPerBranch(25), lowStockThreshold: 5 },
+  { id: 'avena', name: 'Avena', priceExtra: 1.5, stockByBranch: stockPerBranch(5), lowStockThreshold: 8 },
+  { id: 'colageno', name: 'Colágeno', priceExtra: 4, stockByBranch: stockPerBranch(18), lowStockThreshold: 5 },
 ];
 
 export const USERS: User[] = [
@@ -25,6 +58,7 @@ export const USERS: User[] = [
     status: 'activo',
     createdAt: '2026-01-05T09:00:00.000Z',
     protected: true,
+    branchIds: ['central', 'norte', 'sur'],
   },
   {
     id: 'u-cajero1',
@@ -34,6 +68,7 @@ export const USERS: User[] = [
     color: 'bg-primary-500',
     status: 'activo',
     createdAt: '2026-02-12T09:00:00.000Z',
+    branchIds: ['central'],
   },
   {
     id: 'u-cajero2',
@@ -43,6 +78,7 @@ export const USERS: User[] = [
     color: 'bg-secondary-500',
     status: 'activo',
     createdAt: '2026-03-20T09:00:00.000Z',
+    branchIds: ['central', 'norte', 'sur'],
   },
 ];
 
@@ -82,7 +118,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'granola', 'miel', 'colageno'],
     active: true,
-    stock: 24,
+    stockByBranch: stockPerBranch(24),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -99,7 +135,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'coco', 'miel'],
     active: true,
-    stock: 18,
+    stockByBranch: stockPerBranch(18),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -116,7 +152,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['granola', 'miel', 'coco', 'colageno'],
     active: true,
-    stock: 6,
+    stockByBranch: stockPerBranch(6),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -133,7 +169,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'granola', 'coco'],
     active: true,
-    stock: 20,
+    stockByBranch: stockPerBranch(20),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -150,7 +186,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: false,
     toppingIds: ['chia', 'colageno'],
     active: true,
-    stock: 15,
+    stockByBranch: stockPerBranch(15),
     lowStockThreshold: 6,
     unit: 'porciones',
   },
@@ -167,7 +203,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'miel'],
     active: true,
-    stock: 22,
+    stockByBranch: stockPerBranch(22),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -184,7 +220,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['miel', 'chia'],
     active: true,
-    stock: 3,
+    stockByBranch: stockPerBranch(3),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -201,7 +237,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'granola', 'coco', 'miel', 'colageno'],
     active: true,
-    stock: 16,
+    stockByBranch: stockPerBranch(16),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -218,7 +254,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['granola', 'miel', 'avena'],
     active: true,
-    stock: 12,
+    stockByBranch: stockPerBranch(12),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -235,7 +271,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'granola', 'colageno'],
     active: true,
-    stock: 9,
+    stockByBranch: stockPerBranch(9),
     lowStockThreshold: 8,
     unit: 'porciones',
   },
@@ -252,7 +288,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'miel'],
     active: true,
-    stock: 30,
+    stockByBranch: stockPerBranch(30),
     lowStockThreshold: 10,
     unit: 'porciones',
   },
@@ -269,7 +305,7 @@ export const PRODUCTS: Product[] = [
     allowSugarLevel: true,
     toppingIds: ['chia', 'coco'],
     active: true,
-    stock: 14,
+    stockByBranch: stockPerBranch(14),
     lowStockThreshold: 8,
     unit: 'porciones',
   },

@@ -9,6 +9,7 @@ export interface StaffFormData {
   role: Role;
   pin: string;
   color: string;
+  branchIds: string[];
 }
 
 interface StaffState {
@@ -58,6 +59,20 @@ export const useStaffStore = create<StaffState>()(
         })),
       isPinTaken: (pin, excludeId) => get().users.some((u) => u.pin === pin && u.id !== excludeId),
     }),
-    { name: 'pos-jugueria/staff' },
+    {
+      name: 'pos-jugueria/staff',
+      version: 1,
+      // v0 -> v1: el personal no tenía sucursales asignadas. Se les da acceso a todas
+      // para no dejar a nadie bloqueado fuera del sistema tras la actualización.
+      migrate: (persisted) => {
+        const state = persisted as { users?: Array<Record<string, unknown>> };
+        return {
+          ...state,
+          users: (state.users ?? []).map((u) =>
+            'branchIds' in u ? u : { ...u, branchIds: ['central', 'norte', 'sur'] },
+          ),
+        };
+      },
+    },
   ),
 );

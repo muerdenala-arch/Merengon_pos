@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { useCatalogStore } from '@/store/catalogStore';
+import { useBranchStore } from '@/store/branchStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 
@@ -12,10 +14,20 @@ export default function InventoryPage() {
   const toppings = useCatalogStore((s) => s.toppings);
   const adjustStock = useCatalogStore((s) => s.adjustStock);
   const adjustToppingStock = useCatalogStore((s) => s.adjustToppingStock);
+  const branches = useBranchStore((s) => s.branches);
+  const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
 
-  const lowStockCount =
-    products.filter((p) => p.stock <= p.lowStockThreshold).length +
-    toppings.filter((t) => t.stock <= t.lowStockThreshold).length;
+  const [selectedBranchId, setSelectedBranchId] = useState(
+    () => adminFilterBranchId ?? branches[0]?.id ?? '',
+  );
+  const branch = branches.find((b) => b.id === selectedBranchId);
+
+  const lowStockCount = useMemo(
+    () =>
+      products.filter((p) => (p.stockByBranch[selectedBranchId] ?? 0) <= p.lowStockThreshold).length +
+      toppings.filter((t) => (t.stockByBranch[selectedBranchId] ?? 0) <= t.lowStockThreshold).length,
+    [products, toppings, selectedBranchId],
+  );
 
   return (
     <AdminShell>
@@ -24,41 +36,71 @@ export default function InventoryPage() {
           <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink">
             <Boxes size={24} className="text-primary-500" /> Inventario
           </h1>
-          <p className="text-sm text-ink-muted">Control básico de existencias de productos y agregados.</p>
+          <p className="text-sm text-ink-muted">Stock independiente por sucursal — elige cuál gestionar.</p>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setSelectedBranchId(b.id)}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-semibold transition-colors cursor-pointer',
+                  selectedBranchId === b.id
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-cream-300 text-ink-muted hover:bg-cream-200',
+                )}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+
           {lowStockCount > 0 && (
-            <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800">
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle size={16} />
-              {lowStockCount} ítem{lowStockCount > 1 ? 's' : ''} con stock bajo
+              {lowStockCount} ítem{lowStockCount > 1 ? 's' : ''} con stock bajo en {branch?.name ?? 'esta sucursal'}
             </div>
           )}
         </div>
 
         <h2 className="mb-3 font-display text-lg font-bold text-ink">Productos</h2>
-        <motion.div variants={staggerContainer} initial="initial" animate="animate" className="mb-8 space-y-2.5">
+        <motion.div
+          key={`products-${selectedBranchId}`}
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          className="mb-8 space-y-2.5"
+        >
           {products.map((product) => (
             <StockRow
               key={product.id}
               name={product.name}
               category={product.category}
-              stock={product.stock}
+              stock={product.stockByBranch[selectedBranchId] ?? 0}
               threshold={product.lowStockThreshold}
               unit={product.unit}
-              onAdjust={(delta) => adjustStock(product.id, delta)}
+              onAdjust={(delta) => adjustStock(product.id, selectedBranchId, delta)}
             />
           ))}
         </motion.div>
 
         <h2 className="mb-3 font-display text-lg font-bold text-ink">Agregados / Toppings</h2>
-        <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-2.5">
+        <motion.div
+          key={`toppings-${selectedBranchId}`}
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          className="space-y-2.5"
+        >
           {toppings.map((topping) => (
             <StockRow
               key={topping.id}
               name={topping.name}
               category="Topping"
-              stock={topping.stock}
+              stock={topping.stockByBranch[selectedBranchId] ?? 0}
               threshold={topping.lowStockThreshold}
               unit="porciones"
-              onAdjust={(delta) => adjustToppingStock(topping.id, delta)}
+              onAdjust={(delta) => adjustToppingStock(topping.id, selectedBranchId, delta)}
             />
           ))}
         </motion.div>
