@@ -6,6 +6,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { APP_CONFIG } from '@/config/app';
+import logoMark from '@/assets/brand/logo-mark.png';
+import { logoGlowClasses } from '@/lib/brand';
+import { cn } from '@/lib/utils';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -17,9 +20,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col bg-cream">
       <header className="flex items-center justify-between border-b border-border bg-surface px-5 py-3 shadow-soft">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500 font-display text-lg font-bold text-white shadow-soft dark:shadow-glow-primary">
-            🍹
-          </div>
+          <img src={logoMark} alt={APP_CONFIG.storeName} className={cn('h-9 w-auto flex-shrink-0 object-contain', logoGlowClasses)} />
           <div>
             <p className="font-display text-base font-bold leading-tight text-ink">
               {APP_CONFIG.storeName}

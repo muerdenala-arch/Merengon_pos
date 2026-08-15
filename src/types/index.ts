@@ -109,6 +109,15 @@ export interface Sale {
   createdAt: string;
 }
 
+export interface QrCode {
+  id: string;
+  alias: string; // ej. "Yape", "Cuenta Principal"
+  bankOrHolder: string; // ej. "BMSC", "Banco Unión — Titular Valeria Ríos"
+  image: string; // data URL (base64)
+  active: boolean;
+  createdAt: string; // ISO
+}
+
 export type RegisterStatus = 'abierta' | 'cerrada';
 
 export interface CashRegisterSession {

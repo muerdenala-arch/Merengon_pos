@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users } from 'lucide-react';
+import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
+import logoMark from '@/assets/brand/logo-mark.png';
+import { logoGlowClasses } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { to: '/admin/reportes', label: 'Reportes de venta', icon: BarChart3 },
   { to: '/admin/catalogo', label: 'Catálogo', icon: Package },
   { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
   { to: '/admin/personal', label: 'Personal / Cajeros', icon: Users },
+  { to: '/admin/configuracion-qr', label: 'Configuración QR', icon: QrCode },
   { to: '/admin/auditoria', label: 'Auditoría de cajas', icon: ShieldCheck },
 ];
 
@@ -24,9 +27,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh bg-cream">
       <aside className="flex w-64 flex-shrink-0 flex-col border-r border-border bg-surface">
         <div className="flex items-center gap-3 px-5 py-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500 text-lg font-bold text-white shadow-soft dark:shadow-glow-primary">
-            🍹
-          </div>
+          <img src={logoMark} alt={APP_CONFIG.storeName} className={cn('h-9 w-auto flex-shrink-0 object-contain', logoGlowClasses)} />
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-base font-bold leading-tight text-ink">
               {APP_CONFIG.storeName}

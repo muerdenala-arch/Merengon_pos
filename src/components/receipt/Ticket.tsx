@@ -4,8 +4,10 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import type { Sale } from '@/types';
 import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
+import logoMark from '@/assets/brand/logo-mark.png';
+import { logoGlowClasses } from '@/lib/brand';
 
 interface TicketProps {
   sale: Sale | null;
@@ -30,6 +32,11 @@ export function Ticket({ sale, onClose }: TicketProps) {
 
         <div id="ticket-print" className="rounded-xl2 border-2 border-dashed border-border bg-cream-100 p-4 font-mono text-xs text-ink">
           <div className="mb-2 text-center">
+            <img
+              src={logoMark}
+              alt={APP_CONFIG.storeName}
+              className={cn('mx-auto mb-1.5 h-8 w-auto object-contain', logoGlowClasses)}
+            />
             <p className="font-display text-sm font-extrabold tracking-tight">{APP_CONFIG.storeName}</p>
             <p className="text-[11px] text-ink-muted">Ticket #{sale.ticketNumber}</p>
             <p className="text-[11px] text-ink-muted">{formatDateTime(sale.createdAt)}</p>

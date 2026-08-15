@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useStaffStore } from '@/store/staffStore';
 import { NumericKeypad } from '@/components/ui/NumericKeypad';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LoginLogo } from '@/components/layout/LoginLogo';
 import { APP_CONFIG } from '@/config/app';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +49,28 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-dvh items-center justify-center bg-gradient-to-br from-primary-50 via-cream to-secondary-50 px-4 py-8 dark:from-primary-900/20 dark:to-secondary-900/20">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-gradient-to-br from-primary-50 via-cream to-secondary-50 px-4 py-8 dark:from-primary-900/20 dark:to-secondary-900/20">
+      {/* Manchas de color ambientales — vívidas (pastel) en claro, más profundas en oscuro,
+          para que la escena tenga vida propia en los dos temas, no solo en uno. */}
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-primary-400/30 blur-3xl dark:bg-primary-500/25"
+        animate={{ x: [0, 20, 0], y: [0, 14, 0] }}
+        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-secondary-400/30 blur-3xl dark:bg-secondary-500/25"
+        animate={{ x: [0, -20, 0], y: [0, -14, 0] }}
+        transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 rounded-full bg-accent-300/20 blur-3xl dark:bg-accent-500/10"
+        animate={{ scale: [1, 1.15, 1] }}
+        transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
       <div className="absolute right-4 top-4">
         <ThemeToggle />
       </div>
@@ -57,13 +79,11 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md rounded-xl3 bg-surface p-7 shadow-card"
+        className="relative w-full max-w-md rounded-xl3 bg-surface p-7 shadow-card"
       >
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-400 to-accent-500 text-3xl shadow-pop">
-            🍹
-          </div>
-          <h1 className="font-display text-2xl font-bold text-ink">{APP_CONFIG.storeName}</h1>
+          <LoginLogo />
+          <h1 className="sr-only">{APP_CONFIG.storeName}</h1>
           <p className="text-sm text-ink-muted">Selecciona tu usuario e ingresa tu PIN</p>
         </div>
 

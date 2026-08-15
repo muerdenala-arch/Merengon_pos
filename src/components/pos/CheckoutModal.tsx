@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { QRCodeSVG } from 'qrcode.react';
 import { Banknote, Camera, ImageOff, QrCode, RefreshCcw, Zap } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
+import { useQrCodeStore } from '@/store/qrCodeStore';
 import { APP_CONFIG } from '@/config/app';
 import type { Payment, PaymentMethod } from '@/types';
 
@@ -16,15 +16,8 @@ interface CheckoutModalProps {
   onConfirm: (payment: Payment) => void;
 }
 
-// QR estático de cobro: no cambia por transacción (sin monto/referencia/expiración
-// codificados). El cajero comunica el monto verbalmente y verifica el comprobante a mano —
-// el mismo patrón que usa un negocio pequeño sin pasarela de pagos integrada.
-const STATIC_QR_PAYLOAD = JSON.stringify({
-  merchant: APP_CONFIG.storeName,
-  type: 'pago_qr_estatico',
-});
-
 export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModalProps) {
+  const activeQr = useQrCodeStore((s) => s.activeQrCode());
   const [method, setMethod] = useState<PaymentMethod>('efectivo');
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -111,12 +104,26 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
               transition={{ duration: 0.15 }}
               className="flex flex-col items-center"
             >
-              {/* Fondo SIEMPRE blanco y con margen amplio (quiet zone) — nunca usar tokens de tema
-                  aquí: cualquier cámara/lector debe poder escanear el QR sin importar el modo. */}
-              <div className="relative mb-3 rounded-xl2 border-4 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-400/70">
-                <QRCodeSVG value={STATIC_QR_PAYLOAD} size={172} fgColor="#241708" bgColor="#FFFFFF" level="M" marginSize={2} />
-              </div>
-              <p className="mb-5 text-xs text-ink-soft">QR de cobro — indica el monto al cliente</p>
+              {activeQr ? (
+                <>
+                  <p className="mb-3 max-w-[30ch] text-center text-sm font-semibold text-ink">
+                    Escanea para pagar vía{' '}
+                    {activeQr.bankOrHolder ? `${activeQr.bankOrHolder} - ${activeQr.alias}` : activeQr.alias}
+                  </p>
+                  {/* Fondo SIEMPRE blanco y con margen amplio (quiet zone) — nunca usar tokens de
+                      tema aquí: cualquier cámara/lector debe poder escanear el QR sin importar el modo. */}
+                  <div className="relative mb-5 rounded-xl2 border-4 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-400/70">
+                    <img src={activeQr.image} alt={`QR de cobro — ${activeQr.alias}`} className="h-44 w-44 object-contain" />
+                  </div>
+                </>
+              ) : (
+                <div className="mb-5 flex flex-col items-center gap-2 rounded-xl2 border-2 border-dashed border-border-strong bg-field px-6 py-8 text-center">
+                  <QrCode size={30} className="text-ink-soft" />
+                  <p className="max-w-[28ch] text-sm font-semibold text-ink-muted">
+                    No hay un QR activo configurado por el administrador
+                  </p>
+                </div>
+              )}
 
               <ReceiptUploader
                 receiptImage={receiptImage}
