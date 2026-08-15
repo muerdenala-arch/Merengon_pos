@@ -64,22 +64,10 @@ export function Ticket({ sale, onClose }: TicketProps) {
             <span>Pago</span>
             <span className="uppercase">{sale.payment.method === 'efectivo' ? 'Efectivo' : APP_CONFIG.qrProviderLabel}</span>
           </div>
-          {sale.payment.method === 'efectivo' && (
-            <>
-              <div className="flex justify-between text-ink-muted">
-                <span>Recibido</span>
-                <span>{formatCurrency(sale.payment.cashReceived ?? 0)}</span>
-              </div>
-              <div className="flex justify-between text-ink-muted">
-                <span>Vuelto</span>
-                <span>{formatCurrency(sale.payment.change ?? 0)}</span>
-              </div>
-            </>
-          )}
           {sale.payment.method === 'qr' && (
             <div className="flex justify-between text-ink-muted">
-              <span>Ref. QR</span>
-              <span>{sale.payment.qrRef}</span>
+              <span>Comprobante</span>
+              <span>{sale.payment.receiptImage ? 'Adjunto' : 'Sin adjuntar'}</span>
             </div>
           )}
           <div className="my-2 border-t border-dashed border-ink-soft/50" />

@@ -92,9 +92,8 @@ export type PaymentMethod = 'efectivo' | 'qr';
 export interface Payment {
   method: PaymentMethod;
   amount: number;
-  cashReceived?: number;
-  change?: number;
-  qrRef?: string;
+  /** Comprobante de transferencia (foto/captura) adjunto al pago por QR, como data URL. */
+  receiptImage?: string;
 }
 
 export interface Sale {

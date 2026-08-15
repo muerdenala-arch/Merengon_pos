@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Banknote, QrCode, Receipt, TrendingUp } from 'lucide-react';
+import { BarChart3, Banknote, Eye, QrCode, Receipt, TrendingUp } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { ReceiptViewerModal } from '@/components/admin/ReceiptViewerModal';
 import { useSalesStore } from '@/store/salesStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
+import type { Sale } from '@/types';
 
 type RangeFilter = 'hoy' | 'todo';
 
 export default function ReportsPage() {
   const sales = useSalesStore((s) => s.sales);
   const [range, setRange] = useState<RangeFilter>('hoy');
+  const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
   const filtered = useMemo(() => {
     if (range === 'todo') return sales;
@@ -116,9 +120,22 @@ export default function ReportsPage() {
             <h2 className="mb-3 mt-6 font-display text-lg font-bold text-ink">Últimas ventas</h2>
             <div className="max-h-60 space-y-2 overflow-y-auto no-scrollbar">
               {filtered.slice(0, 8).map((sale) => (
-                <div key={sale.id} className="flex items-center justify-between rounded-lg bg-cream-100 px-3 py-2 text-sm">
-                  <span className="font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</span>
-                  <span className="tabular-nums text-ink-muted">{formatCurrency(sale.total)}</span>
+                <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-100 px-3 py-2 text-sm">
+                  <span className="truncate font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</span>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {sale.payment.method === 'qr' && sale.payment.receiptImage && (
+                      <button
+                        onClick={() => setViewingReceipt(sale)}
+                        className="cursor-pointer"
+                        aria-label={`Ver comprobante del ticket #${sale.ticketNumber}`}
+                      >
+                        <Badge tone="secondary" className="cursor-pointer hover:bg-secondary-200">
+                          <Eye size={11} /> Ver comprobante
+                        </Badge>
+                      </button>
+                    )}
+                    <span className="tabular-nums text-ink-muted">{formatCurrency(sale.total)}</span>
+                  </div>
                 </div>
               ))}
               {filtered.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">Sin ventas aún.</p>}
@@ -126,6 +143,8 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
+
+      <ReceiptViewerModal sale={viewingReceipt} onClose={() => setViewingReceipt(null)} />
     </AdminShell>
   );
 }
