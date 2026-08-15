@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { QrCode } from '@/types';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 export interface QrCodeFormData {
@@ -29,7 +30,7 @@ export const useQrCodeStore = create<QrCodeState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const qrCodes = await api.qrCodes.list();
-      set({ qrCodes, hydrated: true });
+      set((state) => (state.hydrated && sameData(state.qrCodes, qrCodes) ? state : { qrCodes, hydrated: true }));
     } catch (err) {
       console.error('No se pudo sincronizar los QR con el servidor:', err);
     }

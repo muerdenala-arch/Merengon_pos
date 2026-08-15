@@ -6,10 +6,12 @@ import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 
-/** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 4s es suficiente
- *  para que una venta, un ajuste de stock o un bloqueo de usuario se vea en las demás
- *  pantallas casi al instante, sin la complejidad de mantener un WebSocket/canal propio. */
-const POLL_INTERVAL_MS = 4000;
+/** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 6s sigue siendo
+ *  casi instantáneo para un POS, pero reduce el trabajo de fondo (6 requests + parseo de
+ *  JSON) en celulares de gama media — cada store además solo re-renderiza si el dato
+ *  realmente cambió (ver src/lib/sync.ts), así que esto es una segunda capa del mismo
+ *  ajuste, no la única. */
+const POLL_INTERVAL_MS = 6000;
 
 /** Dispara el primer fetch de todos los datos compartidos al montar la app y los
  *  refresca en bucle — así cualquier cambio hecho desde otro dispositivo (otra sucursal,

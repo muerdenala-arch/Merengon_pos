@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { USERS } from '@/data/seed';
 import type { Role, StaffStatus, User } from '@/types';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 export interface StaffFormData {
@@ -31,7 +32,7 @@ export const useStaffStore = create<StaffState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const users = await api.staff.list();
-      set({ users, hydrated: true });
+      set((state) => (state.hydrated && sameData(state.users, users) ? state : { users, hydrated: true }));
     } catch (err) {
       console.error('No se pudo sincronizar el personal con el servidor:', err);
     }

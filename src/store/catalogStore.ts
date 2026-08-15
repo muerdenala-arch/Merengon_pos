@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { PRODUCTS, TOPPINGS } from '@/data/seed';
 import type { Product, Topping } from '@/types';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 interface CatalogState {
@@ -28,7 +29,12 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const [products, toppings] = await Promise.all([api.products.list(), api.toppings.list()]);
-      set({ products, toppings, hydrated: true });
+      set((state) => {
+        if (state.hydrated && sameData(state.products, products) && sameData(state.toppings, toppings)) {
+          return state;
+        }
+        return { products, toppings, hydrated: true };
+      });
     } catch (err) {
       console.error('No se pudo sincronizar el catálogo con el servidor:', err);
     }

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { BRANCHES } from '@/data/seed';
 import type { Branch } from '@/types';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 export interface BranchFormData {
@@ -34,7 +35,7 @@ export const useBranchStore = create<BranchState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const branches = await api.branches.list();
-      set({ branches, hydrated: true });
+      set((state) => (state.hydrated && sameData(state.branches, branches) ? state : { branches, hydrated: true }));
     } catch (err) {
       console.error('No se pudo sincronizar sucursales con el servidor:', err);
     }

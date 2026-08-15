@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { CashRegisterSession, User } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 interface RegisterState {
@@ -34,7 +35,7 @@ export const useRegisterStore = create<RegisterState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const sessions = await api.registerSessions.list();
-      set({ sessions, hydrated: true });
+      set((state) => (state.hydrated && sameData(state.sessions, sessions) ? state : { sessions, hydrated: true }));
     } catch (err) {
       console.error('No se pudo sincronizar las cajas con el servidor:', err);
     }

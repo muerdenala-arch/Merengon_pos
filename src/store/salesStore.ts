@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Sale } from '@/types';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
 
 interface SalesState {
@@ -22,7 +23,7 @@ export const useSalesStore = create<SalesState>()((set, get) => ({
   fetchAll: async () => {
     try {
       const sales = await api.sales.list();
-      set({ sales, hydrated: true });
+      set((state) => (state.hydrated && sameData(state.sales, sales) ? state : { sales, hydrated: true }));
     } catch (err) {
       console.error('No se pudo sincronizar las ventas con el servidor:', err);
     }
