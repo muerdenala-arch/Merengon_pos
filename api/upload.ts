@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { uploadImage, type ImageFolder } from './_lib/cloudinary';
-import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import { uploadImage, type ImageFolder } from './_lib/cloudinary.js';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 
 const ALLOWED_FOLDERS: ImageFolder[] = ['receipts', 'qr-codes'];
 

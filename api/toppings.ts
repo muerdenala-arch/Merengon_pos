@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { queryOne, query } from './_lib/db';
-import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import { queryOne, query } from './_lib/db.js';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import type { Topping } from '../src/types';
 
 const SELECT_COLUMNS = `

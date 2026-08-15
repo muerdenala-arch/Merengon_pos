@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { query, queryOne } from './_lib/db';
-import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import { query, queryOne } from './_lib/db.js';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import type { User } from '../src/types';
 
 const SELECT_COLUMNS = `

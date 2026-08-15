@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { query, queryOne } from './_lib/db';
-import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import { query, queryOne } from './_lib/db.js';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import type { Branch } from '../src/types';
 
 // Un solo archivo maneja la colección (/api/branches) y un ítem puntual
