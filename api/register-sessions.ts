@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { queryOne } from '../_lib/db';
-import { methodNotAllowed, requireBody, withErrorHandling } from '../_lib/http';
-import type { CashRegisterSession } from '../../src/types';
+import { query, queryOne } from './_lib/db';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import type { CashRegisterSession } from '../src/types';
 
 const SELECT_COLUMNS = `
   id, cashier_id as "cashierId", cashier_name as "cashierName", branch_id as "branchId",
@@ -12,9 +12,30 @@ const SELECT_COLUMNS = `
 `;
 
 async function handler(req: VercelRequest, res: VercelResponse) {
-  const id = req.query.id as string;
+  const id = typeof req.query.id === 'string' ? req.query.id : undefined;
 
-  if (req.method === 'PATCH') {
+  if (req.method === 'GET' && !id) {
+    const sessions = await query<CashRegisterSession>(
+      `select ${SELECT_COLUMNS} from register_sessions order by opened_at desc`,
+    );
+    res.status(200).json(sessions);
+    return;
+  }
+
+  if (req.method === 'POST' && !id) {
+    const body = requireBody<CashRegisterSession>(req);
+    const rows = await query<CashRegisterSession>(
+      `insert into register_sessions (id, cashier_id, cashier_name, branch_id, opening_amount, notes)
+       values ($1, $2, $3, $4, $5, $6)
+       on conflict (id) do nothing
+       returning ${SELECT_COLUMNS}`,
+      [body.id, body.cashierId, body.cashierName, body.branchId, body.openingAmount ?? 0, body.notes ?? null],
+    );
+    res.status(201).json(rows[0]);
+    return;
+  }
+
+  if (req.method === 'PATCH' && id) {
     // Único uso real: cerrar la caja. Se calcula la diferencia acá mismo con los valores
     // que llegan, igual que hacía el store local antes.
     const body = requireBody<{
@@ -61,7 +82,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  methodNotAllowed(res, ['PATCH']);
+  methodNotAllowed(res, ['GET', 'POST', 'PATCH']);
 }
 
 export default withErrorHandling(handler);

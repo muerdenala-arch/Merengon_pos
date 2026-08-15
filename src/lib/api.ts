@@ -29,34 +29,39 @@ const post = <T>(path: string, data: unknown) => request<T>(path, { method: 'POS
 const patch = <T>(path: string, data: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) });
 const del = (path: string) => request<void>(path, { method: 'DELETE' });
 
+// El plan Hobby de Vercel limita a 12 funciones serverless por deployment, así que cada
+// recurso vive en UN solo archivo (/api/branches.ts, etc.) que resuelve la colección o un
+// ítem puntual según lleve o no `?id=`, en vez de una carpeta con index.ts + [id].ts.
+const withId = (path: string, id: string) => `${path}?id=${encodeURIComponent(id)}`;
+
 export const api = {
   branches: {
     list: () => get<Branch[]>('/branches'),
     create: (data: Branch) => post<Branch>('/branches', data),
-    update: (id: string, data: Partial<Branch>) => patch<Branch>(`/branches/${id}`, data),
+    update: (id: string, data: Partial<Branch>) => patch<Branch>(withId('/branches', id), data),
   },
   staff: {
     list: () => get<User[]>('/staff'),
     create: (data: Omit<User, 'status' | 'createdAt' | 'protected'>) => post<User>('/staff', data),
-    update: (id: string, data: Partial<User>) => patch<User>(`/staff/${id}`, data),
-    remove: (id: string) => del(`/staff/${id}`),
+    update: (id: string, data: Partial<User>) => patch<User>(withId('/staff', id), data),
+    remove: (id: string) => del(withId('/staff', id)),
   },
   products: {
     list: () => get<Product[]>('/products'),
     create: (data: Product) => post<Product>('/products', data),
-    update: (id: string, data: Partial<Product>) => patch<Product>(`/products/${id}`, data),
-    remove: (id: string) => del(`/products/${id}`),
+    update: (id: string, data: Partial<Product>) => patch<Product>(withId('/products', id), data),
+    remove: (id: string) => del(withId('/products', id)),
   },
   toppings: {
     list: () => get<Topping[]>('/toppings'),
-    update: (id: string, data: Partial<Topping>) => patch<Topping>(`/toppings/${id}`, data),
+    update: (id: string, data: Partial<Topping>) => patch<Topping>(withId('/toppings', id), data),
   },
   qrCodes: {
     list: () => get<QrCode[]>('/qr-codes'),
     create: (data: QrCode) => post<QrCode>('/qr-codes', data),
-    update: (id: string, data: Partial<QrCode>) => patch<QrCode>(`/qr-codes/${id}`, data),
-    setActive: (id: string) => patch<QrCode>(`/qr-codes/${id}`, { setActive: true }),
-    remove: (id: string) => del(`/qr-codes/${id}`),
+    update: (id: string, data: Partial<QrCode>) => patch<QrCode>(withId('/qr-codes', id), data),
+    setActive: (id: string) => patch<QrCode>(withId('/qr-codes', id), { setActive: true }),
+    remove: (id: string) => del(withId('/qr-codes', id)),
   },
   registerSessions: {
     list: () => get<CashRegisterSession[]>('/register-sessions'),
@@ -73,7 +78,7 @@ export const api = {
         qrSalesTotal: number;
         notes?: string;
       },
-    ) => patch<CashRegisterSession>(`/register-sessions/${id}`, data),
+    ) => patch<CashRegisterSession>(withId('/register-sessions', id), data),
   },
   sales: {
     list: () => get<Sale[]>('/sales'),

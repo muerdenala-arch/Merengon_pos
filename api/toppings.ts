@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { queryOne } from '../_lib/db';
-import { methodNotAllowed, requireBody, withErrorHandling } from '../_lib/http';
-import type { Topping } from '../../src/types';
+import { queryOne, query } from './_lib/db';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http';
+import type { Topping } from '../src/types';
 
 const SELECT_COLUMNS = `
   id, name, price_extra as "priceExtra", stock_by_branch as "stockByBranch",
@@ -9,9 +9,15 @@ const SELECT_COLUMNS = `
 `;
 
 async function handler(req: VercelRequest, res: VercelResponse) {
-  const id = req.query.id as string;
+  const id = typeof req.query.id === 'string' ? req.query.id : undefined;
 
-  if (req.method === 'PATCH') {
+  if (req.method === 'GET' && !id) {
+    const toppings = await query<Topping>(`select ${SELECT_COLUMNS} from toppings order by name asc`);
+    res.status(200).json(toppings);
+    return;
+  }
+
+  if (req.method === 'PATCH' && id) {
     const body = requireBody<Partial<Topping>>(req);
     const topping = await queryOne<Topping>(
       `update toppings set
@@ -38,7 +44,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  methodNotAllowed(res, ['PATCH']);
+  methodNotAllowed(res, ['GET', 'PATCH']);
 }
 
 export default withErrorHandling(handler);
