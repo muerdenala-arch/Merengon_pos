@@ -13,5 +13,8 @@ export default defineConfig({
   server: {
     port: 5173,
     open: false,
+    // Escucha en todas las interfaces de red (no solo localhost) para poder
+    // probar desde el celular u otro dispositivo en la misma red Wi-Fi.
+    host: true,
   },
 });

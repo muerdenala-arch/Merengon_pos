@@ -3,13 +3,15 @@ import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { Button } from '@/components/ui/Button';
 import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 interface CartPanelProps {
   onCheckout: () => void;
+  /** 'sidebar' (escritorio, con borde izquierdo) o 'drawer' (bottom sheet en móvil). */
+  variant?: 'sidebar' | 'drawer';
 }
 
-export function CartPanel({ onCheckout }: CartPanelProps) {
+export function CartPanel({ onCheckout, variant = 'sidebar' }: CartPanelProps) {
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
@@ -18,7 +20,7 @@ export function CartPanel({ onCheckout }: CartPanelProps) {
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-l border-border bg-surface">
+    <div className={cn('flex h-full min-h-0 flex-col bg-surface', variant === 'sidebar' && 'border-l border-border')}>
       <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
           <ShoppingCart size={20} className="text-primary-500" />
