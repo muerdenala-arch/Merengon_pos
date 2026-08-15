@@ -42,8 +42,10 @@ export default function POSPage() {
   const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  function handleConfirmPayment(payment: Payment) {
-    const sale = addSale({
+  async function handleConfirmPayment(payment: Payment) {
+    // A diferencia del resto de las acciones del store, addSale espera al servidor: el
+    // número de ticket es correlativo y atómico entre dispositivos (ver salesStore).
+    const sale = await addSale({
       items,
       subtotal: total,
       total,

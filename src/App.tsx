@@ -2,6 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/router/RequireAuth';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeEffect } from '@/hooks/useThemeEffect';
+import { useDataSync, useIsDataHydrated } from '@/hooks/useDataSync';
+import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
 import POSPage from '@/pages/POSPage';
 import CashOpenPage from '@/pages/CashOpenPage';
@@ -17,6 +19,14 @@ import BranchesPage from '@/pages/admin/BranchesPage';
 export default function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
   useThemeEffect();
+  useDataSync();
+  const dataReady = useIsDataHydrated();
+
+  // Después del primer fetch exitoso, el polling en segundo plano se sigue actualizando
+  // sin volver a mostrar esta pantalla — solo bloquea el primer render.
+  if (!dataReady) {
+    return <LoadingScreen />;
+  }
 
   return (
     <Routes>

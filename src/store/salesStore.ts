@@ -1,40 +1,39 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { Sale } from '@/types';
+import { api } from '@/lib/api';
 import { uid } from '@/lib/utils';
 
 interface SalesState {
   sales: Sale[];
-  lastTicketNumber: number;
-  addSale: (sale: Omit<Sale, 'id' | 'ticketNumber'>) => Sale;
+  hydrated: boolean;
+  fetchAll: () => Promise<void>;
+  /** A diferencia del resto de las acciones del store, esta SÍ espera al servidor: el
+   *  número de ticket es correlativo y atómico entre todos los dispositivos (nextval de
+   *  una secuencia en Postgres), así que no se puede inventar de forma optimista sin
+   *  arriesgar números repetidos entre dos cajeros cobrando al mismo tiempo. */
+  addSale: (sale: Omit<Sale, 'id' | 'ticketNumber'>) => Promise<Sale>;
   salesForSession: (sessionId: string) => Sale[];
 }
 
-export const useSalesStore = create<SalesState>()(
-  persist(
-    (set, get) => ({
-      sales: [],
-      lastTicketNumber: 1000,
-      addSale: (data) => {
-        const ticketNumber = get().lastTicketNumber + 1;
-        const sale: Sale = { ...data, id: uid('sale'), ticketNumber };
-        set((state) => ({ sales: [sale, ...state.sales], lastTicketNumber: ticketNumber }));
-        return sale;
-      },
-      salesForSession: (sessionId) => get().sales.filter((s) => s.registerSessionId === sessionId),
-    }),
-    {
-      name: 'pos-jugueria/sales',
-      version: 1,
-      // v0 -> v1: las ventas no tenían sucursal. Se asignan a "central" para conservar
-      // el historial de ventas registrado antes de esta actualización.
-      migrate: (persisted) => {
-        const state = persisted as { sales?: Array<Record<string, unknown>> };
-        return {
-          ...state,
-          sales: (state.sales ?? []).map((s) => ('branchId' in s ? s : { ...s, branchId: 'central' })),
-        };
-      },
-    },
-  ),
-);
+export const useSalesStore = create<SalesState>()((set, get) => ({
+  sales: [],
+  hydrated: false,
+
+  fetchAll: async () => {
+    try {
+      const sales = await api.sales.list();
+      set({ sales, hydrated: true });
+    } catch (err) {
+      console.error('No se pudo sincronizar las ventas con el servidor:', err);
+    }
+  },
+
+  addSale: async (data) => {
+    const draft = { ...data, id: uid('sale') };
+    const sale = await api.sales.create(draft);
+    set((state) => ({ sales: [sale, ...state.sales] }));
+    return sale;
+  },
+
+  salesForSession: (sessionId) => get().sales.filter((s) => s.registerSessionId === sessionId),
+}));

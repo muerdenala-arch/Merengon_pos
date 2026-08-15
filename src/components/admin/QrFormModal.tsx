@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useBranchStore } from '@/store/branchStore';
 import { fileToCompressedDataUrl } from '@/lib/image';
+import { api } from '@/lib/api';
 import type { QrCode } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +27,7 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
   const branches = useBranchStore((s) => s.branches);
   const [form, setForm] = useState(emptyForm(defaultBranchId));
   const [error, setError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -42,16 +44,23 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
     e.target.value = '';
     if (!file) return;
     setError(null);
+    setUploading(true);
     try {
       // Más calidad que el comprobante de venta: este QR se escanea, debe verse nítido.
       const dataUrl = await fileToCompressedDataUrl(file, { maxWidth: 640, quality: 0.9 });
-      setForm((f) => ({ ...f, image: dataUrl }));
+      // Sube a Cloudinary de una vez — así lo que queda en `form.image` (y termina en la
+      // base de datos) es la URL pública, visible desde cualquier dispositivo.
+      const { url } = await api.upload.image(dataUrl, 'qr-codes');
+      setForm((f) => ({ ...f, image: url }));
     } catch {
       setError('No se pudo cargar la imagen. Intenta de nuevo.');
+    } finally {
+      setUploading(false);
     }
   }
 
   function handleSave() {
+    if (uploading) return;
     if (!form.alias.trim() || !form.image) {
       setError('Falta el alias o la imagen del QR.');
       return;
@@ -76,7 +85,12 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
         <div>
           <p className={fieldLabelClasses}>Imagen del QR</p>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-          {form.image ? (
+          {uploading ? (
+            <div className="flex min-h-touch-lg w-full flex-col items-center justify-center gap-1.5 rounded-xl2 border-2 border-dashed border-primary-300 bg-primary-50 px-4 py-6 text-center dark:bg-primary-500/10">
+              <Upload size={24} className="animate-pulse text-primary-500" />
+              <span className="font-display text-sm font-bold text-ink">Subiendo imagen…</span>
+            </div>
+          ) : form.image ? (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -143,7 +157,7 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
         >
           Cancelar
         </Button>
-        <Button onClick={handleSave} className="flex-[2]" size="lg">
+        <Button onClick={handleSave} disabled={uploading} className="flex-[2]" size="lg">
           {qr ? 'Guardar cambios' : 'Agregar QR'}
         </Button>
       </div>

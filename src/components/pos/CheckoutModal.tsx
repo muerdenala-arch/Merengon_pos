@@ -8,6 +8,7 @@ import { fileToCompressedDataUrl } from '@/lib/image';
 import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useAuthStore } from '@/store/authStore';
 import { APP_CONFIG } from '@/config/app';
+import { api } from '@/lib/api';
 import type { Payment, PaymentMethod } from '@/types';
 
 interface CheckoutModalProps {
@@ -23,6 +24,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const [method, setMethod] = useState<PaymentMethod>('efectivo');
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
       setMethod('efectivo');
       setReceiptImage(null);
       setUploadError(null);
+      setConfirming(false);
     }
   }, [open]);
 
@@ -46,15 +49,28 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
     }
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (method === 'efectivo') {
       onConfirm({ method: 'efectivo', amount: total });
-    } else {
-      onConfirm({ method: 'qr', amount: total, receiptImage: receiptImage ?? undefined });
+      return;
+    }
+    setConfirming(true);
+    try {
+      // El comprobante viaja como data URL local hasta este momento — recién al confirmar
+      // se sube a Cloudinary, así no se suben fotos de pagos que el cajero canceló.
+      let uploadedUrl: string | undefined;
+      if (receiptImage) {
+        const { url } = await api.upload.image(receiptImage, 'receipts');
+        uploadedUrl = url;
+      }
+      onConfirm({ method: 'qr', amount: total, receiptImage: uploadedUrl });
+    } catch {
+      setUploadError('No se pudo subir el comprobante. Intenta de nuevo.');
+      setConfirming(false);
     }
   }
 
-  const canConfirm = method === 'efectivo' || !!receiptImage;
+  const canConfirm = (method === 'efectivo' || !!receiptImage) && !confirming;
 
   return (
     <Modal open={open} onClose={onClose} title="Cobrar" size="md">
@@ -147,7 +163,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
           Cancelar
         </Button>
         <Button onClick={handleConfirm} disabled={!canConfirm} className="flex-[2]" size="lg">
-          Confirmar pago
+          {confirming ? 'Subiendo comprobante…' : 'Confirmar pago'}
         </Button>
       </div>
     </Modal>
