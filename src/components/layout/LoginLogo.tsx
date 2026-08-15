@@ -59,31 +59,43 @@ export function LoginLogo() {
           />
         ))}
 
-      {/* Contenedor recortado para el barrido de brillo — el propio <img> queda fuera del
-          overflow-hidden (necesita "respirar" con el drop-shadow) así que el brillo vive en
-          una capa hermana del mismo tamaño. */}
+      {/* Sin overflow-hidden: recortaba en línea recta el drop-shadow/glow del logo y se veía
+          como un marco cuadrado. El brillo se recorta con una máscara con la silueta del
+          propio logo (su canal alfa), no con una caja rectangular. */}
       <motion.div
         initial={{ opacity: 0, scale: 0.6, rotate: -8, y: 10 }}
         animate={{ opacity: 1, scale: 1, rotate: 0, y: 0 }}
         transition={{ type: 'spring', stiffness: 240, damping: 15, delay: 0.05 }}
         className="relative"
       >
-        <div className="relative overflow-hidden">
-          <img
-            src={isDark ? logoFullDark : logoFull}
-            alt={APP_CONFIG.storeName}
-            className="relative z-10 mx-auto h-20 w-auto object-contain md:h-24 [filter:drop-shadow(0_4px_10px_rgba(241,113,10,0.3))_drop-shadow(0_14px_22px_rgba(0,0,0,0.12))] dark:[filter:drop-shadow(0_0_20px_rgba(255,255,255,0.22))_drop-shadow(0_8px_18px_rgba(0,0,0,0.65))]"
-          />
-          {!reduceMotion && (
+        <img
+          src={isDark ? logoFullDark : logoFull}
+          alt={APP_CONFIG.storeName}
+          className="relative z-10 mx-auto h-20 w-auto object-contain md:h-24 [filter:drop-shadow(0_4px_10px_rgba(241,113,10,0.3))_drop-shadow(0_14px_22px_rgba(0,0,0,0.12))] dark:[filter:drop-shadow(0_0_20px_rgba(255,255,255,0.22))_drop-shadow(0_8px_18px_rgba(0,0,0,0.65))]"
+        />
+        {!reduceMotion && (
+          <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-20 overflow-hidden"
+            style={{
+              WebkitMaskImage: `url(${isDark ? logoFullDark : logoFull})`,
+              maskImage: `url(${isDark ? logoFullDark : logoFull})`,
+              WebkitMaskSize: 'contain',
+              maskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
+            }}
+          >
             <motion.span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 z-20 w-1/3 skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/70 to-transparent dark:via-white/50"
+              className="absolute inset-y-0 w-1/3 skew-x-[-20deg] bg-gradient-to-r from-transparent via-white/70 to-transparent dark:via-white/50"
               initial={{ x: '-140%' }}
-              animate={{ x: '260%' }}
+              animate={{ x: '360%' }}
               transition={{ duration: 1.1, delay: 0.7, ease: 'easeInOut' }}
             />
-          )}
-        </div>
+          </motion.span>
+        )}
       </motion.div>
     </div>
   );
