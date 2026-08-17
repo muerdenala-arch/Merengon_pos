@@ -15,8 +15,12 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   const id = typeof req.query.id === 'string' ? req.query.id : undefined;
 
   if (req.method === 'GET' && !id) {
+    // Mismo recorte que /api/sales: sin esto la tabla crece sin límite (una fila por cada
+    // apertura/cierre de caja, para siempre) y el poll de 6s la baja entera cada vez —
+    // cuantas más sesiones se acumulen, más lento el JSON.stringify de sameData() en cada
+    // tick, lo que se siente como lag general de la UI (clicks que tardan en reaccionar).
     const sessions = await query<CashRegisterSession>(
-      `select ${SELECT_COLUMNS} from register_sessions order by opened_at desc`,
+      `select ${SELECT_COLUMNS} from register_sessions order by opened_at desc limit 500`,
     );
     res.status(200).json(sessions);
     return;

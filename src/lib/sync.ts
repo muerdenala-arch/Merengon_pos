@@ -7,5 +7,9 @@
  * distinta, así que devolver el `state` sin tocar es lo que evita el render de más.
  */
 export function sameData<T>(a: T, b: T): boolean {
+  // Atajo barato: el caso más común en cada poll es que se agregó/cerró un registro (una
+  // venta, una caja), lo que ya cambia el largo del array — evita el stringify completo de
+  // ambos lados (potencialmente cientos de ítems) para descubrir algo que un .length ya dice.
+  if (Array.isArray(a) && Array.isArray(b) && a.length !== b.length) return false;
   return JSON.stringify(a) === JSON.stringify(b);
 }

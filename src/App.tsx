@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from '@/router/RequireAuth';
 import { useAuthStore } from '@/store/authStore';
@@ -16,16 +17,33 @@ import StaffPage from '@/pages/admin/StaffPage';
 import QrConfigPage from '@/pages/admin/QrConfigPage';
 import BranchesPage from '@/pages/admin/BranchesPage';
 
+// Si a los 10s la primera sincronización con Neon todavía no terminó (DB caída, env var
+// faltante, función colgada), dejamos de mostrar el spinner infinito y ofrecemos
+// reintentar — antes de esto la app se quedaba en "Sincronizando…" para siempre sin
+// ningún mensaje de error (ver useDataSync: cada store atrapa su propio error pero nunca
+// marca `hydrated`, así que un solo endpoint caído bloqueaba TODA la carga).
+const SYNC_TIMEOUT_MS = 10000;
+
 export default function App() {
   const currentUser = useAuthStore((s) => s.currentUser);
   useThemeEffect();
   useDataSync();
   const dataReady = useIsDataHydrated();
+  const [syncTimedOut, setSyncTimedOut] = useState(false);
+
+  useEffect(() => {
+    if (dataReady) {
+      setSyncTimedOut(false);
+      return;
+    }
+    const id = setTimeout(() => setSyncTimedOut(true), SYNC_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [dataReady]);
 
   // Después del primer fetch exitoso, el polling en segundo plano se sigue actualizando
   // sin volver a mostrar esta pantalla — solo bloquea el primer render.
   if (!dataReady) {
-    return <LoadingScreen />;
+    return <LoadingScreen timedOut={syncTimedOut} onRetry={() => window.location.reload()} />;
   }
 
   return (

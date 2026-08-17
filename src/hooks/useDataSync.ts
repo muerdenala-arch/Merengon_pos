@@ -15,7 +15,14 @@ const POLL_INTERVAL_MS = 6000;
 
 /** Dispara el primer fetch de todos los datos compartidos al montar la app y los
  *  refresca en bucle — así cualquier cambio hecho desde otro dispositivo (otra sucursal,
- *  otro cajero, el panel admin) llega a esta pantalla sin recargar. */
+ *  otro cajero, el panel admin) llega a esta pantalla sin recargar.
+ *
+ *  El polling se PAUSA mientras la pestaña/pantalla no está visible (tablet bloqueada,
+ *  app en segundo plano) — un POS queda con la pestaña abierta un turno entero (8h+), y
+ *  sin esto son ~4800 rondas de 6 fetches + parseo JSON por turno corriendo igual aunque
+ *  nadie esté mirando la pantalla, lo que va acumulando trabajo de fondo y puede sentirse
+ *  como que "el sistema se pone lento" a medida que avanza el día. Al volver a hacerse
+ *  visible se dispara un fetch inmediato para no mostrar datos viejos. */
 export function useDataSync() {
   useEffect(() => {
     const fetchAll = () => {
@@ -27,9 +34,30 @@ export function useDataSync() {
       useSalesStore.getState().fetchAll();
     };
 
-    fetchAll();
-    const id = setInterval(fetchAll, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const start = () => {
+      if (intervalId !== null) return;
+      fetchAll();
+      intervalId = setInterval(fetchAll, POLL_INTERVAL_MS);
+    };
+    const stop = () => {
+      if (intervalId === null) return;
+      clearInterval(intervalId);
+      intervalId = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) stop();
+      else start();
+    };
+
+    start();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 }
 

@@ -131,6 +131,9 @@ CREATE INDEX IF NOT EXISTS idx_sales_session ON sales (register_session_id);
 CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_branch ON register_sessions (branch_id);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_status ON register_sessions (status);
+-- Respalda el `order by opened_at desc limit 500` de /api/register-sessions — sin esto
+-- Postgres tiene que ordenar la tabla completa en cada poll de 6s a medida que crece.
+CREATE INDEX IF NOT EXISTS idx_register_sessions_opened_at ON register_sessions (opened_at DESC);
 CREATE INDEX IF NOT EXISTS idx_qr_codes_branch ON qr_codes (branch_id);
 
 -- ============================================================================

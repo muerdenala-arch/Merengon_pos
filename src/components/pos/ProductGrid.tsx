@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { useCatalogStore } from '@/store/catalogStore';
@@ -80,7 +80,10 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   );
 }
 
-function ProductCard({
+// Los productos que no cambiaron conservan la misma referencia entre polls (catalogStore
+// actualiza con .map() inmutable, solo el ítem tocado recibe un objeto nuevo) — memo() evita
+// re-renderizar (y re-animar con Framer Motion) las tarjetas que no tienen nada nuevo.
+const ProductCard = memo(function ProductCard({
   product,
   branchId,
   onSelect,
@@ -122,4 +125,4 @@ function ProductCard({
       </div>
     </motion.button>
   );
-}
+});

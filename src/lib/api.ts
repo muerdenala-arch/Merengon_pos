@@ -11,17 +11,36 @@ import type {
   User,
 } from '@/types';
 
+// Si Neon/la función serverless se cuelga (cold start, pool sin responder), sin esto el
+// fetch queda pendiente indefinidamente y el store nunca sale de `hydrated: false` — la
+// app se queda trabada en "Sincronizando…" sin feedback. Con el timeout, la promesa
+// rechaza a tiempo y cada store puede mostrar el error en vez de esperar para siempre.
+const REQUEST_TIMEOUT_MS = 10000;
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}) as { error?: string });
-    throw new Error(body.error || `Error ${res.status} en ${path}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`/api${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      ...options,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}) as { error?: string });
+      throw new Error(body.error || `Error ${res.status} en ${path}`);
+    }
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`Tiempo de espera agotado (${REQUEST_TIMEOUT_MS / 1000}s) al conectar con ${path}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 const get = <T>(path: string) => request<T>(path);
