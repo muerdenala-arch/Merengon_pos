@@ -27,3 +27,6 @@ yarn-error.log*
 /logojugoso sin fondo.png
 /codigo qr de pago.jpg
 .claude/
+
+.vercel
+.env*

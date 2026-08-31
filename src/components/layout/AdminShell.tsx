@@ -35,7 +35,9 @@ export function AdminShell({ children }: { children: ReactNode }) {
         >
           <Menu size={22} />
         </button>
-        <img src={logoMark} alt={APP_CONFIG.storeName} className={cn('h-8 w-auto object-contain', logoGlowClasses)} />
+        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm dark:border-primary-900/50">
+          <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
+        </div>
         <ThemeToggle />
       </header>
 
@@ -94,12 +96,16 @@ function AdminSidebarContent({
   return (
     <>
       <div className="flex items-center gap-3 px-5 py-5">
-        <img src={logoMark} alt={APP_CONFIG.storeName} className={cn('h-9 w-auto flex-shrink-0 object-contain', logoGlowClasses)} />
+        <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm dark:border-primary-900/50">
+          <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
+        </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-base font-bold leading-tight text-ink">
-            {APP_CONFIG.storeName}
+          <p className="truncate font-display text-sm font-bold leading-tight text-ink">
+            MERENGÓN
           </p>
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent-600">Panel admin</p>
+          <p className="truncate text-[10px] font-bold uppercase tracking-widest text-accent-600">
+            Panel Admin
+          </p>
         </div>
         {closeButton ? (
           <button

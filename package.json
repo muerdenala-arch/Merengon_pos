@@ -1,11 +1,12 @@
 {
-  "name": "pos-jugueria",
+  "name": "pos-merengon",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "POS táctil para juguería — venta rápida, roles, caja y reportes.",
+  "description": "POS táctil para Fresas con Crema EL MERENGON — venta rápida, roles, caja y reportes.",
   "scripts": {
     "dev": "vite",
+    "dev:local": "npx tsx --env-file=.env.local server.ts",
     "dev:full": "vercel dev",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
@@ -14,6 +15,7 @@
   "dependencies": {
     "cloudinary": "^2.10.0",
     "clsx": "^2.1.1",
+    "express": "^4.21.2",
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.462.0",
     "pg": "^8.23.0",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
+    "@types/express": "^5.0.1",
     "@types/node": "^22.20.1",
     "@types/pg": "^8.21.0",
     "@types/react": "^18.3.12",
@@ -38,6 +41,7 @@
     "globals": "^15.12.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.14",
+    "tsx": "^4.19.4",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.15.0",
     "vercel": "^59.1.3",

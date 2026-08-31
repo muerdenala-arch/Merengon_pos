@@ -1,20 +1,12 @@
+﻿-- ============================================================================
+-- Fresas con Crema EL MERENGON — esquema de base de datos (Neon / PostgreSQL)
 -- ============================================================================
--- Jugoso POS — esquema de base de datos (Neon / PostgreSQL)
--- ============================================================================
--- Reemplaza la persistencia exclusiva en localStorage: esta es la fuente de
--- verdad central que comparten todos los dispositivos (PCs, celulares).
---
--- Diseño: las estructuras anidadas del dominio (tallas de un producto, stock
--- por sucursal, ítems de una venta, datos del pago) se guardan como JSONB en
--- vez de normalizarse en más tablas — reflejan 1:1 los tipos de TypeScript en
--- src/types/index.ts, así que el resto de la app no cambia de forma.
---
--- Es seguro volver a correr este archivo completo: todo usa
--- IF NOT EXISTS / ON CONFLICT DO NOTHING, así que no duplica ni borra datos
--- que ya hayas creado usando la app.
+-- Todos los precios en Bs (Bolivianos bolivianos).
+-- Es seguro volver a correr este archivo completo:
+-- IF NOT EXISTS / ON CONFLICT DO NOTHING no duplica ni borra datos existentes.
 -- ============================================================================
 
--- ── Sucursales ───────────────────────────────────────────────────────────
+-- ── Sucursales ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS branches (
   id         text PRIMARY KEY,
   name       text NOT NULL,
@@ -24,7 +16,7 @@ CREATE TABLE IF NOT EXISTS branches (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Personal / cajeros ───────────────────────────────────────────────────
+-- ── Personal / cajeros ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS staff (
   id          text PRIMARY KEY,
   name        text NOT NULL,
@@ -33,24 +25,22 @@ CREATE TABLE IF NOT EXISTS staff (
   color       text NOT NULL DEFAULT 'bg-primary-500',
   status      text NOT NULL DEFAULT 'activo' CHECK (status IN ('activo', 'bloqueado')),
   protected   boolean NOT NULL DEFAULT false,
-  -- Array de ids de sucursal, ej. ["central", "norte"]
   branch_ids  jsonb NOT NULL DEFAULT '[]',
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Toppings (complementos) ──────────────────────────────────────────────
+-- ── Toppings / Extras ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS toppings (
   id                  text PRIMARY KEY,
   name                text NOT NULL,
   price_extra         numeric(10, 2) NOT NULL DEFAULT 0,
-  -- { [branchId]: cantidad }
   stock_by_branch     jsonb NOT NULL DEFAULT '{}',
   low_stock_threshold integer NOT NULL DEFAULT 0,
   updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Catálogo de productos ────────────────────────────────────────────────
+-- ── Catalogo de productos ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS products (
   id                   text PRIMARY KEY,
   name                 text NOT NULL,
@@ -59,22 +49,18 @@ CREATE TABLE IF NOT EXISTS products (
   base_price           numeric(10, 2) NOT NULL DEFAULT 0,
   gradient             text NOT NULL DEFAULT '',
   emoji                text NOT NULL DEFAULT '',
-  -- [{ id, label, ounces, priceDelta }]
   sizes                jsonb NOT NULL DEFAULT '[]',
-  -- ["agua", "leche", ...]
   base_liquida_options jsonb NOT NULL DEFAULT '[]',
   allow_sugar_level    boolean NOT NULL DEFAULT true,
-  -- ["chia", "granola", ...]
   topping_ids          jsonb NOT NULL DEFAULT '[]',
   active               boolean NOT NULL DEFAULT true,
-  -- { [branchId]: cantidad }
   stock_by_branch      jsonb NOT NULL DEFAULT '{}',
   low_stock_threshold  integer NOT NULL DEFAULT 0,
-  unit                 text NOT NULL DEFAULT 'unidades',
+  unit                 text NOT NULL DEFAULT 'vasos',
   updated_at           timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Códigos QR de cobro (imagen sube a Cloudinary, acá se guarda la URL) ──
+-- ── Codigos QR de cobro ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS qr_codes (
   id             text PRIMARY KEY,
   alias          text NOT NULL,
@@ -85,7 +71,7 @@ CREATE TABLE IF NOT EXISTS qr_codes (
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Aperturas / cierres de caja ──────────────────────────────────────────
+-- ── Aperturas / cierres de caja ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS register_sessions (
   id                     text PRIMARY KEY,
   cashier_id             text NOT NULL,
@@ -105,18 +91,16 @@ CREATE TABLE IF NOT EXISTS register_sessions (
   notes                  text
 );
 
--- Número de ticket correlativo y atómico entre todos los dispositivos.
+-- Numero de ticket correlativo y atomico entre todos los dispositivos.
 CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1001;
 
--- ── Ventas ────────────────────────────────────────────────────────────────
+-- ── Ventas ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sales (
   id                  text PRIMARY KEY,
   ticket_number       integer NOT NULL DEFAULT nextval('ticket_number_seq'),
-  -- [{ lineId, product, modifiers, quantity, unitPrice, lineTotal, notes }]
   items               jsonb NOT NULL,
   subtotal            numeric(10, 2) NOT NULL,
   total               numeric(10, 2) NOT NULL,
-  -- { method, amount, receiptImage } — receiptImage es la URL de Cloudinary
   payment             jsonb NOT NULL,
   cashier_id          text NOT NULL,
   cashier_name        text NOT NULL,
@@ -125,118 +109,140 @@ CREATE TABLE IF NOT EXISTS sales (
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 
--- ── Índices para las consultas más frecuentes del panel admin ──────────────
+-- ── Indices para consultas frecuentes ────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_sales_branch ON sales (branch_id);
 CREATE INDEX IF NOT EXISTS idx_sales_session ON sales (register_session_id);
 CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_branch ON register_sessions (branch_id);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_status ON register_sessions (status);
--- Respalda el `order by opened_at desc limit 500` de /api/register-sessions — sin esto
--- Postgres tiene que ordenar la tabla completa en cada poll de 6s a medida que crece.
 CREATE INDEX IF NOT EXISTS idx_register_sessions_opened_at ON register_sessions (opened_at DESC);
 CREATE INDEX IF NOT EXISTS idx_qr_codes_branch ON qr_codes (branch_id);
 
 -- ============================================================================
--- Datos semilla — mismos valores que src/data/seed.ts, para que el primer
--- arranque contra Neon se vea igual que la demo local. No pisa nada si ya
--- existen filas con esos ids (ON CONFLICT DO NOTHING).
+-- DATOS SEMILLA — Fresas con Crema EL MERENGON
+-- Todos los precios en Bs (Bolivianos).
+-- ON CONFLICT DO NOTHING: seguro de correr multiples veces.
 -- ============================================================================
 
+-- ── Sucursales ───────────────────────────────────────────────────────────────
 INSERT INTO branches (id, name, address, phone, active) VALUES
   ('central', 'Sucursal Central', 'Av. Principal 123, Centro', '700-00001', true),
   ('norte',   'Sucursal Norte',   'Av. Norte 456, Zona Norte', '700-00002', true),
   ('sur',     'Sucursal Sur',     'Av. Sur 789, Zona Sur',     '700-00003', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Personal ─────────────────────────────────────────────────────────────────
 INSERT INTO staff (id, name, pin, role, color, status, protected, branch_ids, created_at) VALUES
-  ('u-admin',   'Valeria Ríos', '1234', 'admin',  'bg-accent-500',    'activo', true,  '["central","norte","sur"]', '2026-01-05T09:00:00.000Z'),
-  ('u-cajero1', 'Diego Mamani', '1111', 'cajero', 'bg-primary-500',   'activo', false, '["central"]',              '2026-02-12T09:00:00.000Z'),
-  ('u-cajero2', 'Ana Quispe',   '2222', 'cajero', 'bg-secondary-500', 'activo', false, '["central","norte","sur"]', '2026-03-20T09:00:00.000Z')
+  ('u-admin',   'Administrador', '1234', 'admin',  'bg-accent-500',    'activo', true,  '["central","norte","sur"]', '2026-01-05T09:00:00.000Z'),
+  ('u-cajero1', 'Cajero 1',      '1111', 'cajero', 'bg-primary-500',   'activo', false, '["central"]',               '2026-02-12T09:00:00.000Z'),
+  ('u-cajero2', 'Cajero 2',      '2222', 'cajero', 'bg-secondary-500', 'activo', false, '["central","norte","sur"]',  '2026-03-20T09:00:00.000Z')
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Toppings / Extras (precios en Bs) ────────────────────────────────────────
 INSERT INTO toppings (id, name, price_extra, stock_by_branch, low_stock_threshold) VALUES
-  ('chia',     'Chía',           2,   '{"central":40,"norte":24,"sur":14}', 8),
-  ('granola',  'Granola',        2.5, '{"central":35,"norte":21,"sur":12}', 8),
-  ('coco',     'Coco rallado',   2,   '{"central":30,"norte":18,"sur":11}', 6),
-  ('miel',     'Miel de abeja',  1.5, '{"central":25,"norte":15,"sur":9}',  5),
-  ('avena',    'Avena',          1.5, '{"central":5,"norte":3,"sur":2}',    8),
-  ('colageno', 'Colágeno',       4,   '{"central":18,"norte":11,"sur":6}',  5)
+  ('leche-cond', 'Leche condensada',    3, '{"central":50,"norte":30,"sur":18}', 10),
+  ('nutella',    'Nutella',             5, '{"central":40,"norte":24,"sur":14}', 8),
+  ('oreo',       'Oreo triturada',      4, '{"central":45,"norte":27,"sur":16}', 8),
+  ('chispas',    'Chispas de chocolate',3, '{"central":55,"norte":33,"sur":19}', 10),
+  ('chantilly',  'Chantilly extra',     4, '{"central":35,"norte":21,"sur":12}', 8),
+  ('gomitas',    'Gomitas',             3, '{"central":40,"norte":24,"sur":14}', 8),
+  ('manjar',     'Manjar',              4, '{"central":30,"norte":18,"sur":11}', 6),
+  ('granola',    'Granola',             3, '{"central":35,"norte":21,"sur":12}', 8),
+  ('coco',       'Coco rallado',        3, '{"central":30,"norte":18,"sur":11}', 6),
+  ('miel',       'Miel de abeja',       3, '{"central":25,"norte":15,"sur":9}',  5)
 ON CONFLICT (id) DO NOTHING;
 
+-- ── Tamanos estandar (referencia de comentario, los tamanos se guardan en el producto) ──
+-- Personal:  8 oz  / priceDelta:  0 Bs
+-- Mediano:  12 oz  / priceDelta:  5 Bs
+-- Grande:   16 oz  / priceDelta: 10 Bs
+-- Familiar: 24 oz  / priceDelta: 18 Bs
+
+-- ── Productos ────────────────────────────────────────────────────────────────
 INSERT INTO products (
   id, name, category, description, base_price, gradient, emoji, sizes,
   base_liquida_options, allow_sugar_level, topping_ids, active, stock_by_branch,
   low_stock_threshold, unit
 ) VALUES
-  ('p-papaya', 'Jugo de Papaya', 'Jugos Naturales', 'Papaya fresca licuada al momento.', 10,
-   'from-orange-400 to-amber-500', '🥭',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","leche","leche_almendras"]', true, '["chia","granola","miel","colageno"]', true,
-   '{"central":24,"norte":14,"sur":8}', 8, 'porciones'),
 
-  ('p-piña', 'Jugo de Piña', 'Jugos Naturales', 'Piña dulce con un toque cítrico.', 10,
-   'from-yellow-300 to-orange-400', '🍍',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","yogurt"]', true, '["chia","coco","miel"]', true,
-   '{"central":18,"norte":11,"sur":6}', 8, 'porciones'),
-
-  ('p-fresa-platano', 'Fresa con Plátano', 'Smoothies', 'Cremoso batido de fresa y plátano.', 12,
+-- == Vasos de Fresas con Crema ================================================
+  ('p-fresa-crema', 'Fresas con Crema', 'Vasos de Fresas con Crema',
+   'Fresas frescas banadas en crema chantilly. El clasico de EL MERENGON.', 15,
    'from-pink-400 to-rose-500', '🍓',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["leche","leche_almendras","yogurt"]', true, '["granola","miel","coco","colageno"]', true,
-   '{"central":6,"norte":4,"sur":2}', 8, 'porciones'),
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["leche-cond","nutella","oreo","chispas","chantilly","gomitas","manjar"]',
+   true, '{"central":50,"norte":30,"sur":18}', 10, 'vasos'),
 
-  ('p-mango', 'Jugo de Mango', 'Jugos Naturales', 'Mango maduro, dulzura natural.', 11,
-   'from-orange-400 to-amber-500', '🥭',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","leche","yogurt"]', true, '["chia","granola","coco"]', true,
-   '{"central":20,"norte":12,"sur":7}', 8, 'porciones'),
+  ('p-fresa-leche-cond', 'Fresas con Leche Condensada', 'Vasos de Fresas con Crema',
+   'Fresas frescas banadas en leche condensada y crema chantilly.', 15,
+   'from-rose-300 to-pink-500', '🍓',
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["chantilly","oreo","chispas","gomitas","manjar"]',
+   true, '{"central":40,"norte":24,"sur":14}', 10, 'vasos'),
 
-  ('p-verde-detox', 'Verde Detox', 'Especiales', 'Espinaca, apio, pepino y piña.', 13,
-   'from-lime-400 to-emerald-500', '🥝',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua"]', false, '["chia","colageno"]', true,
-   '{"central":15,"norte":9,"sur":5}', 6, 'porciones'),
+  ('p-fresa-chocolate', 'Fresas con Chocolate', 'Vasos de Fresas con Crema',
+   'Fresas cubiertas con salsa de chocolate y crema chantilly.', 17,
+   'from-amber-700 to-rose-600', '🍓',
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["chantilly","oreo","chispas","gomitas"]',
+   true, '{"central":35,"norte":21,"sur":12}', 8, 'vasos'),
 
-  ('p-sandia', 'Jugo de Sandía', 'Jugos Naturales', 'Refrescante y ligero, ideal para el calor.', 9,
-   'from-pink-400 to-rose-500', '🍉',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua"]', true, '["chia","miel"]', true,
-   '{"central":22,"norte":13,"sur":8}', 8, 'porciones'),
+  ('p-fresa-nutella', 'Fresas con Nutella', 'Vasos de Fresas con Crema',
+   'Fresas frescas con abundante Nutella y crema chantilly.', 18,
+   'from-amber-600 to-red-500', '🍓',
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["chantilly","oreo","chispas","leche-cond"]',
+   true, '{"central":35,"norte":21,"sur":12}', 8, 'vasos'),
 
-  ('p-maracuya', 'Jugo de Maracuyá', 'Jugos Naturales', 'Ácido y aromático, con un toque de dulzura.', 10,
-   'from-yellow-300 to-orange-400', '🍋',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","leche"]', true, '["miel","chia"]', true,
-   '{"central":3,"norte":2,"sur":1}', 8, 'porciones'),
+-- == Otros Postres ============================================================
+  ('p-durazno-crema', 'Duraznos con Crema', 'Otros Postres',
+   'Duraznos en almibar con crema chantilly y toppings dulces.', 14,
+   'from-orange-300 to-amber-400', '🍑',
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["leche-cond","chantilly","oreo","gomitas","granola"]',
+   true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
-  ('p-mix-tropical', 'Mix Tropical', 'Especiales', 'Piña, mango, maracuyá y naranja.', 14,
-   'from-fuchsia-400 to-pink-500', '🍹',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","yogurt"]', true, '["chia","granola","coco","miel","colageno"]', true,
-   '{"central":16,"norte":10,"sur":6}', 8, 'porciones'),
+  ('p-ensalada-frutas', 'Ensalada de Frutas con Crema', 'Otros Postres',
+   'Mix de frutas frescas de temporada con crema chantilly.', 18,
+   'from-fuchsia-400 to-pink-500', '🍉',
+   '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
+   '[]', false, '["leche-cond","chantilly","oreo","granola","coco","miel"]',
+   true, '{"central":25,"norte":15,"sur":9}', 6, 'vasos'),
 
-  ('p-avena-manzana', 'Avena con Manzana', 'Smoothies', 'Avena remojada, manzana y canela.', 11,
-   'from-emerald-400 to-teal-500', '🍏',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["leche","leche_almendras","agua"]', true, '["granola","miel","avena"]', true,
-   '{"central":12,"norte":7,"sur":4}', 8, 'porciones'),
+  ('p-brownie-crema', 'Brownie con Crema y Fresas', 'Otros Postres',
+   'Brownie de chocolate con crema chantilly y fresas frescas.', 22,
+   'from-amber-800 to-red-600', '🍫',
+   '[{"id":"individual","label":"Individual","ounces":0,"priceDelta":0},{"id":"doble","label":"Doble","ounces":0,"priceDelta":12}]',
+   '[]', false, '["chantilly","chispas","nutella","leche-cond"]',
+   true, '{"central":15,"norte":9,"sur":5}', 5, 'porciones'),
 
-  ('p-berries', 'Mix de Berries', 'Smoothies', 'Frutos rojos, antioxidantes naturales.', 13,
-   'from-red-400 to-orange-500', '🫐',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["leche","leche_almendras","yogurt"]', true, '["chia","granola","colageno"]', true,
-   '{"central":9,"norte":5,"sur":3}', 8, 'porciones'),
+-- == Bebidas / Frappés / Batidos ==============================================
+  ('p-frappe-fresa', 'Frappe de Fresa', 'Bebidas / Frappés / Batidos',
+   'Frappe helado de fresa natural con crema y chispas de chocolate.', 18,
+   'from-pink-400 to-fuchsia-500', '🥤',
+   '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":7}]',
+   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas"]',
+   true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
-  ('p-naranja', 'Jugo de Naranja', 'Jugos Naturales', 'Exprimido natural, alto en vitamina C.', 8,
-   'from-yellow-300 to-orange-400', '🍊',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua"]', true, '["chia","miel"]', true,
-   '{"central":30,"norte":18,"sur":11}', 10, 'porciones'),
+  ('p-batido-fresa', 'Batido de Fresa', 'Bebidas / Frappés / Batidos',
+   'Batido cremoso de fresa con leche y helado.', 16,
+   'from-rose-300 to-pink-500', '🥛',
+   '[{"id":"mediano","label":"Mediano","ounces":14,"priceDelta":0},{"id":"grande","label":"Grande","ounces":20,"priceDelta":6}]',
+   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas","leche-cond"]',
+   true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
-  ('p-uva', 'Jugo de Uva', 'Jugos Naturales', 'Uva concord, dulce y antioxidante.', 10,
-   'from-purple-400 to-fuchsia-500', '🍇',
-   '[{"id":"personal","label":"Personal","ounces":12,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":3},{"id":"grande","label":"Grande","ounces":22,"priceDelta":6}]',
-   '["agua","yogurt"]', true, '["chia","coco"]', true,
-   '{"central":14,"norte":8,"sur":5}', 8, 'porciones')
+  ('p-frappe-nutella', 'Frappe de Nutella', 'Bebidas / Frappés / Batidos',
+   'Frappe helado de Nutella con crema chantilly y Oreo triturada.', 20,
+   'from-amber-600 to-orange-500', '☕',
+   '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":7}]',
+   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas"]',
+   true, '{"central":25,"norte":15,"sur":9}', 6, 'vasos'),
+
+  ('p-limonada-fresa', 'Limonada de Fresa', 'Bebidas / Frappés / Batidos',
+   'Limonada fresca con fresas naturales. Refrescante y deliciosa.', 13,
+   'from-yellow-300 to-pink-400', '🍋',
+   '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":5}]',
+   '["agua","agua_con_gas"]', true, '["chantilly","gomitas"]',
+   true, '{"central":40,"norte":24,"sur":14}', 10, 'vasos')
+
 ON CONFLICT (id) DO NOTHING;

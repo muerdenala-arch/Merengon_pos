@@ -11,19 +11,45 @@ const SELECT_COLUMNS = `
 async function handler(req: VercelRequest, res: VercelResponse) {
   const id = typeof req.query.id === 'string' ? req.query.id : undefined;
 
+  // ── GET /api/toppings ───────────────────────────────────────────────────────
   if (req.method === 'GET' && !id) {
     const toppings = await query<Topping>(`select ${SELECT_COLUMNS} from toppings order by name asc`);
     res.status(200).json(toppings);
     return;
   }
 
+  // ── POST /api/toppings — crear nuevo topping ────────────────────────────────
+  if (req.method === 'POST' && !id) {
+    const body = requireBody<Topping>(req);
+    const rows = await query<Topping>(
+      `insert into toppings (id, name, price_extra, stock_by_branch, low_stock_threshold)
+       values ($1, $2, $3, $4::jsonb, $5)
+       on conflict (id) do update set
+         name = excluded.name,
+         price_extra = excluded.price_extra,
+         stock_by_branch = excluded.stock_by_branch,
+         low_stock_threshold = excluded.low_stock_threshold
+       returning ${SELECT_COLUMNS}`,
+      [
+        body.id,
+        body.name,
+        body.priceExtra ?? 0,
+        JSON.stringify(body.stockByBranch ?? {}),
+        body.lowStockThreshold ?? 0,
+      ],
+    );
+    res.status(201).json(rows[0]);
+    return;
+  }
+
+  // ── PATCH /api/toppings?id=xxx — actualizar topping ─────────────────────────
   if (req.method === 'PATCH' && id) {
     const body = requireBody<Partial<Topping>>(req);
     const topping = await queryOne<Topping>(
       `update toppings set
          name = coalesce($2, name),
          price_extra = coalesce($3, price_extra),
-         stock_by_branch = coalesce($4, stock_by_branch),
+         stock_by_branch = coalesce($4::jsonb, stock_by_branch),
          low_stock_threshold = coalesce($5, low_stock_threshold),
          updated_at = now()
        where id = $1
@@ -44,7 +70,14 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  methodNotAllowed(res, ['GET', 'PATCH']);
+  // ── DELETE /api/toppings?id=xxx — eliminar topping ──────────────────────────
+  if (req.method === 'DELETE' && id) {
+    await query(`delete from toppings where id = $1`, [id]);
+    res.status(204).end();
+    return;
+  }
+
+  methodNotAllowed(res, ['GET', 'POST', 'PATCH', 'DELETE']);
 }
 
 export default withErrorHandling(handler);

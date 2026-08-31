@@ -73,7 +73,9 @@ export const api = {
   },
   toppings: {
     list: () => get<Topping[]>('/toppings'),
+    create: (data: Topping) => post<Topping>('/toppings', data),
     update: (id: string, data: Partial<Topping>) => patch<Topping>(withId('/toppings', id), data),
+    remove: (id: string) => del(withId('/toppings', id)),
   },
   qrCodes: {
     list: () => get<QrCode[]>('/qr-codes'),

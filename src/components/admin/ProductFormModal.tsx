@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -6,9 +7,8 @@ import { optionActiveClasses, optionInactiveClasses } from '@/lib/optionStyles';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useBranchStore } from '@/store/branchStore';
 import { SIZES, CATEGORIES } from '@/data/seed';
-import { BASE_LIQUIDA_LABEL } from '@/types';
-import type { BaseLiquida, Product } from '@/types';
-import { cn } from '@/lib/utils';
+import type { Product, SizeOption } from '@/types';
+import { cn, uid } from '@/lib/utils';
 
 interface ProductFormModalProps {
   product: Product | null;
@@ -16,29 +16,33 @@ interface ProductFormModalProps {
   onClose: () => void;
 }
 
-const ALL_BASE_LIQUIDA: BaseLiquida[] = ['agua', 'leche', 'leche_almendras', 'yogurt'];
-const EMOJI_OPTIONS = ['🍹', '🥭', '🍍', '🍓', '🥝', '🍉', '🍋', '🍏', '🫐', '🍊', '🍇'];
+const EMOJI_OPTIONS = ['🍓', '🍑', '🍉', '🍫', '🥤', '🥛', '🍋', '☕', '🫐', '🍍', '🥭', '🍏'];
 const GRADIENT_OPTIONS = [
-  'from-orange-400 to-amber-500',
-  'from-lime-400 to-emerald-500',
   'from-pink-400 to-rose-500',
-  'from-yellow-300 to-orange-400',
+  'from-rose-300 to-pink-500',
+  'from-amber-700 to-rose-600',
+  'from-amber-600 to-red-500',
+  'from-orange-300 to-amber-400',
   'from-fuchsia-400 to-pink-500',
+  'from-amber-800 to-red-600',
+  'from-pink-400 to-fuchsia-500',
+  'from-rose-300 to-pink-500',
+  'from-amber-600 to-orange-500',
+  'from-yellow-300 to-pink-400',
   'from-emerald-400 to-teal-500',
 ];
 
 const emptyForm = {
   name: '',
-  category: CATEGORIES[0] ?? 'Jugos Naturales',
+  category: CATEGORIES[0] ?? 'Vasos de Fresas con Crema',
   description: '',
-  basePrice: '10',
-  stock: '20',
+  basePrice: '15',
+  stock: '30',
   lowStockThreshold: '8',
   emoji: EMOJI_OPTIONS[0],
   gradient: GRADIENT_OPTIONS[0],
-  allowSugarLevel: true,
-  baseLiquidaOptions: ['agua'] as BaseLiquida[],
   toppingIds: [] as string[],
+  sizes: SIZES.map((s) => ({ ...s })) as SizeOption[],
 };
 
 export function ProductFormModal({ product, open, onClose }: ProductFormModalProps) {
@@ -59,31 +63,47 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         lowStockThreshold: String(product.lowStockThreshold),
         emoji: product.emoji,
         gradient: product.gradient,
-        allowSugarLevel: product.allowSugarLevel,
-        baseLiquidaOptions: product.baseLiquidaOptions,
         toppingIds: product.toppingIds,
+        sizes: product.sizes.map((s) => ({ ...s })),
       });
     } else {
       setForm(emptyForm);
     }
   }, [product, open]);
 
-  function toggleBase(base: BaseLiquida) {
-    setForm((f) => ({
-      ...f,
-      baseLiquidaOptions: f.baseLiquidaOptions.includes(base)
-        ? f.baseLiquidaOptions.filter((b) => b !== base)
-        : [...f.baseLiquidaOptions, base],
-    }));
-  }
-
+  // ── Toppings ────────────────────────────────────────────────────────────────
   function toggleTopping(id: string) {
     setForm((f) => ({
       ...f,
-      toppingIds: f.toppingIds.includes(id) ? f.toppingIds.filter((t) => t !== id) : [...f.toppingIds, id],
+      toppingIds: f.toppingIds.includes(id)
+        ? f.toppingIds.filter((t) => t !== id)
+        : [...f.toppingIds, id],
     }));
   }
 
+  // ── Tamaños ─────────────────────────────────────────────────────────────────
+  function addSize() {
+    setForm((f) => ({
+      ...f,
+      sizes: [
+        ...f.sizes,
+        { id: uid('sz'), label: 'Nuevo tamaño', ounces: 0, priceDelta: 0 },
+      ],
+    }));
+  }
+
+  function updateSize(idx: number, field: keyof SizeOption, value: string | number) {
+    setForm((f) => ({
+      ...f,
+      sizes: f.sizes.map((s, i) => (i === idx ? { ...s, [field]: value } : s)),
+    }));
+  }
+
+  function removeSize(idx: number) {
+    setForm((f) => ({ ...f, sizes: f.sizes.filter((_, i) => i !== idx) }));
+  }
+
+  // ── Guardar ─────────────────────────────────────────────────────────────────
   function handleSave() {
     if (!form.name.trim()) return;
     const stockByBranch = product
@@ -96,14 +116,19 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       basePrice: Number(form.basePrice) || 0,
       gradient: form.gradient,
       emoji: form.emoji,
-      sizes: SIZES,
-      baseLiquidaOptions: form.baseLiquidaOptions,
-      allowSugarLevel: form.allowSugarLevel,
+      sizes: form.sizes.map((s) => ({
+        ...s,
+        ounces: Number(s.ounces) || 0,
+        priceDelta: Number(s.priceDelta) || 0,
+      })),
+      // Mantenemos en el modelo pero no se muestran en la UI de fresas:
+      baseLiquidaOptions: [],
+      allowSugarLevel: false,
       toppingIds: form.toppingIds,
       active: product?.active ?? true,
       stockByBranch,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
-      unit: 'porciones',
+      unit: 'vasos',
     };
     if (product) {
       upsertProduct({ ...base, id: product.id });
@@ -116,8 +141,14 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
   return (
     <Modal open={open} onClose={onClose} title={product ? 'Editar producto' : 'Nuevo producto'} size="lg">
       <div className="grid grid-cols-1 gap-5 px-6 pb-6 pt-2 sm:grid-cols-2">
-        <Input label="Nombre" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        {/* Nombre */}
+        <Input
+          label="Nombre del producto"
+          value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+        />
 
+        {/* Categoría */}
         <label className="flex flex-col">
           <span className={fieldLabelClasses}>Categoría</span>
           <select
@@ -133,6 +164,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           </select>
         </label>
 
+        {/* Descripción */}
         <div className="sm:col-span-2">
           <label className="flex flex-col">
             <span className={fieldLabelClasses}>Descripción</span>
@@ -145,14 +177,17 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           </label>
         </div>
 
+        {/* Precio base */}
         <Input
-          label="Precio base"
+          label="Precio base (tamaño menor, Bs)"
           type="number"
           min={0}
           step={0.5}
           value={form.basePrice}
           onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value }))}
         />
+
+        {/* Stock */}
         {product ? (
           <div>
             <p className={fieldLabelClasses}>Stock</p>
@@ -169,6 +204,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
             onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
           />
         )}
+
         <Input
           label="Umbral de stock bajo"
           type="number"
@@ -177,23 +213,68 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))}
         />
 
-        <div className="flex items-center gap-3">
-          <span className={cn(fieldLabelClasses, 'mb-0')}>Permite nivel de azúcar</span>
-          <button
-            type="button"
-            onClick={() => setForm((f) => ({ ...f, allowSugarLevel: !f.allowSugarLevel }))}
-            className={cn(
-              'relative h-7 w-12 flex-shrink-0 rounded-full transition-colors cursor-pointer',
-              form.allowSugarLevel ? 'bg-secondary-500' : 'bg-zinc-300 dark:bg-zinc-700',
-            )}
-          >
-            <span
-              className="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all"
-              style={{ left: form.allowSugarLevel ? '1.6rem' : '0.25rem' }}
-            />
-          </button>
+        {/* ── Tamaños de vaso ──────────────────────────────────────────────── */}
+        <div className="sm:col-span-2">
+          <div className="mb-2 flex items-center justify-between">
+            <p className={fieldLabelClasses}>Tamaños del vaso</p>
+            <button
+              type="button"
+              onClick={addSize}
+              className="flex items-center gap-1 rounded-lg bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-600 hover:bg-primary-100 transition-colors cursor-pointer dark:bg-primary-900/30 dark:text-primary-400"
+            >
+              <Plus size={13} /> Agregar tamaño
+            </button>
+          </div>
+          <div className="space-y-2">
+            {form.sizes.map((s, idx) => (
+              <div
+                key={s.id}
+                className="grid grid-cols-[1fr_80px_90px_36px] items-center gap-2 rounded-xl border border-border bg-field px-3 py-2"
+              >
+                <input
+                  value={s.label}
+                  onChange={(e) => updateSize(idx, 'label', e.target.value)}
+                  placeholder="Nombre (ej. Personal)"
+                  className="min-w-0 rounded-lg border-0 bg-transparent text-sm text-ink placeholder:text-ink-soft focus:outline-none"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  value={s.ounces}
+                  onChange={(e) => updateSize(idx, 'ounces', e.target.value)}
+                  placeholder="oz"
+                  className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1 text-center text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary-400"
+                />
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-ink-soft">
+                    +Bs
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    value={s.priceDelta}
+                    onChange={(e) => updateSize(idx, 'priceDelta', e.target.value)}
+                    className="w-full rounded-lg border border-border-strong bg-surface py-1 pl-7 pr-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary-400"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeSize(idx)}
+                  disabled={form.sizes.length <= 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed dark:hover:bg-red-900/20"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-ink-soft">
+            El primer tamaño usa el precio base. Los demás suman el delta (+Bs).
+          </p>
         </div>
 
+        {/* ── Ícono ───────────────────────────────────────────────────────── */}
         <div className="sm:col-span-2">
           <p className={fieldLabelClasses}>Ícono</p>
           <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
@@ -205,8 +286,8 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
                 className={cn(
                   'flex h-11 w-11 items-center justify-center rounded-xl border text-xl cursor-pointer transition-colors',
                   form.emoji === e
-                    ? 'border-transparent bg-amber-500/10 ring-2 ring-amber-500'
-                    : 'border-zinc-300 bg-zinc-50 hover:border-amber-300 dark:border-zinc-700 dark:bg-zinc-800',
+                    ? 'border-transparent bg-primary-100 ring-2 ring-primary-500 dark:bg-primary-900/30'
+                    : 'border-zinc-300 bg-zinc-50 hover:border-primary-300 dark:border-zinc-700 dark:bg-zinc-800',
                 )}
               >
                 {e}
@@ -215,6 +296,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           </div>
         </div>
 
+        {/* ── Color de tarjeta ─────────────────────────────────────────────── */}
         <div className="sm:col-span-2">
           <p className={fieldLabelClasses}>Color de tarjeta</p>
           <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
@@ -227,34 +309,18 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
                 className={cn(
                   'h-11 rounded-xl bg-gradient-to-br cursor-pointer border-2 transition-all',
                   g,
-                  form.gradient === g ? 'border-white ring-2 ring-amber-500 scale-105 dark:border-zinc-900' : 'border-transparent',
+                  form.gradient === g
+                    ? 'border-white ring-2 ring-primary-500 scale-105 dark:border-zinc-900'
+                    : 'border-transparent',
                 )}
               />
             ))}
           </div>
         </div>
 
+        {/* ── Toppings disponibles ─────────────────────────────────────────── */}
         <div className="sm:col-span-2">
-          <p className={fieldLabelClasses}>Bases líquidas disponibles</p>
-          <div className="flex flex-wrap gap-2">
-            {ALL_BASE_LIQUIDA.map((b) => (
-              <button
-                key={b}
-                type="button"
-                onClick={() => toggleBase(b)}
-                className={cn(
-                  'rounded-full border px-3.5 py-2 text-sm transition-colors cursor-pointer',
-                  form.baseLiquidaOptions.includes(b) ? optionActiveClasses : optionInactiveClasses,
-                )}
-              >
-                {BASE_LIQUIDA_LABEL[b]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="sm:col-span-2">
-          <p className={fieldLabelClasses}>Agregados / toppings disponibles</p>
+          <p className={fieldLabelClasses}>Agregados / Toppings disponibles</p>
           <div className="flex flex-wrap gap-2">
             {toppings.map((t) => (
               <button
@@ -283,7 +349,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         </Button>
         <Button
           onClick={handleSave}
-          className="flex-[2] !bg-amber-500 py-3 !text-white !shadow-lg hover:!bg-amber-600"
+          className="flex-[2] !bg-primary-500 py-3 !text-white !shadow-lg hover:!bg-primary-600"
           size="lg"
           disabled={!form.name.trim()}
         >

@@ -27,11 +27,13 @@ export function CashierShell({ children }: { children: ReactNode }) {
           recupera su versión completa a partir de 640px. */}
       <header className="flex items-center justify-between gap-1.5 border-b border-border bg-surface px-3 py-2.5 shadow-soft sm:gap-3 sm:px-5 sm:py-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <img
-            src={logoMark}
-            alt={APP_CONFIG.storeName}
-            className={cn('h-8 w-auto flex-shrink-0 object-contain sm:h-9', logoGlowClasses)}
-          />
+          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm sm:h-9 sm:w-9 dark:border-primary-900/50">
+            <img
+              src={logoMark}
+              alt={APP_CONFIG.storeName}
+              className="h-full w-full object-cover"
+            />
+          </div>
           <div className="min-w-0">
             <p className="hidden truncate font-display text-base font-bold leading-tight text-ink sm:block">
               {APP_CONFIG.storeName}

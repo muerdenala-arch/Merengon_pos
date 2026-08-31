@@ -1,14 +1,12 @@
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Minus, Plus, Check } from 'lucide-react';
+import { Minus, Plus, Check, StickyNote } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { fieldClasses } from '@/components/ui/Input';
-import { optionActiveClasses, optionInactiveClasses } from '@/lib/optionStyles';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useCartStore } from '@/store/cartStore';
-import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
-import type { BaseLiquida, CartModifiers, NivelAzucar, Product, Topping } from '@/types';
+import type { CartModifiers, Product, Topping } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 
 interface ModifierModalProps {
@@ -17,18 +15,15 @@ interface ModifierModalProps {
   onClose: () => void;
 }
 
-const SUGAR_LEVELS: NivelAzucar[] = ['sin_azucar', 'poco', 'normal', 'extra'];
-
 export function ModifierModal({ product, branchId, onClose }: ModifierModalProps) {
   const toppingsCatalog = useCatalogStore((s) => s.toppings);
   const addItem = useCartStore((s) => s.addItem);
 
   const [sizeId, setSizeId] = useState(product?.sizes[0]?.id ?? '');
-  const [baseLiquida, setBaseLiquida] = useState<BaseLiquida | null>(null);
-  const [sugarLevel, setSugarLevel] = useState<NivelAzucar | null>(null);
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
 
   const availableToppings = useMemo(
     () => toppingsCatalog.filter((t) => product?.toppingIds.includes(t.id)),
@@ -44,75 +39,85 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
   const lineTotal = unitPrice * quantity;
 
   function toggleTopping(id: string) {
-    setSelectedToppings((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+    setSelectedToppings((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    );
   }
 
   function handleReset() {
     setSizeId(product!.sizes[0]?.id ?? '');
-    setBaseLiquida(null);
-    setSugarLevel(null);
     setSelectedToppings([]);
     setQuantity(1);
     setNotes('');
+    setShowNotes(false);
   }
 
   function handleAdd() {
-    const modifiers: CartModifiers = { size, baseLiquida, sugarLevel, toppings };
+    const modifiers: CartModifiers = {
+      size,
+      baseLiquida: null,
+      sugarLevel: null,
+      toppings,
+    };
     addItem(product!, modifiers, quantity, notes || undefined);
     handleReset();
     onClose();
   }
 
   return (
-    <Modal open={!!product} onClose={onClose} title={product.name} size="lg">
-      <div className="px-6 pb-6 pt-4">
-        <div className={cn('mb-5 flex items-center gap-4 rounded-xl2 bg-gradient-to-br p-4 text-white', product.gradient)}>
-          <span className="text-4xl">{product.emoji}</span>
-          <div>
-            <p className="text-sm opacity-90">{product.description}</p>
-            <p className="font-display text-lg font-bold">{formatCurrency(product.basePrice)} base</p>
+    <Modal open={!!product} onClose={onClose} title={product.name} size="md">
+      <div className="px-5 pb-4 pt-3">
+        {/* Banner del producto — más compacto */}
+        <div
+          className={cn(
+            'mb-4 flex items-center gap-3 rounded-xl p-3 text-white bg-gradient-to-br',
+            product.gradient,
+          )}
+        >
+          <span className="text-3xl">{product.emoji}</span>
+          <div className="min-w-0">
+            <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
+            <p className="font-display text-base font-bold">{formatCurrency(product.basePrice)} base</p>
           </div>
         </div>
 
-        <Section title="Tamaño">
-          <div className="grid grid-cols-3 gap-2.5">
-            {product.sizes.map((s) => (
-              <OptionPill key={s.id} active={s.id === sizeId} onClick={() => setSizeId(s.id)}>
-                <span className="font-semibold">{s.label}</span>
-                <span className="text-xs opacity-75">{s.ounces}oz</span>
-                {s.priceDelta > 0 && <span className="text-xs opacity-75">+{formatCurrency(s.priceDelta)}</span>}
-              </OptionPill>
-            ))}
-          </div>
-        </Section>
+        {/* ── Tamaños (chips) ──────────────────────────────────────────── */}
+        <SectionTitle>Tamaño</SectionTitle>
+        <div className={cn('mb-4 grid gap-2', product.sizes.length <= 2 ? 'grid-cols-2' : 'grid-cols-4')}>
+          {product.sizes.map((s) => {
+            const active = s.id === sizeId;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setSizeId(s.id)}
+                className={cn(
+                  'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 px-2 py-2.5 text-center text-sm font-semibold transition-all',
+                  active
+                    ? 'border-primary-500 bg-primary-500 text-white shadow-md'
+                    : 'border-border bg-surface text-ink hover:border-primary-300',
+                )}
+              >
+                <span>{s.label}</span>
+                {s.ounces > 0 && (
+                  <span className={cn('text-[10px] font-normal', active ? 'text-white/75' : 'text-ink-soft')}>
+                    {s.ounces}oz
+                  </span>
+                )}
+                {s.priceDelta > 0 && (
+                  <span className={cn('text-[10px] font-semibold', active ? 'text-white/90' : 'text-primary-500')}>
+                    +{formatCurrency(s.priceDelta)}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-        {product.baseLiquidaOptions.length > 0 && (
-          <Section title="Base líquida">
-            <div className="flex flex-wrap gap-2.5">
-              {product.baseLiquidaOptions.map((b) => (
-                <OptionPill key={b} active={baseLiquida === b} onClick={() => setBaseLiquida(b)} compact>
-                  {BASE_LIQUIDA_LABEL[b]}
-                </OptionPill>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {product.allowSugarLevel && (
-          <Section title="Nivel de azúcar">
-            <div className="flex flex-wrap gap-2.5">
-              {SUGAR_LEVELS.map((lvl) => (
-                <OptionPill key={lvl} active={sugarLevel === lvl} onClick={() => setSugarLevel(lvl)} compact>
-                  {NIVEL_AZUCAR_LABEL[lvl]}
-                </OptionPill>
-              ))}
-            </div>
-          </Section>
-        )}
-
+        {/* ── Toppings (grid 3 col) ────────────────────────────────────── */}
         {availableToppings.length > 0 && (
-          <Section title="Agregados / Toppings">
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <>
+            <SectionTitle>Agregados</SectionTitle>
+            <div className="mb-4 grid grid-cols-3 gap-1.5">
               {availableToppings.map((t) => {
                 const outOfStock = (t.stockByBranch[branchId] ?? 0) <= 0;
                 const active = selectedToppings.includes(t.id);
@@ -122,102 +127,98 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
                     disabled={outOfStock}
                     onClick={() => toggleTopping(t.id)}
                     className={cn(
-                      'flex min-h-touch items-center justify-between rounded-xl border-2 px-3 py-2.5 text-left text-sm transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40',
-                      active ? optionActiveClasses : optionInactiveClasses,
+                      'relative flex cursor-pointer flex-col items-start rounded-xl border-2 px-3 py-2 text-left text-xs transition-all disabled:cursor-not-allowed disabled:opacity-40',
+                      active
+                        ? 'border-secondary-500 bg-secondary-500 text-white shadow-sm'
+                        : 'border-border bg-surface text-ink hover:border-secondary-300',
                     )}
                   >
-                    <span className="flex items-center gap-1.5">
-                      {active && <Check size={15} />}
-                      {t.name}
-                    </span>
-                    <span className={cn('text-xs', active ? 'text-white/90' : 'text-zinc-500 dark:text-zinc-400')}>
+                    {active && (
+                      <Check
+                        size={11}
+                        className="absolute right-2 top-2 opacity-90"
+                      />
+                    )}
+                    <span className="font-semibold leading-tight">{t.name}</span>
+                    <span
+                      className={cn(
+                        'mt-0.5 text-[10px] font-medium',
+                        active ? 'text-white/80' : 'text-secondary-600 dark:text-secondary-400',
+                      )}
+                    >
                       +{formatCurrency(t.priceExtra)}
                     </span>
                   </button>
                 );
               })}
             </div>
-          </Section>
+          </>
         )}
 
-        <Section title="Notas (opcional)">
+        {/* ── Notas (colapsable) ───────────────────────────────────────── */}
+        <button
+          onClick={() => setShowNotes((v) => !v)}
+          className="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink-muted hover:text-ink transition-colors cursor-pointer"
+        >
+          <StickyNote size={13} />
+          {showNotes ? 'Ocultar notas' : 'Agregar nota (opcional)'}
+        </button>
+        {showNotes && (
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Ej. sin hielo, para llevar..."
             rows={2}
-            className={cn(fieldClasses, 'text-sm')}
+            className={cn(fieldClasses, 'mb-3 text-sm')}
+            autoFocus
           />
-        </Section>
+        )}
 
-        <div className="mt-2 flex items-center justify-between gap-4 rounded-xl2 bg-cream-200 p-3">
+        {/* ── Cantidad (siempre visible) ───────────────────────────────── */}
+        <div className="flex items-center justify-between rounded-xl bg-zinc-50 px-4 py-2.5 dark:bg-zinc-800/60">
           <span className="text-sm font-semibold text-ink-muted">Cantidad</span>
           <div className="flex items-center gap-3">
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
             >
-              <Minus size={16} />
+              <Minus size={15} />
             </motion.button>
             <span className="w-6 text-center font-display text-lg font-bold">{quantity}</span>
             <motion.button
-              whileTap={{ scale: 0.9 }}
+              whileTap={{ scale: 0.88 }}
               onClick={() => setQuantity((q) => Math.min(20, q + 1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
             >
-              <Plus size={16} />
+              <Plus size={15} />
             </motion.button>
           </div>
         </div>
       </div>
 
-      <div className="sticky bottom-0 flex items-center gap-3 border-t border-border bg-surface px-6 py-4">
+      {/* Footer sticky — siempre visible */}
+      <div className="sticky bottom-0 flex items-center gap-3 border-t border-border bg-surface px-5 py-3">
         <Button
           variant="outline"
           onClick={onClose}
-          className="flex-1 border-transparent bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          className="border-transparent bg-zinc-100 px-4 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
         >
           Cancelar
         </Button>
-        <Button onClick={handleAdd} className="flex-[2]" size="lg">
-          Agregar · {formatCurrency(lineTotal)}
+        <Button onClick={handleAdd} className="flex-1" size="lg">
+          <span className="font-bold">Agregar</span>
+          <span className="ml-1 opacity-90">· {formatCurrency(lineTotal)}</span>
         </Button>
       </div>
     </Modal>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-5">
-      <p className="mb-2 text-sm font-bold uppercase tracking-wider text-zinc-900 dark:text-zinc-100">{title}</p>
+    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
       {children}
-    </div>
-  );
-}
-
-function OptionPill({
-  active,
-  onClick,
-  children,
-  compact,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex min-h-touch cursor-pointer flex-col items-center justify-center rounded-xl border-2 text-sm transition-colors',
-        compact ? 'px-4 py-2' : 'px-2 py-2.5',
-        active ? optionActiveClasses : optionInactiveClasses,
-      )}
-    >
-      {children}
-    </button>
+    </p>
   );
 }

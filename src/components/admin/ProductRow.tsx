@@ -54,9 +54,7 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
         <Pencil size={17} />
       </button>
       <button
-        onClick={() => {
-          if (confirm(`¿Eliminar "${product.name}" del catálogo?`)) removeProduct(product.id);
-        }}
+        onClick={() => removeProduct(product.id)}
         className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-red-50 hover:text-red-600 cursor-pointer"
         aria-label="Eliminar"
       >

@@ -19,6 +19,10 @@ interface CatalogState {
   adjustToppingStock: (id: string, branchId: string, delta: number) => void;
   setToppingStock: (id: string, branchId: string, value: number) => void;
   stockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string) => number;
+  /** CRUD de toppings */
+  createTopping: (data: Omit<Topping, 'id'>) => Topping;
+  upsertTopping: (topping: Topping) => void;
+  deleteTopping: (id: string) => void;
 }
 
 export const useCatalogStore = create<CatalogState>()((set, get) => ({
@@ -100,4 +104,23 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
     api.toppings.update(id, { stockByBranch }).catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
   stockFor: (product, branchId) => product.stockByBranch[branchId] ?? 0,
+
+  createTopping: (data) => {
+    const topping: Topping = { ...data, id: uid('top') };
+    set((state) => ({ toppings: [...state.toppings, topping] }));
+    api.toppings.create(topping).catch((err) => console.error('No se pudo crear el topping:', err));
+    return topping;
+  },
+  upsertTopping: (topping) => {
+    set((state) => ({
+      toppings: state.toppings.some((t) => t.id === topping.id)
+        ? state.toppings.map((t) => (t.id === topping.id ? topping : t))
+        : [...state.toppings, topping],
+    }));
+    api.toppings.update(topping.id, topping).catch((err) => console.error('No se pudo guardar el topping:', err));
+  },
+  deleteTopping: (id) => {
+    set((state) => ({ toppings: state.toppings.filter((t) => t.id !== id) }));
+    api.toppings.remove(id).catch((err) => console.error('No se pudo eliminar el topping:', err));
+  },
 }));
