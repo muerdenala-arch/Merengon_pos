@@ -25,6 +25,6 @@ export const useThemeStore = create<ThemeState>()(
       setMode: (mode) => set({ mode }),
       toggle: () => set({ mode: resolveTheme(get().mode) === 'dark' ? 'light' : 'dark' }),
     }),
-    { name: 'pos-jugueria/theme' },
+    { name: 'pos-merengon/theme' },
   ),
 );

@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- Fresas con Crema EL MERENGON — esquema de base de datos (Neon / PostgreSQL)
 -- ============================================================================
 -- Todos los precios en Bs (Bolivianos bolivianos).
@@ -50,8 +50,7 @@ CREATE TABLE IF NOT EXISTS products (
   gradient             text NOT NULL DEFAULT '',
   emoji                text NOT NULL DEFAULT '',
   sizes                jsonb NOT NULL DEFAULT '[]',
-  base_liquida_options jsonb NOT NULL DEFAULT '[]',
-  allow_sugar_level    boolean NOT NULL DEFAULT true,
+
   topping_ids          jsonb NOT NULL DEFAULT '[]',
   active               boolean NOT NULL DEFAULT true,
   stock_by_branch      jsonb NOT NULL DEFAULT '{}',
@@ -161,7 +160,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ── Productos ────────────────────────────────────────────────────────────────
 INSERT INTO products (
   id, name, category, description, base_price, gradient, emoji, sizes,
-  base_liquida_options, allow_sugar_level, topping_ids, active, stock_by_branch,
+  topping_ids, active, stock_by_branch,
   low_stock_threshold, unit
 ) VALUES
 
@@ -170,28 +169,28 @@ INSERT INTO products (
    'Fresas frescas banadas en crema chantilly. El clasico de EL MERENGON.', 15,
    'from-pink-400 to-rose-500', '🍓',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["leche-cond","nutella","oreo","chispas","chantilly","gomitas","manjar"]',
+   '["leche-cond","nutella","oreo","chispas","chantilly","gomitas","manjar"]',
    true, '{"central":50,"norte":30,"sur":18}', 10, 'vasos'),
 
   ('p-fresa-leche-cond', 'Fresas con Leche Condensada', 'Vasos de Fresas con Crema',
    'Fresas frescas banadas en leche condensada y crema chantilly.', 15,
    'from-rose-300 to-pink-500', '🍓',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["chantilly","oreo","chispas","gomitas","manjar"]',
+   '["chantilly","oreo","chispas","gomitas","manjar"]',
    true, '{"central":40,"norte":24,"sur":14}', 10, 'vasos'),
 
   ('p-fresa-chocolate', 'Fresas con Chocolate', 'Vasos de Fresas con Crema',
    'Fresas cubiertas con salsa de chocolate y crema chantilly.', 17,
    'from-amber-700 to-rose-600', '🍓',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["chantilly","oreo","chispas","gomitas"]',
+   '["chantilly","oreo","chispas","gomitas"]',
    true, '{"central":35,"norte":21,"sur":12}', 8, 'vasos'),
 
   ('p-fresa-nutella', 'Fresas con Nutella', 'Vasos de Fresas con Crema',
    'Fresas frescas con abundante Nutella y crema chantilly.', 18,
    'from-amber-600 to-red-500', '🍓',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["chantilly","oreo","chispas","leche-cond"]',
+   '["chantilly","oreo","chispas","leche-cond"]',
    true, '{"central":35,"norte":21,"sur":12}', 8, 'vasos'),
 
 -- == Otros Postres ============================================================
@@ -199,21 +198,21 @@ INSERT INTO products (
    'Duraznos en almibar con crema chantilly y toppings dulces.', 14,
    'from-orange-300 to-amber-400', '🍑',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["leche-cond","chantilly","oreo","gomitas","granola"]',
+   '["leche-cond","chantilly","oreo","gomitas","granola"]',
    true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
   ('p-ensalada-frutas', 'Ensalada de Frutas con Crema', 'Otros Postres',
    'Mix de frutas frescas de temporada con crema chantilly.', 18,
    'from-fuchsia-400 to-pink-500', '🍉',
    '[{"id":"personal","label":"Personal","ounces":8,"priceDelta":0},{"id":"mediano","label":"Mediano","ounces":12,"priceDelta":5},{"id":"grande","label":"Grande","ounces":16,"priceDelta":10},{"id":"familiar","label":"Familiar","ounces":24,"priceDelta":18}]',
-   '[]', false, '["leche-cond","chantilly","oreo","granola","coco","miel"]',
+   '["leche-cond","chantilly","oreo","granola","coco","miel"]',
    true, '{"central":25,"norte":15,"sur":9}', 6, 'vasos'),
 
   ('p-brownie-crema', 'Brownie con Crema y Fresas', 'Otros Postres',
    'Brownie de chocolate con crema chantilly y fresas frescas.', 22,
    'from-amber-800 to-red-600', '🍫',
    '[{"id":"individual","label":"Individual","ounces":0,"priceDelta":0},{"id":"doble","label":"Doble","ounces":0,"priceDelta":12}]',
-   '[]', false, '["chantilly","chispas","nutella","leche-cond"]',
+   '["chantilly","chispas","nutella","leche-cond"]',
    true, '{"central":15,"norte":9,"sur":5}', 5, 'porciones'),
 
 -- == Bebidas / Frappés / Batidos ==============================================
@@ -221,28 +220,28 @@ INSERT INTO products (
    'Frappe helado de fresa natural con crema y chispas de chocolate.', 18,
    'from-pink-400 to-fuchsia-500', '🥤',
    '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":7}]',
-   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas"]',
+   '["chantilly","oreo","chispas"]',
    true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
   ('p-batido-fresa', 'Batido de Fresa', 'Bebidas / Frappés / Batidos',
    'Batido cremoso de fresa con leche y helado.', 16,
    'from-rose-300 to-pink-500', '🥛',
    '[{"id":"mediano","label":"Mediano","ounces":14,"priceDelta":0},{"id":"grande","label":"Grande","ounces":20,"priceDelta":6}]',
-   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas","leche-cond"]',
+   '["chantilly","oreo","chispas","leche-cond"]',
    true, '{"central":30,"norte":18,"sur":11}', 8, 'vasos'),
 
   ('p-frappe-nutella', 'Frappe de Nutella', 'Bebidas / Frappés / Batidos',
    'Frappe helado de Nutella con crema chantilly y Oreo triturada.', 20,
    'from-amber-600 to-orange-500', '☕',
    '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":7}]',
-   '["leche","leche_almendras"]', true, '["chantilly","oreo","chispas"]',
+   '["chantilly","oreo","chispas"]',
    true, '{"central":25,"norte":15,"sur":9}', 6, 'vasos'),
 
   ('p-limonada-fresa', 'Limonada de Fresa', 'Bebidas / Frappés / Batidos',
    'Limonada fresca con fresas naturales. Refrescante y deliciosa.', 13,
    'from-yellow-300 to-pink-400', '🍋',
    '[{"id":"mediano","label":"Mediano","ounces":16,"priceDelta":0},{"id":"grande","label":"Grande","ounces":22,"priceDelta":5}]',
-   '["agua","agua_con_gas"]', true, '["chantilly","gomitas"]',
+   '["chantilly","gomitas"]',
    true, '{"central":40,"norte":24,"sur":14}', 10, 'vasos')
 
 ON CONFLICT (id) DO NOTHING;

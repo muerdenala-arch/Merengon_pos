@@ -29,23 +29,6 @@ export interface User {
 /** Estado operativo mostrado en el listado de Personal (además de activo/bloqueado). */
 export type StaffDisplayStatus = 'caja_abierta' | 'activo' | 'bloqueado';
 
-export type BaseLiquida = 'agua' | 'leche' | 'leche_almendras' | 'yogurt';
-
-export const BASE_LIQUIDA_LABEL: Record<BaseLiquida, string> = {
-  agua: 'Agua',
-  leche: 'Leche',
-  leche_almendras: 'Leche de almendras',
-  yogurt: 'Yogurt',
-};
-
-export type NivelAzucar = 'sin_azucar' | 'poco' | 'normal' | 'extra';
-
-export const NIVEL_AZUCAR_LABEL: Record<NivelAzucar, string> = {
-  sin_azucar: 'Sin azúcar',
-  poco: 'Poca azúcar',
-  normal: 'Normal',
-  extra: 'Extra dulce',
-};
 
 export interface SizeOption {
   id: string;
@@ -72,8 +55,6 @@ export interface Product {
   gradient: string; // clases tailwind para la tarjeta
   emoji: string; // acento visual (no se usa como ícono funcional)
   sizes: SizeOption[];
-  baseLiquidaOptions: BaseLiquida[];
-  allowSugarLevel: boolean;
   toppingIds: string[];
   active: boolean;
   /** Stock independiente por sucursal: { [branchId]: cantidad }. */
@@ -84,8 +65,6 @@ export interface Product {
 
 export interface CartModifiers {
   size: SizeOption;
-  baseLiquida: BaseLiquida | null;
-  sugarLevel: NivelAzucar | null;
   toppings: Topping[];
 }
 

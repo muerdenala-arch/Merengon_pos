@@ -38,6 +38,6 @@ export const useAuthStore = create<AuthState>()(
       logout: () => set({ currentUser: null, currentBranchId: null }),
       clearError: () => set({ error: null }),
     }),
-    { name: 'pos-jugueria/auth' },
+    { name: 'pos-merengon/auth' },
   ),
 );

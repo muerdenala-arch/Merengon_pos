@@ -41,7 +41,7 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar jugo..."
+            placeholder="Buscar producto..."
             className={cn(fieldClasses, 'min-h-touch pl-10')}
           />
         </div>

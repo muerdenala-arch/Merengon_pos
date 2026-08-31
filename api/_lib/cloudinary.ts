@@ -23,7 +23,7 @@ export type ImageFolder = 'receipts' | 'qr-codes';
 export async function uploadImage(dataUrl: string, folder: ImageFolder): Promise<string> {
   ensureConfigured();
   const result = await cloudinary.uploader.upload(dataUrl, {
-    folder: `jugoso/${folder}`,
+    folder: `merengon/${folder}`,
     resource_type: 'image',
   });
   return result.secure_url;

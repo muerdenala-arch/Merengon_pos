@@ -55,8 +55,7 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
   function handleAdd() {
     const modifiers: CartModifiers = {
       size,
-      baseLiquida: null,
-      sugarLevel: null,
+
       toppings,
     };
     addItem(product!, modifiers, quantity, notes || undefined);

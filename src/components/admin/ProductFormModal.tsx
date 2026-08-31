@@ -122,8 +122,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         priceDelta: Number(s.priceDelta) || 0,
       })),
       // Mantenemos en el modelo pero no se muestran en la UI de fresas:
-      baseLiquidaOptions: [],
-      allowSugarLevel: false,
+
       toppingIds: form.toppingIds,
       active: product?.active ?? true,
       stockByBranch,

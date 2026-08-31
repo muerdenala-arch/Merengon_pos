@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Minus, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { Button } from '@/components/ui/Button';
-import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
+
 import { cn, formatCurrency } from '@/lib/utils';
 
 interface CartPanelProps {
@@ -56,8 +56,7 @@ export function CartPanel({ onCheckout, variant = 'sidebar' }: CartPanelProps) {
                   <p className="truncate font-display text-sm font-bold text-ink">{item.product.name}</p>
                   <p className="text-xs text-ink-muted">
                     {item.modifiers.size.label}
-                    {item.modifiers.baseLiquida && ` · ${BASE_LIQUIDA_LABEL[item.modifiers.baseLiquida]}`}
-                    {item.modifiers.sugarLevel && ` · ${NIVEL_AZUCAR_LABEL[item.modifiers.sugarLevel]}`}
+
                   </p>
                   {item.modifiers.toppings.length > 0 && (
                     <p className="text-xs text-secondary-700">

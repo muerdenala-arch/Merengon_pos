@@ -3,7 +3,7 @@ import { CheckCircle2, Printer, Receipt } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import type { Sale } from '@/types';
-import { BASE_LIQUIDA_LABEL, NIVEL_AZUCAR_LABEL } from '@/types';
+
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
 import { useBranchStore } from '@/store/branchStore';
@@ -61,8 +61,6 @@ export function Ticket({ sale, onClose }: TicketProps) {
               </div>
               <p className="text-[10px] text-ink-muted">
                 {[
-                  item.modifiers.baseLiquida && BASE_LIQUIDA_LABEL[item.modifiers.baseLiquida],
-                  item.modifiers.sugarLevel && NIVEL_AZUCAR_LABEL[item.modifiers.sugarLevel],
                   ...item.modifiers.toppings.map((t) => t.name),
                 ]
                   .filter(Boolean)

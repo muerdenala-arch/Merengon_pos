@@ -1,4 +1,4 @@
-# 🍊 Jugoso — POS
+# 🍓 EL MERENGON — POS
 
 POS táctil, ligero y con identidad visual "frutal fresca", construido para operar rápido en pantallas táctiles (tablet / kiosko).
 
