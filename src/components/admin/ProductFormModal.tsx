@@ -397,7 +397,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
                   min={0}
                   value={s.ounces}
                   onChange={(e) => updateSize(idx, 'ounces', e.target.value)}
-                  placeholder="oz"
+                  placeholder="ml"
                   className="w-full rounded-lg border border-border-strong bg-surface px-2 py-1 text-center text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary-400"
                 />
                 <div className="relative">

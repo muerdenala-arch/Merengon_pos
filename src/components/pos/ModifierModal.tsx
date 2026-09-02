@@ -99,7 +99,7 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
                 <span>{s.label}</span>
                 {s.ounces > 0 && (
                   <span className={cn('text-[10px] font-normal', active ? 'text-white/75' : 'text-ink-soft')}>
-                    {s.ounces}oz
+                    {s.ounces} ml
                   </span>
                 )}
                 {s.priceDelta > 0 && (
@@ -139,14 +139,6 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
                       />
                     )}
                     <span className="font-semibold leading-tight">{t.name}</span>
-                    <span
-                      className={cn(
-                        'mt-0.5 text-[10px] font-medium',
-                        active ? 'text-white/80' : 'text-secondary-600 dark:text-secondary-400',
-                      )}
-                    >
-                      +{formatCurrency(t.priceExtra)}
-                    </span>
                   </button>
                 );
               })}
