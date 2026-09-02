@@ -61,7 +61,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     );
 
     const sessions = await query<CashRegisterSession>(
-      `SELECT ${SELECT_SESSIONS} FROM register_sessions WHERE opened_at >= $1 AND opened_at <= $2 ORDER BY opened_at DESC`,
+      `SELECT ${SELECT_SESSIONS} FROM register_sessions WHERE (opened_at >= $1 AND opened_at <= $2) OR (closed_at IS NULL AND opened_at <= $2) ORDER BY opened_at DESC`,
       [start.toISOString(), end.toISOString()]
     );
 
