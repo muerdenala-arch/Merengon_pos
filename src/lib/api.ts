@@ -59,6 +59,7 @@ export const api = {
     list: () => get<Branch[]>('/branches'),
     create: (data: Branch) => post<Branch>('/branches', data),
     update: (id: string, data: Partial<Branch>) => patch<Branch>(withId('/branches', id), data),
+    remove: (id: string) => del(withId('/branches', id)),
   },
   staff: {
     list: () => get<User[]>('/staff'),

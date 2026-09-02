@@ -25,6 +25,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -130,7 +131,10 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
                   </p>
                   {/* Fondo SIEMPRE blanco y con margen amplio (quiet zone) — nunca usar tokens de
                       tema aquí: cualquier cámara/lector debe poder escanear el QR sin importar el modo. */}
-                  <div className="relative mb-5 rounded-xl2 border-4 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-400/70">
+                  <div 
+                    onClick={() => setLightboxOpen(true)}
+                    className="relative mb-5 rounded-xl2 border-4 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-400/70 cursor-pointer hover:border-primary-400 transition-colors"
+                  >
                     <img src={activeQr.image} alt={`QR de cobro — ${activeQr.alias}`} className="h-44 w-44 object-contain" />
                   </div>
                 </>
@@ -166,6 +170,23 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
           {confirming ? 'Subiendo comprobante…' : 'Confirmar pago'}
         </Button>
       </div>
+
+      <AnimatePresence>
+        {lightboxOpen && activeQr && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm p-6 cursor-pointer"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <p className="text-white/80 font-bold mb-4">Toca en cualquier parte para cerrar</p>
+            <div className="bg-white p-6 rounded-3xl w-full max-w-md shadow-2xl flex items-center justify-center" onClick={e => e.stopPropagation()}>
+              <img src={activeQr.image} className="w-full h-auto object-contain" alt="QR en pantalla completa" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Modal>
   );
 }

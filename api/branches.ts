@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { query, queryOne } from './_lib/db.js';
+import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import type { Branch } from '../src/types';
 
@@ -52,7 +52,40 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  methodNotAllowed(res, ['GET', 'POST', 'PATCH']);
+  if (req.method === 'DELETE' && id) {
+    await withTransaction(async (tx) => {
+      // 1. Delete historical financial records (User explicitly requested hard delete)
+      await tx('DELETE FROM sales WHERE branch_id = $1', [id]);
+      await tx('DELETE FROM register_sessions WHERE branch_id = $1', [id]);
+      
+      // 2. Delete QR codes linked to the branch
+      await tx('DELETE FROM qr_codes WHERE branch_id = $1', [id]);
+      
+      // 3. Remove branch from products and delete if it was the only branch
+      await tx(`
+        UPDATE products 
+        SET branch_ids = branch_ids - $1, 
+            stock_by_branch = stock_by_branch - $1
+      `, [id]);
+      await tx(`DELETE FROM products WHERE jsonb_array_length(branch_ids) = 0`);
+
+      // 4. Remove branch from toppings and delete if it was the only branch
+      await tx(`
+        UPDATE toppings 
+        SET branch_ids = branch_ids - $1, 
+            stock_by_branch = stock_by_branch - $1
+      `, [id]);
+      await tx(`DELETE FROM toppings WHERE jsonb_array_length(branch_ids) = 0`);
+
+      // 5. Finally, delete the branch itself
+      await tx('DELETE FROM branches WHERE id = $1', [id]);
+    });
+
+    res.status(204).end();
+    return;
+  }
+
+  methodNotAllowed(res, ['GET', 'POST', 'PATCH', 'DELETE']);
 }
 
 export default withErrorHandling(handler);

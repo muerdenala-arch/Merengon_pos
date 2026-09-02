@@ -7,11 +7,12 @@ import { Badge } from '@/components/ui/Badge';
 import { ReceiptViewerModal } from '@/components/admin/ReceiptViewerModal';
 import { useSalesStore } from '@/store/salesStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useRegisterStore } from '@/store/registerStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
 import type { Sale } from '@/types';
 
-type RangeFilter = 'hoy' | 'todo';
+type RangeFilter = 'hoy' | 'ayer' | '7dias' | 'todo';
 
 export default function ReportsPage() {
   const sales = useSalesStore((s) => s.sales);
@@ -20,14 +21,53 @@ export default function ReportsPage() {
   const [range, setRange] = useState<RangeFilter>('hoy');
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
+  const sessions = useRegisterStore((s) => s.sessions);
+  const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
+
   // Filtro por fecha primero: la comparativa entre sucursales usa este set completo
   // (todas las sucursales) para poder comparar; el resto de las métricas sí respeta
   // el filtro global de sucursal del sidebar.
   const dateFiltered = useMemo(() => {
     if (range === 'todo') return sales;
-    const today = new Date().toDateString();
-    return sales.filter((s) => new Date(s.createdAt).toDateString() === today);
+    const now = new Date();
+    if (range === 'hoy') {
+      const today = now.toDateString();
+      return sales.filter((s) => new Date(s.createdAt).toDateString() === today);
+    }
+    if (range === 'ayer') {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      return sales.filter((s) => new Date(s.createdAt).toDateString() === yesterdayStr);
+    }
+    if (range === '7dias') {
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 7);
+      return sales.filter((s) => new Date(s.createdAt) >= sevenDaysAgo);
+    }
+    return sales;
   }, [sales, range]);
+
+  const filteredSessions = useMemo(() => {
+    let list = sessions;
+    if (adminFilterBranchId) {
+      list = list.filter((s) => s.branchId === adminFilterBranchId);
+    }
+    if (range === 'hoy') {
+      const today = new Date().toDateString();
+      list = list.filter((s) => new Date(s.openedAt).toDateString() === today);
+    } else if (range === 'ayer') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toDateString();
+      list = list.filter((s) => new Date(s.openedAt).toDateString() === yesterdayStr);
+    } else if (range === '7dias') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      list = list.filter((s) => new Date(s.openedAt) >= sevenDaysAgo);
+    }
+    return list;
+  }, [sessions, adminFilterBranchId, range]);
 
   const filtered = useMemo(
     () => (adminFilterBranchId ? dateFiltered.filter((s) => s.branchId === adminFilterBranchId) : dateFiltered),
@@ -83,7 +123,7 @@ export default function ReportsPage() {
             </p>
           </div>
           <div className="flex gap-2 rounded-full bg-cream-300 p-1">
-            {(['hoy', 'todo'] as RangeFilter[]).map((r) => (
+            {(['hoy', 'ayer', '7dias', 'todo'] as RangeFilter[]).map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
@@ -92,7 +132,7 @@ export default function ReportsPage() {
                   range === r ? 'bg-surface shadow-soft text-ink' : 'text-ink-muted',
                 )}
               >
-                {r === 'hoy' ? 'Hoy' : 'Todo el historial'}
+                {r === 'hoy' ? 'Hoy' : r === 'ayer' ? 'Ayer' : r === '7dias' ? 'Últimos 7 días' : 'Todo el historial'}
               </button>
             ))}
           </div>
@@ -118,11 +158,12 @@ export default function ReportsPage() {
             {salesByBranch.map(({ branch, total, count }) => (
               <div
                 key={branch.id}
+                onClick={() => setAdminFilterBranchId(adminFilterBranchId === branch.id ? null : branch.id)}
                 className={cn(
-                  'rounded-xl2 border-2 p-3.5 transition-colors',
+                  'rounded-xl2 border-2 p-3.5 transition-colors cursor-pointer',
                   adminFilterBranchId === branch.id
                     ? 'border-primary-400 bg-primary-50 dark:bg-primary-500/10'
-                    : 'border-border bg-field',
+                    : 'border-border bg-field hover:border-primary-200',
                 )}
               >
                 <p className="truncate text-sm font-semibold text-ink">{branch.name}</p>
@@ -200,6 +241,42 @@ export default function ReportsPage() {
             </div>
           </Card>
         </div>
+        <Card className="mt-5 p-5">
+          <h2 className="mb-4 font-display text-lg font-bold text-ink">Desglose de Cajas / Turnos</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[700px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-ink-muted">
+                  <th className="pb-3 font-semibold">Cajero</th>
+                  <th className="pb-3 font-semibold">Apertura</th>
+                  <th className="pb-3 font-semibold">Cierre</th>
+                  <th className="pb-3 font-semibold text-right">Inicial</th>
+                  <th className="pb-3 font-semibold text-right">Efectivo</th>
+                  <th className="pb-3 font-semibold text-right">QR</th>
+                  <th className="pb-3 font-semibold text-right">Total Turno</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filteredSessions.map((session) => (
+                  <tr key={session.id} className="text-ink">
+                    <td className="py-3 font-semibold">{session.cashierName}</td>
+                    <td className="py-3">{new Date(session.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td className="py-3">{session.closedAt ? new Date(session.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <Badge tone="secondary">Abierta</Badge>}</td>
+                    <td className="py-3 text-right tabular-nums text-ink-muted">{formatCurrency(session.openingAmount)}</td>
+                    <td className="py-3 text-right tabular-nums">{formatCurrency(session.cashSalesTotal || 0)}</td>
+                    <td className="py-3 text-right tabular-nums">{formatCurrency(session.qrSalesTotal || 0)}</td>
+                    <td className="py-3 text-right font-semibold tabular-nums">{formatCurrency(session.salesTotal || 0)}</td>
+                  </tr>
+                ))}
+                {filteredSessions.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-6 text-center text-ink-soft">Sin sesiones de caja en este período.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       </div>
 
       <ReceiptViewerModal sale={viewingReceipt} onClose={() => setViewingReceipt(null)} />

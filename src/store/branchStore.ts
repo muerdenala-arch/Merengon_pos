@@ -22,6 +22,7 @@ interface BranchState {
   fetchAll: () => Promise<void>;
   addBranch: (data: BranchFormData) => Branch;
   updateBranch: (id: string, data: Partial<BranchFormData>) => void;
+  deleteBranch: (id: string) => Promise<void>;
   toggleActive: (id: string) => void;
   activeBranches: () => Branch[];
 }
@@ -50,6 +51,15 @@ export const useBranchStore = create<BranchState>()((set, get) => ({
   updateBranch: (id, data) => {
     set((state) => ({ branches: state.branches.map((b) => (b.id === id ? { ...b, ...data } : b)) }));
     api.branches.update(id, data).catch((err) => console.error('No se pudo actualizar la sucursal:', err));
+  },
+  deleteBranch: async (id) => {
+    try {
+      await api.branches.remove(id);
+      set((state) => ({ branches: state.branches.filter((b) => b.id !== id) }));
+    } catch (err) {
+      console.error('No se pudo eliminar la sucursal:', err);
+      throw err;
+    }
   },
   toggleActive: (id) => {
     const branch = get().branches.find((b) => b.id === id);

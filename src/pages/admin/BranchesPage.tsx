@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Building2, MapPin, Pencil, Phone, Plus } from 'lucide-react';
+import { Building2, MapPin, Pencil, Phone, Plus, Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -13,7 +13,25 @@ import type { Branch } from '@/types';
 export default function BranchesPage() {
   const branches = useBranchStore((s) => s.branches);
   const toggleActive = useBranchStore((s) => s.toggleActive);
+  const deleteBranch = useBranchStore((s) => s.deleteBranch);
   const [editing, setEditing] = useState<Branch | null | 'new'>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (branch: Branch) => {
+    const confirm = window.confirm(
+      `⚠️ ADVERTENCIA CRÍTICA ⚠️\n\nEstás a punto de eliminar la sucursal "${branch.name}" de forma PERMANENTE.\n\nSe borrarán IRREVERSIBLEMENTE todas las ventas, turnos de caja y códigos QR asociados a ella.\n\n¿Estás absolutamente seguro de continuar? Esta acción no se puede deshacer.`
+    );
+    if (!confirm) return;
+
+    try {
+      setIsDeleting(branch.id);
+      await deleteBranch(branch.id);
+    } catch (error) {
+      alert('Hubo un error al eliminar la sucursal. Es posible que existan registros vinculados que impidan su borrado total.');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <AdminShell>
@@ -65,10 +83,19 @@ export default function BranchesPage() {
                   </button>
                   <button
                     onClick={() => setEditing(branch)}
+                    disabled={isDeleting === branch.id}
                     aria-label="Editar"
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-primary-50 hover:text-primary-700 cursor-pointer"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-primary-50 hover:text-primary-700 cursor-pointer disabled:opacity-50"
                   >
                     <Pencil size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(branch)}
+                    disabled={isDeleting === branch.id}
+                    aria-label="Eliminar"
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </Card>

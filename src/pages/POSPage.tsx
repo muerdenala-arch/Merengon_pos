@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronUp, ShoppingCart } from 'lucide-react';
 import { CashierShell } from '@/components/layout/CashierShell';
 import { ProductGrid } from '@/components/pos/ProductGrid';
@@ -8,7 +8,6 @@ import { CartPanel } from '@/components/pos/CartPanel';
 import { MobileCartDrawer } from '@/components/pos/MobileCartDrawer';
 import { ModifierModal } from '@/components/pos/ModifierModal';
 import { CheckoutModal } from '@/components/pos/CheckoutModal';
-import { Ticket } from '@/components/receipt/Ticket';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import { useCatalogStore } from '@/store/catalogStore';
@@ -30,7 +29,7 @@ export default function POSPage() {
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   if (!activeSession) {
     return <Navigate to="/caja/apertura" replace />;
@@ -65,11 +64,27 @@ export default function POSPage() {
     clearCart();
     setCartDrawerOpen(false);
     setCheckoutOpen(false);
-    setCompletedSale(sale);
+    
+    setToastMessage('¡Venta registrada con éxito!');
+    setTimeout(() => setToastMessage(null), 1500);
   }
 
   return (
     <CashierShell>
+      {/* Toast de Éxito */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div 
+            initial={{ y: -50, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: -50, opacity: 0 }} 
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-green-500 text-white px-6 py-3 rounded-full shadow-pop font-bold flex items-center gap-2"
+          >
+            {toastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* < lg: catálogo a pantalla completa, el carrito vive en el drawer inferior.
           >= lg: layout de dos columnas de siempre, carrito fijo a la derecha. */}
       <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
@@ -119,7 +134,6 @@ export default function POSPage() {
         onClose={() => setCheckoutOpen(false)}
         onConfirm={handleConfirmPayment}
       />
-      <Ticket sale={completedSale} onClose={() => setCompletedSale(null)} />
     </CashierShell>
   );
 }
