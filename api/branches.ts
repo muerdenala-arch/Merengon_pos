@@ -77,7 +77,13 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       `, [id]);
       await tx(`DELETE FROM toppings WHERE jsonb_array_length(branch_ids) = 0`);
 
-      // 5. Finally, delete the branch itself
+      // 5. Remove branch from staff
+      await tx(`
+        UPDATE staff 
+        SET branch_ids = branch_ids - $1
+      `, [id]);
+
+      // 6. Finally, delete the branch itself
       await tx('DELETE FROM branches WHERE id = $1', [id]);
     });
 
