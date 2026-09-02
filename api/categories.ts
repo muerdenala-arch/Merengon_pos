@@ -41,8 +41,16 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'DELETE' && id) {
-    await query('delete from categories where id = $1', [id]);
-    res.status(204).end();
+    try {
+      const cat = await queryOne<Category>('select name from categories where id = $1', [id]);
+      if (cat) {
+        await query('delete from products where category = $1', [cat.name]);
+      }
+      await query('delete from categories where id = $1', [id]);
+      res.status(204).end();
+    } catch (err) {
+      res.status(500).json({ error: 'Error deleting category', details: err });
+    }
     return;
   }
 

@@ -26,10 +26,26 @@ export default function POSPage() {
   const adjustToppingStock = useCatalogStore((s) => s.adjustToppingStock);
   const addSale = useSalesStore((s) => s.addSale);
 
+  const addCartItem = useCartStore((s) => s.add);
+
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const handleProductSelect = (product: Product) => {
+    if (product.sizes.length === 0 && product.toppingIds.length === 0) {
+      addCartItem({
+        id: crypto.randomUUID(),
+        product,
+        quantity: 1,
+        modifiers: { toppings: [] },
+        lineTotal: product.basePrice,
+      });
+    } else {
+      setModifierProduct(product);
+    }
+  };
 
   if (!activeSession) {
     return <Navigate to="/caja/apertura" replace />;
@@ -88,7 +104,7 @@ export default function POSPage() {
       {/* < lg: catálogo a pantalla completa, el carrito vive en el drawer inferior.
           >= lg: layout de dos columnas de siempre, carrito fijo a la derecha. */}
       <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
-        <ProductGrid branchId={currentBranchId} onSelect={setModifierProduct} />
+        <ProductGrid branchId={currentBranchId} onSelect={handleProductSelect} />
         <div className="hidden h-full min-h-0 lg:block">
           <CartPanel onCheckout={() => setCheckoutOpen(true)} />
         </div>

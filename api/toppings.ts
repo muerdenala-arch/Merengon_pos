@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { queryOne, query } from './_lib/db.js';
+import { queryOne, query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import type { Topping } from '../src/types';
 
@@ -74,10 +74,16 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // ── DELETE /api/toppings?id=xxx — eliminar topping ──────────────────────────
   if (req.method === 'DELETE' && id) {
-    await query(`delete from toppings where id = $1`, [id]);
-    res.status(204).end();
+    try {
+      await withTransaction(async (tx) => {
+        await tx(`update products set topping_ids = topping_ids - $1`, [id]);
+        await tx(`delete from toppings where id = $1`, [id]);
+      });
+      res.status(204).end();
+    } catch (err) {
+      res.status(500).json({ error: 'Database error', details: err });
+    }
     return;
   }
 
