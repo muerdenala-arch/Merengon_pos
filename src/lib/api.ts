@@ -119,6 +119,6 @@ export const api = {
   },
   adminReports: {
     get: (startDate: string, endDate: string, branchId?: string) => 
-      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
   },
 };

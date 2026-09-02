@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Banknote, Building2, Eye, QrCode, Receipt, TrendingUp, Calendar as CalendarIcon, Package } from 'lucide-react';
+import { BarChart3, Banknote, Building2, Eye, QrCode, Receipt, TrendingUp, Calendar as CalendarIcon, DollarSign, CalendarRange, CalendarDays } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -11,12 +11,14 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { Sale, CashRegisterSession } from '@/types';
 
-type RangeFilter = 'hoy' | 'ayer' | '7dias' | 'todo' | 'custom';
+type RangeFilter = 'hoy' | 'custom';
 
 export default function ReportsPage() {
   const branches = useBranchStore((s) => s.branches);
   const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
   const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const [range, setRange] = useState<RangeFilter>('hoy');
   const [customDate, setCustomDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -24,6 +26,8 @@ export default function ReportsPage() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [sessions, setSessions] = useState<CashRegisterSession[]>([]);
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
+  const [weeklyTotal, setWeeklyTotal] = useState<number>(0);
+  const [yearlyTotal, setYearlyTotal] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
@@ -36,18 +40,10 @@ export default function ReportsPage() {
         let endDate = new Date();
         
         if (range === 'hoy') {
-          // Ya están en hoy
-        } else if (range === 'ayer') {
-          startDate.setDate(startDate.getDate() - 1);
-          endDate.setDate(endDate.getDate() - 1);
-        } else if (range === '7dias') {
-          startDate.setDate(startDate.getDate() - 7);
-        } else if (range === 'todo') {
-          startDate = new Date(2000, 0, 1);
+          // Ya están en hoy, ajustar solo horas
         } else if (range === 'custom') {
           startDate = new Date(customDate);
           endDate = new Date(customDate);
-          // Ajustar por zona horaria local al parsear de YYYY-MM-DD
           startDate.setMinutes(startDate.getMinutes() + startDate.getTimezoneOffset());
           endDate.setMinutes(endDate.getMinutes() + endDate.getTimezoneOffset());
         }
@@ -64,6 +60,8 @@ export default function ReportsPage() {
         setSales(data.sales);
         setSessions(data.sessions);
         setMonthlyTotal(data.monthlyTotal);
+        setWeeklyTotal(data.weeklyTotal);
+        setYearlyTotal(data.yearlyTotal);
       } catch (err) {
         console.error('Error fetching reports:', err);
       } finally {
@@ -89,7 +87,6 @@ export default function ReportsPage() {
   const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
   const cashTotal = sales.filter((s) => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
   const qrTotal = sales.filter((s) => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
-  const avgTicket = sales.length ? totalSales / sales.length : 0;
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; total: number }>();
@@ -113,13 +110,36 @@ export default function ReportsPage() {
     setRange('custom');
   };
 
+  const activeDateDisplay = range === 'custom' 
+    ? new Date(customDate + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) 
+    : 'Elegir fecha';
+
+  const enrichedSessions = useMemo(() => {
+    return sessions.map(session => {
+      if (session.status !== 'cerrada' || !session.closedAt) {
+        // Compute partials from the day's sales
+        const sessionSales = sales.filter(s => s.registerSessionId === session.id);
+        const cashPartial = sessionSales.filter(s => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
+        const qrPartial = sessionSales.filter(s => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
+        const totalPartial = sessionSales.reduce((sum, s) => sum + s.total, 0);
+        return {
+          ...session,
+          cashSalesTotal: cashPartial,
+          qrSalesTotal: qrPartial,
+          salesTotal: totalPartial
+        };
+      }
+      return session;
+    });
+  }, [sessions, sales]);
+
   return (
     <AdminShell>
       <div className="mx-auto max-w-5xl px-6 py-8">
         <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink">
-              <BarChart3 size={24} className="text-primary-500" /> Reportes de venta
+              <BarChart3 size={24} className="text-primary-500" /> Reportes Financieros
             </h1>
             <p className="text-sm text-ink-muted">
               {adminFilterBranchId
@@ -129,38 +149,42 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex rounded-full bg-cream-300 p-1">
-              {(['hoy', 'ayer', '7dias', 'todo'] as RangeFilter[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={cn(
-                    'rounded-full px-4 py-2 text-sm font-semibold cursor-pointer transition-colors',
-                    range === r ? 'bg-surface shadow-soft text-ink' : 'text-ink-muted',
-                  )}
-                >
-                  {r === 'hoy' ? 'Hoy' : r === 'ayer' ? 'Ayer' : r === '7dias' ? 'Últimos 7 días' : 'Todo el historial'}
-                </button>
-              ))}
+              <button
+                onClick={() => setRange('hoy')}
+                className={cn(
+                  'rounded-full px-4 py-2 text-sm font-semibold cursor-pointer transition-colors',
+                  range === 'hoy' ? 'bg-surface shadow-soft text-ink' : 'text-ink-muted',
+                )}
+              >
+                Hoy
+              </button>
             </div>
             
             <div className="relative flex items-center">
               <input
                 type="date"
+                ref={dateInputRef}
                 value={customDate}
                 onChange={handleCustomDateChange}
-                className={cn(
-                  "peer absolute inset-0 w-full h-full opacity-0 cursor-pointer",
-                )}
+                className="absolute w-0 h-0 opacity-0 pointer-events-none"
                 title="Elegir fecha"
               />
               <button
+                onClick={() => {
+                  try {
+                    dateInputRef.current?.showPicker();
+                  } catch (e) {
+                    // Fallback for older browsers
+                    dateInputRef.current?.focus();
+                  }
+                }}
                 className={cn(
-                  'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors pointer-events-none',
+                  'flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors cursor-pointer',
                   range === 'custom' ? 'bg-primary-500 text-white shadow-soft' : 'bg-surface border border-border text-ink-muted hover:bg-zinc-50'
                 )}
               >
                 <CalendarIcon size={16} />
-                {range === 'custom' ? new Date(customDate + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Elegir fecha'}
+                {range === 'custom' ? activeDateDisplay : '📅 Elegir fecha'}
               </button>
             </div>
           </div>
@@ -172,17 +196,23 @@ export default function ReportsPage() {
           animate="animate"
           className={cn("mb-6 grid grid-cols-2 gap-3.5 lg:grid-cols-5 transition-opacity", isLoading && "opacity-50")}
         >
-          <StatCard icon={<TrendingUp size={18} />} label="Venta seleccionada" value={formatCurrency(totalSales)} tone="primary" />
-          <StatCard icon={<Banknote size={18} />} label="Efectivo" value={formatCurrency(cashTotal)} tone="secondary" />
-          <StatCard icon={<QrCode size={18} />} label="QR / Banco" value={formatCurrency(qrTotal)} tone="accent" />
-          <StatCard icon={<Receipt size={18} />} label="Ventas" value={String(sales.length)} tone="secondary" />
-          <StatCard icon={<BarChart3 size={18} />} label="Mes Actual (Bs)" value={formatCurrency(monthlyTotal)} tone="primary" />
+          <StatCard 
+            icon={<TrendingUp size={18} />} 
+            label="Venta del Día" 
+            value={formatCurrency(totalSales)} 
+            tone="primary" 
+            subtext={`Ef: ${formatCurrency(cashTotal)} / QR: ${formatCurrency(qrTotal)}`}
+          />
+          <StatCard icon={<CalendarRange size={18} />} label="Semana (Bs)" value={formatCurrency(weeklyTotal)} tone="secondary" />
+          <StatCard icon={<CalendarDays size={18} />} label="Mes (Bs)" value={formatCurrency(monthlyTotal)} tone="secondary" />
+          <StatCard icon={<DollarSign size={18} />} label="Año (Bs)" value={formatCurrency(yearlyTotal)} tone="accent" />
+          <StatCard icon={<Receipt size={18} />} label="Cantidad Ventas" value={String(sales.length)} tone="neutral" />
         </motion.div>
 
         <div className={cn("transition-opacity", isLoading && "opacity-50")}>
           <Card className="mb-5 p-5">
             <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-ink">
-              <Building2 size={18} className="text-primary-500" /> Ventas por sucursal
+              <Building2 size={18} className="text-primary-500" /> Ventas por sucursal del día seleccionado
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {salesByBranch.map(({ branch, total, count }) => (
@@ -242,7 +272,7 @@ export default function ReportsPage() {
             </Card>
 
             <Card className="p-5">
-              <h2 className="mb-4 font-display text-lg font-bold text-ink">Métodos de pago</h2>
+              <h2 className="mb-4 font-display text-lg font-bold text-ink">Métodos de pago del día</h2>
               <PaymentBar label="Efectivo" amount={cashTotal} total={totalSales} color="bg-secondary-500" />
               <PaymentBar label="QR Dinámico" amount={qrTotal} total={totalSales} color="bg-accent-500" />
 
@@ -287,18 +317,21 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {sessions.map((session) => (
+                  {enrichedSessions.map((session) => {
+                    const isOpen = session.status !== 'cerrada' || !session.closedAt;
+                    return (
                     <tr key={session.id} className="text-ink">
                       <td className="py-3 font-semibold">{session.cashierName}</td>
                       <td className="py-3">{new Date(session.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="py-3">{session.closedAt ? new Date(session.closedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <Badge tone="secondary">Abierta</Badge>}</td>
+                      <td className="py-3">{!isOpen ? new Date(session.closedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <Badge tone="secondary">Abierta</Badge>}</td>
                       <td className="py-3 text-right tabular-nums text-ink-muted">{formatCurrency(session.openingAmount)}</td>
                       <td className="py-3 text-right tabular-nums">{formatCurrency(session.cashSalesTotal || 0)}</td>
                       <td className="py-3 text-right tabular-nums">{formatCurrency(session.qrSalesTotal || 0)}</td>
-                      <td className="py-3 text-right font-semibold tabular-nums">{formatCurrency(session.salesTotal || 0)}</td>
+                      <td className="py-3 text-right font-semibold tabular-nums text-primary-700">{formatCurrency(session.salesTotal || 0)}</td>
                     </tr>
-                  ))}
-                  {sessions.length === 0 && (
+                    );
+                  })}
+                  {enrichedSessions.length === 0 && (
                     <tr>
                       <td colSpan={7} className="py-6 text-center text-ink-soft">Sin sesiones de caja en este período.</td>
                     </tr>
@@ -320,11 +353,13 @@ function StatCard({
   label,
   value,
   tone,
+  subtext
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   tone: 'primary' | 'secondary' | 'accent' | 'neutral';
+  subtext?: string;
 }) {
   const toneClasses = {
     primary: 'bg-primary-50 text-primary-700',
@@ -334,12 +369,17 @@ function StatCard({
   };
   return (
     <motion.div variants={staggerItem}>
-      <Card className="p-4">
-        <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl', toneClasses[tone])}>
-          {icon}
+      <Card className="p-4 h-full flex flex-col justify-between">
+        <div>
+          <div className={cn('mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl', toneClasses[tone])}>
+            {icon}
+          </div>
+          <p className="font-display text-xl font-extrabold tabular-nums text-ink">{value}</p>
         </div>
-        <p className="font-display text-xl font-extrabold tabular-nums text-ink">{value}</p>
-        <p className="text-xs font-semibold text-ink-muted">{label}</p>
+        <div>
+          <p className="text-xs font-semibold text-ink-muted mt-1">{label}</p>
+          {subtext && <p className="text-[10px] font-medium text-ink-soft mt-0.5">{subtext}</p>}
+        </div>
       </Card>
     </motion.div>
   );
