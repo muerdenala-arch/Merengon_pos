@@ -84,13 +84,21 @@ export default function ReportsPage() {
   }, [sales, branches]);
   const maxBranchTotal = Math.max(1, ...salesByBranch.map((b) => b.total));
 
-  const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
-  const cashTotal = sales.filter((s) => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
-  const qrTotal = sales.filter((s) => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
+  const branchFilteredSales = useMemo(() => 
+    adminFilterBranchId ? sales.filter(s => s.branchId === adminFilterBranchId) : sales
+  , [sales, adminFilterBranchId]);
+
+  const branchFilteredSessions = useMemo(() => 
+    adminFilterBranchId ? sessions.filter(s => s.branchId === adminFilterBranchId) : sessions
+  , [sessions, adminFilterBranchId]);
+
+  const totalSales = branchFilteredSales.reduce((sum, s) => sum + s.total, 0);
+  const cashTotal = branchFilteredSales.filter((s) => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
+  const qrTotal = branchFilteredSales.filter((s) => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; total: number }>();
-    sales.forEach((sale) => {
+    branchFilteredSales.forEach((sale) => {
       sale.items.forEach((item) => {
         const entry = map.get(item.product.id) ?? { name: item.product.name, qty: 0, total: 0 };
         entry.qty += item.quantity;
@@ -101,7 +109,7 @@ export default function ReportsPage() {
     return Array.from(map.values())
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 6);
-  }, [sales]);
+  }, [branchFilteredSales]);
 
   const maxQty = Math.max(1, ...topProducts.map((p) => p.qty));
 
@@ -115,7 +123,7 @@ export default function ReportsPage() {
     : 'Elegir fecha';
 
   const enrichedSessions = useMemo(() => {
-    return sessions.map(session => {
+    return branchFilteredSessions.map(session => {
       if (session.status !== 'cerrada' || !session.closedAt) {
         // Compute partials from the day's sales
         const sessionSales = sales.filter(s => s.registerSessionId === session.id);
@@ -131,7 +139,7 @@ export default function ReportsPage() {
       }
       return session;
     });
-  }, [sessions, sales]);
+  }, [branchFilteredSessions, sales]);
 
   return (
     <AdminShell>
@@ -206,7 +214,7 @@ export default function ReportsPage() {
           <StatCard icon={<CalendarRange size={18} />} label="Semana (Bs)" value={formatCurrency(weeklyTotal)} tone="secondary" />
           <StatCard icon={<CalendarDays size={18} />} label="Mes (Bs)" value={formatCurrency(monthlyTotal)} tone="secondary" />
           <StatCard icon={<DollarSign size={18} />} label="Año (Bs)" value={formatCurrency(yearlyTotal)} tone="accent" />
-          <StatCard icon={<Receipt size={18} />} label="Cantidad Ventas" value={String(sales.length)} tone="neutral" />
+          <StatCard icon={<Receipt size={18} />} label="Cantidad Ventas" value={String(branchFilteredSales.length)} tone="neutral" />
         </motion.div>
 
         <div className={cn("transition-opacity", isLoading && "opacity-50")}>
@@ -222,7 +230,7 @@ export default function ReportsPage() {
                   className={cn(
                     'rounded-xl2 border-2 p-3.5 transition-colors cursor-pointer',
                     adminFilterBranchId === branch.id
-                      ? 'border-primary-400 bg-primary-50 dark:bg-primary-500/10'
+                      ? 'border-orange-500 ring-2 ring-orange-500 bg-orange-50 dark:bg-neutral-800'
                       : 'border-border bg-field hover:border-primary-200',
                   )}
                 >
@@ -278,7 +286,7 @@ export default function ReportsPage() {
 
               <h2 className="mb-3 mt-6 font-display text-lg font-bold text-ink">Últimas ventas</h2>
               <div className="max-h-60 space-y-2 overflow-y-auto no-scrollbar">
-                {sales.slice(0, 8).map((sale) => (
+                {branchFilteredSales.slice(0, 8).map((sale) => (
                   <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-100 px-3 py-2 text-sm">
                     <span className="truncate font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</span>
                     <div className="flex flex-shrink-0 items-center gap-2">
@@ -297,7 +305,7 @@ export default function ReportsPage() {
                     </div>
                   </div>
                 ))}
-                {sales.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">Sin ventas aún.</p>}
+                {branchFilteredSales.length === 0 && <p className="py-4 text-center text-sm text-ink-soft">Sin ventas aún.</p>}
               </div>
             </Card>
           </div>
@@ -319,11 +327,25 @@ export default function ReportsPage() {
                 <tbody className="divide-y divide-border">
                   {enrichedSessions.map((session) => {
                     const isOpen = session.status !== 'cerrada' || !session.closedAt;
+                    const branchName = branches.find(b => b.id === session.branchId)?.name || session.branchId;
                     return (
                     <tr key={session.id} className="text-ink">
-                      <td className="py-3 font-semibold">{session.cashierName}</td>
+                      <td className="py-3 font-semibold">
+                        {session.cashierName}
+                        <span className="ml-2 inline-block rounded bg-cream-300 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
+                          {branchName}
+                        </span>
+                      </td>
                       <td className="py-3">{new Date(session.openedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                      <td className="py-3">{!isOpen ? new Date(session.closedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <Badge tone="secondary">Abierta</Badge>}</td>
+                      <td className="py-3">
+                        {!isOpen ? (
+                          new Date(session.closedAt!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        ) : (
+                          <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-500">
+                            Abierta
+                          </span>
+                        )}
+                      </td>
                       <td className="py-3 text-right tabular-nums text-ink-muted">{formatCurrency(session.openingAmount)}</td>
                       <td className="py-3 text-right tabular-nums">{formatCurrency(session.cashSalesTotal || 0)}</td>
                       <td className="py-3 text-right tabular-nums">{formatCurrency(session.qrSalesTotal || 0)}</td>
