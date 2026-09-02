@@ -175,7 +175,7 @@ export default function ReportsPage() {
           <StatCard icon={<TrendingUp size={18} />} label="Venta seleccionada" value={formatCurrency(totalSales)} tone="primary" />
           <StatCard icon={<Banknote size={18} />} label="Efectivo" value={formatCurrency(cashTotal)} tone="secondary" />
           <StatCard icon={<QrCode size={18} />} label="QR / Banco" value={formatCurrency(qrTotal)} tone="accent" />
-          <StatCard icon={<Package size={18} />} label="Pedidos (Tickets)" value={String(sales.length)} tone="neutral" />
+          <StatCard icon={<Receipt size={18} />} label="Ventas" value={String(sales.length)} tone="secondary" />
           <StatCard icon={<BarChart3 size={18} />} label="Mes Actual (Bs)" value={formatCurrency(monthlyTotal)} tone="primary" />
         </motion.div>
 
