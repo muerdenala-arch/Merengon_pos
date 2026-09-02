@@ -178,7 +178,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       sizes: form.sizes.map((s) => ({
         ...s,
         ounces: Number(s.ounces) || 0,
-        priceDelta: Number(s.priceDelta) || 0,
+        price: Number(s.price) || 0,
       })),
       // Mantenemos en el modelo pero no se muestran en la UI de fresas:
 
@@ -281,7 +281,13 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           min={0}
           step={0.5}
           value={form.basePrice}
-          onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value }))}
+          onChange={(e) => setForm((f) => {
+            const val = e.target.value;
+            const nextSizes = f.sizes.length > 0 
+              ? f.sizes.map((s, i) => (i === 0 ? { ...s, price: Number(val) || 0 } : s)) 
+              : f.sizes;
+            return { ...f, basePrice: val, sizes: nextSizes };
+          })}
         />
 
         {/* Stock y Calculadora */}
@@ -408,8 +414,8 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
                     type="number"
                     min={0}
                     step={0.5}
-                    value={s.priceDelta}
-                    onChange={(e) => updateSize(idx, 'priceDelta', e.target.value)}
+                    value={s.price}
+                    onChange={(e) => updateSize(idx, 'price', e.target.value)}
                     className="w-full rounded-lg border border-border-strong bg-surface py-1 pl-7 pr-2 text-sm text-ink focus:outline-none focus:ring-1 focus:ring-primary-400"
                   />
                 </div>
@@ -425,7 +431,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
             ))}
           </div>
           <p className="mt-1.5 text-xs text-ink-soft">
-            El primer tamaño usa el precio base. Los demás suman el delta (+Bs).
+            
           </p>
         </div>
 

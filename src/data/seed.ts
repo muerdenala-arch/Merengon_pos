@@ -1,4 +1,4 @@
-﻿import type { Branch, Product, SizeOption, Topping, User } from '@/types';
+import type { Branch, Product, SizeOption, Topping, User } from '@/types';
 
 export const BRANCHES: Branch[] = [
   {
@@ -33,15 +33,15 @@ function stockPerBranch(central: number): Record<string, number> {
   };
 }
 
-// ─── TAMANOS DE VASOS ─────────────────────────────────────────────────────────
+// --- TAMANOS DE VASOS ---------------------------------------------------------
 export const SIZES: SizeOption[] = [
-  { id: 'personal', label: 'Personal',  ounces: 8,  priceDelta: 0  },
-  { id: 'mediano',  label: 'Mediano',   ounces: 12, priceDelta: 5  },
-  { id: 'grande',   label: 'Grande',    ounces: 16, priceDelta: 10 },
-  { id: 'familiar', label: 'Familiar',  ounces: 24, priceDelta: 18 },
+  { id: 'personal', label: 'Personal',  ounces: 8,  price: 0  },
+  { id: 'mediano',  label: 'Mediano',   ounces: 12, price: 5  },
+  { id: 'grande',   label: 'Grande',    ounces: 16, price: 10 },
+  { id: 'familiar', label: 'Familiar',  ounces: 24, price: 18 },
 ];
 
-// ─── TOPPINGS / EXTRAS (precios en Bs) ────────────────────────────────────────
+// --- TOPPINGS / EXTRAS (precios en Bs) ----------------------------------------
 export const TOPPINGS: Topping[] = [
   { id: 'leche-cond',  name: 'Leche condensada',     priceExtra: 3, stockByBranch: stockPerBranch(50), lowStockThreshold: 10 },
   { id: 'nutella',     name: 'Nutella',               priceExtra: 5, stockByBranch: stockPerBranch(40), lowStockThreshold: 8  },
@@ -100,7 +100,7 @@ export const AVATAR_COLORS = [
   'bg-rose-500',
 ];
 
-// ─── PRODUCTOS (basePrice en Bs = tamano Personal) ────────────────────────────
+// --- PRODUCTOS (basePrice en Bs = tamano Personal) ----------------------------
 export const PRODUCTS: Product[] = [
 
   // == Vasos de Fresas con Crema ===============================================
@@ -111,7 +111,7 @@ export const PRODUCTS: Product[] = [
     description: 'Fresas frescas banadas en crema chantilly. El clasico de EL MERENGON.',
     basePrice: 15,
     gradient: 'from-pink-400 to-rose-500',
-    emoji: '🍓',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['leche-cond', 'nutella', 'oreo', 'chispas', 'chantilly', 'gomitas', 'manjar'],
     active: true,
@@ -126,7 +126,7 @@ export const PRODUCTS: Product[] = [
     description: 'Fresas frescas banadas en leche condensada y crema chantilly.',
     basePrice: 15,
     gradient: 'from-rose-300 to-pink-500',
-    emoji: '🍓',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['chantilly', 'oreo', 'chispas', 'gomitas', 'manjar'],
     active: true,
@@ -141,7 +141,7 @@ export const PRODUCTS: Product[] = [
     description: 'Fresas cubiertas con salsa de chocolate y crema chantilly.',
     basePrice: 17,
     gradient: 'from-amber-700 to-rose-600',
-    emoji: '🍓',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['chantilly', 'oreo', 'chispas', 'gomitas'],
     active: true,
@@ -156,7 +156,7 @@ export const PRODUCTS: Product[] = [
     description: 'Fresas frescas con abundante Nutella y crema chantilly.',
     basePrice: 18,
     gradient: 'from-amber-600 to-red-500',
-    emoji: '🍓',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['chantilly', 'oreo', 'chispas', 'leche-cond'],
     active: true,
@@ -173,7 +173,7 @@ export const PRODUCTS: Product[] = [
     description: 'Duraznos en almibar con crema chantilly y toppings dulces.',
     basePrice: 14,
     gradient: 'from-orange-300 to-amber-400',
-    emoji: '🍑',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['leche-cond', 'chantilly', 'oreo', 'gomitas', 'granola'],
     active: true,
@@ -188,7 +188,7 @@ export const PRODUCTS: Product[] = [
     description: 'Mix de frutas frescas de temporada con crema chantilly.',
     basePrice: 18,
     gradient: 'from-fuchsia-400 to-pink-500',
-    emoji: '🍉',
+    emoji: '??',
     sizes: SIZES,
     toppingIds: ['leche-cond', 'chantilly', 'oreo', 'granola', 'coco', 'miel'],
     active: true,
@@ -203,10 +203,10 @@ export const PRODUCTS: Product[] = [
     description: 'Brownie de chocolate con crema chantilly y fresas frescas.',
     basePrice: 22,
     gradient: 'from-amber-800 to-red-600',
-    emoji: '🍫',
+    emoji: '??',
     sizes: [
-      { id: 'individual', label: 'Individual', ounces: 0, priceDelta: 0  },
-      { id: 'doble',      label: 'Doble',      ounces: 0, priceDelta: 12 },
+      { id: 'individual', label: 'Individual', ounces: 0, price: 0  },
+      { id: 'doble',      label: 'Doble',      ounces: 0, price: 12 },
     ],
     toppingIds: ['chantilly', 'chispas', 'nutella', 'leche-cond'],
     active: true,
@@ -215,18 +215,18 @@ export const PRODUCTS: Product[] = [
     unit: 'porciones',
   },
 
-  // == Bebidas / Frappés / Batidos =============================================
+  // == Bebidas / Frapp�s / Batidos =============================================
   {
     id: 'p-frappe-fresa',
     name: 'Frappe de Fresa',
-    category: 'Bebidas / Frappés / Batidos',
+    category: 'Bebidas / Frapp�s / Batidos',
     description: 'Frappe helado de fresa natural con crema y chispas de chocolate.',
     basePrice: 18,
     gradient: 'from-pink-400 to-fuchsia-500',
-    emoji: '🥤',
+    emoji: '??',
     sizes: [
-      { id: 'mediano', label: 'Mediano', ounces: 16, priceDelta: 0 },
-      { id: 'grande',  label: 'Grande',  ounces: 22, priceDelta: 7 },
+      { id: 'mediano', label: 'Mediano', ounces: 16, price: 0 },
+      { id: 'grande',  label: 'Grande',  ounces: 22, price: 7 },
     ],
     toppingIds: ['chantilly', 'oreo', 'chispas'],
     active: true,
@@ -237,14 +237,14 @@ export const PRODUCTS: Product[] = [
   {
     id: 'p-batido-fresa',
     name: 'Batido de Fresa',
-    category: 'Bebidas / Frappés / Batidos',
+    category: 'Bebidas / Frapp�s / Batidos',
     description: 'Batido cremoso de fresa con leche y helado.',
     basePrice: 16,
     gradient: 'from-rose-300 to-pink-500',
-    emoji: '🥛',
+    emoji: '??',
     sizes: [
-      { id: 'mediano', label: 'Mediano', ounces: 14, priceDelta: 0 },
-      { id: 'grande',  label: 'Grande',  ounces: 20, priceDelta: 6 },
+      { id: 'mediano', label: 'Mediano', ounces: 14, price: 0 },
+      { id: 'grande',  label: 'Grande',  ounces: 20, price: 6 },
     ],
     toppingIds: ['chantilly', 'oreo', 'chispas', 'leche-cond'],
     active: true,
@@ -255,14 +255,14 @@ export const PRODUCTS: Product[] = [
   {
     id: 'p-frappe-nutella',
     name: 'Frappe de Nutella',
-    category: 'Bebidas / Frappés / Batidos',
+    category: 'Bebidas / Frapp�s / Batidos',
     description: 'Frappe helado de Nutella con crema chantilly y Oreo triturada.',
     basePrice: 20,
     gradient: 'from-amber-600 to-orange-500',
-    emoji: '☕',
+    emoji: '?',
     sizes: [
-      { id: 'mediano', label: 'Mediano', ounces: 16, priceDelta: 0 },
-      { id: 'grande',  label: 'Grande',  ounces: 22, priceDelta: 7 },
+      { id: 'mediano', label: 'Mediano', ounces: 16, price: 0 },
+      { id: 'grande',  label: 'Grande',  ounces: 22, price: 7 },
     ],
     toppingIds: ['chantilly', 'oreo', 'chispas'],
     active: true,
@@ -273,14 +273,14 @@ export const PRODUCTS: Product[] = [
   {
     id: 'p-limonada-fresa',
     name: 'Limonada de Fresa',
-    category: 'Bebidas / Frappés / Batidos',
+    category: 'Bebidas / Frapp�s / Batidos',
     description: 'Limonada fresca con fresas naturales. Refrescante y deliciosa.',
     basePrice: 13,
     gradient: 'from-yellow-300 to-pink-400',
-    emoji: '🍋',
+    emoji: '??',
     sizes: [
-      { id: 'mediano', label: 'Mediano', ounces: 16, priceDelta: 0 },
-      { id: 'grande',  label: 'Grande',  ounces: 22, priceDelta: 5 },
+      { id: 'mediano', label: 'Mediano', ounces: 16, price: 0 },
+      { id: 'grande',  label: 'Grande',  ounces: 22, price: 5 },
     ],
     toppingIds: ['chantilly', 'gomitas'],
     active: true,

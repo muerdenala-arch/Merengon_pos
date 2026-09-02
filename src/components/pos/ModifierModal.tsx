@@ -35,7 +35,8 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
   const size = product.sizes.find((s) => s.id === sizeId) ?? product.sizes[0];
   const toppings: Topping[] = availableToppings.filter((t) => selectedToppings.includes(t.id));
   const toppingsTotal = toppings.reduce((sum, t) => sum + t.priceExtra, 0);
-  const unitPrice = product.basePrice + size.priceDelta + toppingsTotal;
+  const sizePrice = product.sizes && product.sizes.length > 0 ? size.price : product.basePrice;
+  const unitPrice = sizePrice + toppingsTotal;
   const lineTotal = unitPrice * quantity;
 
   function toggleTopping(id: string) {
@@ -102,9 +103,9 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
                     {s.ounces} ml
                   </span>
                 )}
-                {s.priceDelta > 0 && (
+                {s.price > 0 && (
                   <span className={cn('text-[10px] font-semibold', active ? 'text-white/90' : 'text-primary-500')}>
-                    +{formatCurrency(s.priceDelta)}
+                    {formatCurrency(s.price)}
                   </span>
                 )}
               </button>

@@ -39,7 +39,7 @@ export interface SizeOption {
   id: string;
   label: string;
   ounces: number;
-  priceDelta: number; // se suma al precio base
+  price: number; // precio final del tamaño
 }
 
 export interface Topping {

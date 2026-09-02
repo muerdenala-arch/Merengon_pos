@@ -4,7 +4,8 @@ import { uid } from '@/lib/utils';
 
 function computeUnitPrice(product: Product, modifiers: CartModifiers): number {
   const toppingsTotal = modifiers.toppings.reduce((sum, t) => sum + t.priceExtra, 0);
-  return product.basePrice + modifiers.size.priceDelta + toppingsTotal;
+  const sizePrice = product.sizes && product.sizes.length > 0 ? modifiers.size.price : product.basePrice;
+  return sizePrice + toppingsTotal;
 }
 
 interface CartState {
