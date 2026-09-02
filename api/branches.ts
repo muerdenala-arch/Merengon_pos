@@ -53,42 +53,48 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'DELETE' && id) {
-    await withTransaction(async (tx) => {
-      // 1. Delete historical financial records (User explicitly requested hard delete)
-      await tx('DELETE FROM sales WHERE branch_id = $1', [id]);
-      await tx('DELETE FROM register_sessions WHERE branch_id = $1', [id]);
-      
-      // 2. Delete QR codes linked to the branch
-      await tx('DELETE FROM qr_codes WHERE branch_id = $1', [id]);
-      
-      // 3. Remove branch from products and delete if it was the only branch
-      await tx(`
-        UPDATE products 
-        SET branch_ids = branch_ids - $1, 
-            stock_by_branch = stock_by_branch - $1
-      `, [id]);
-      await tx(`DELETE FROM products WHERE jsonb_array_length(branch_ids) = 0`);
+    try {
+      await withTransaction(async (tx) => {
+        // 1. Delete historical financial records (User explicitly requested hard delete)
+        await tx('DELETE FROM sales WHERE branch_id = $1', [id]);
+        await tx('DELETE FROM register_sessions WHERE branch_id = $1', [id]);
+        
+        // 2. Delete QR codes linked to the branch
+        await tx('DELETE FROM qr_codes WHERE branch_id = $1', [id]);
+        
+        // 3. Remove branch from products and delete if it was the only branch
+        await tx(`
+          UPDATE products 
+          SET branch_ids = branch_ids - $1, 
+              stock_by_branch = stock_by_branch - $1
+        `, [id]);
+        await tx(`DELETE FROM products WHERE jsonb_array_length(branch_ids) = 0`);
 
-      // 4. Remove branch from toppings and delete if it was the only branch
-      await tx(`
-        UPDATE toppings 
-        SET branch_ids = branch_ids - $1, 
-            stock_by_branch = stock_by_branch - $1
-      `, [id]);
-      await tx(`DELETE FROM toppings WHERE jsonb_array_length(branch_ids) = 0`);
+        // 4. Remove branch from toppings and delete if it was the only branch
+        await tx(`
+          UPDATE toppings 
+          SET branch_ids = branch_ids - $1, 
+              stock_by_branch = stock_by_branch - $1
+        `, [id]);
+        await tx(`DELETE FROM toppings WHERE jsonb_array_length(branch_ids) = 0`);
 
-      // 5. Remove branch from staff
-      await tx(`
-        UPDATE staff 
-        SET branch_ids = branch_ids - $1
-      `, [id]);
+        // 5. Remove branch from staff
+        await tx(`
+          UPDATE staff 
+          SET branch_ids = branch_ids - $1
+        `, [id]);
 
-      // 6. Finally, delete the branch itself
-      await tx('DELETE FROM branches WHERE id = $1', [id]);
-    });
+        // 6. Finally, delete the branch itself
+        await tx('DELETE FROM branches WHERE id = $1', [id]);
+      });
 
-    res.status(204).end();
-    return;
+      res.status(204).end();
+      return;
+    } catch (error) {
+      console.error('Delete Branch Error:', error);
+      res.status(500).json({ error: 'Database error', details: error });
+      return;
+    }
   }
 
   methodNotAllowed(res, ['GET', 'POST', 'PATCH', 'DELETE']);
