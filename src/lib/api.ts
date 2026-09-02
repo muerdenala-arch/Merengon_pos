@@ -117,4 +117,8 @@ export const api = {
     image: (dataUrl: string, folder: 'receipts' | 'qr-codes') =>
       post<{ url: string }>('/upload', { image: dataUrl, folder }),
   },
+  adminReports: {
+    get: (startDate: string, endDate: string, branchId?: string) => 
+      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+  },
 };
