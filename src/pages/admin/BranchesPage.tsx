@@ -103,7 +103,7 @@ export default function BranchesPage() {
 
       <BranchFormModal
         open={editing !== null}
-        branch={editing === 'new' ? undefined : editing || undefined}
+        branch={editing === 'new' ? null : editing || null}
         onClose={() => setEditing(null)}
       />
 

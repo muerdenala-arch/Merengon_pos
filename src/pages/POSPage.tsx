@@ -26,7 +26,7 @@ export default function POSPage() {
   const adjustToppingStock = useCatalogStore((s) => s.adjustToppingStock);
   const addSale = useSalesStore((s) => s.addSale);
 
-  const addCartItem = useCartStore((s) => s.add);
+  const addCartItem = useCartStore((s) => s.addItem);
 
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
@@ -35,13 +35,7 @@ export default function POSPage() {
 
   const handleProductSelect = (product: Product) => {
     if (product.sizes.length === 0 && product.toppingIds.length === 0) {
-      addCartItem({
-        id: crypto.randomUUID(),
-        product,
-        quantity: 1,
-        modifiers: { toppings: [] },
-        lineTotal: product.basePrice,
-      });
+      addCartItem(product, { size: undefined as any, toppings: [] }, 1);
     } else {
       setModifierProduct(product);
     }

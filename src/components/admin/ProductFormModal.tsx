@@ -146,7 +146,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       ...f,
       sizes: [
         ...f.sizes,
-        { id: uid('sz'), label: 'Nuevo tamaño', ounces: 0, priceDelta: 0 },
+        { id: uid('sz'), label: 'Nuevo tamaño', ounces: 0, price: 0 },
       ],
     }));
   }

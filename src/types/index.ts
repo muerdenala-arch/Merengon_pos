@@ -49,6 +49,7 @@ export interface Topping {
   /** Stock independiente por sucursal: { [branchId]: cantidad }. */
   stockByBranch: Record<string, number>;
   lowStockThreshold: number;
+  branchIds: string[];
 }
 
 export interface Product {
