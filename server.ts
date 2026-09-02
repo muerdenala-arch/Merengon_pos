@@ -21,6 +21,7 @@ import qrCodesHandler from './api/qr-codes.js';
 import registerSessionsHandler from './api/register-sessions.js';
 import salesHandler from './api/sales.js';
 import uploadHandler from './api/upload.js';
+import adminReportsHandler from './api/admin/reports.js';
 
 import type { Request, Response } from 'express';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -58,6 +59,8 @@ async function main() {
   app.all('/api/sales', adapt(salesHandler));
   app.all('/api/sales/*', adapt(salesHandler));
   app.all('/api/upload', adapt(uploadHandler));
+  app.all('/api/admin/reports', adapt(adminReportsHandler));
+  app.all('/api/admin/reports/*', adapt(adminReportsHandler));
 
   // ── Vite como middleware (sirve el frontend con HMR) ─────────────────────────
   const vite = await createViteServer({

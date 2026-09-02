@@ -23,7 +23,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const res = await fetch(`/api${path}`, {
+    const url = new URL(`/api${path}`, window.location.origin);
+    if (!options || !options.method || options.method === 'GET') {
+      url.searchParams.append('_t', Date.now().toString());
+    }
+
+    const res = await fetch(url.pathname + url.search, {
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       ...options,
