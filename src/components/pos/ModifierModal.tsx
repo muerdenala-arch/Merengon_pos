@@ -26,8 +26,8 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
   const [showNotes, setShowNotes] = useState(false);
 
   const availableToppings = useMemo(
-    () => toppingsCatalog.filter((t) => product?.toppingIds.includes(t.id)),
-    [toppingsCatalog, product],
+    () => toppingsCatalog.filter((t) => product?.toppingIds.includes(t.id) && t.branchIds.includes(branchId)),
+    [toppingsCatalog, product, branchId],
   );
 
   if (!product) return null;

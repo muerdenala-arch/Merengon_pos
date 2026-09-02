@@ -29,6 +29,11 @@ export interface User {
 /** Estado operativo mostrado en el listado de Personal (además de activo/bloqueado). */
 export type StaffDisplayStatus = 'caja_abierta' | 'activo' | 'bloqueado';
 
+export interface Category {
+  id: string;
+  name: string;
+  active: boolean;
+}
 
 export interface SizeOption {
   id: string;
@@ -56,6 +61,7 @@ export interface Product {
   emoji: string; // acento visual (no se usa como ícono funcional)
   sizes: SizeOption[];
   toppingIds: string[];
+  branchIds: string[];
   active: boolean;
   /** Stock independiente por sucursal: { [branchId]: cantidad }. */
   stockByBranch: Record<string, number>;

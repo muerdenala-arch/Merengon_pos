@@ -4,7 +4,7 @@ import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js
 import type { Topping } from '../src/types';
 
 const SELECT_COLUMNS = `
-  id, name, price_extra as "priceExtra", stock_by_branch as "stockByBranch",
+  id, name, price_extra as "priceExtra", branch_ids as "branchIds", stock_by_branch as "stockByBranch",
   low_stock_threshold as "lowStockThreshold"
 `;
 
@@ -22,11 +22,12 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST' && !id) {
     const body = requireBody<Topping>(req);
     const rows = await query<Topping>(
-      `insert into toppings (id, name, price_extra, stock_by_branch, low_stock_threshold)
-       values ($1, $2, $3, $4::jsonb, $5)
+      `insert into toppings (id, name, price_extra, branch_ids, stock_by_branch, low_stock_threshold)
+       values ($1, $2, $3, $4::jsonb, $5::jsonb, $6)
        on conflict (id) do update set
          name = excluded.name,
          price_extra = excluded.price_extra,
+         branch_ids = excluded.branch_ids,
          stock_by_branch = excluded.stock_by_branch,
          low_stock_threshold = excluded.low_stock_threshold
        returning ${SELECT_COLUMNS}`,
@@ -34,6 +35,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         body.id,
         body.name,
         body.priceExtra ?? 0,
+        JSON.stringify(body.branchIds ?? []),
         JSON.stringify(body.stockByBranch ?? {}),
         body.lowStockThreshold ?? 0,
       ],
@@ -49,8 +51,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       `update toppings set
          name = coalesce($2, name),
          price_extra = coalesce($3, price_extra),
-         stock_by_branch = coalesce($4::jsonb, stock_by_branch),
-         low_stock_threshold = coalesce($5, low_stock_threshold),
+         branch_ids = coalesce($4::jsonb, branch_ids),
+         stock_by_branch = coalesce($5::jsonb, stock_by_branch),
+         low_stock_threshold = coalesce($6, low_stock_threshold),
          updated_at = now()
        where id = $1
        returning ${SELECT_COLUMNS}`,
@@ -58,6 +61,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         id,
         body.name ?? null,
         body.priceExtra ?? null,
+        body.branchIds ? JSON.stringify(body.branchIds) : null,
         body.stockByBranch ? JSON.stringify(body.stockByBranch) : null,
         body.lowStockThreshold ?? null,
       ],

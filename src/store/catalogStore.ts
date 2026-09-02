@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PRODUCTS, TOPPINGS } from '@/data/seed';
-import type { Product, Topping } from '@/types';
+import type { Product, Topping, Category } from '@/types';
 import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
@@ -8,8 +8,11 @@ import { uid } from '@/lib/utils';
 interface CatalogState {
   products: Product[];
   toppings: Topping[];
+  categories: Category[];
   hydrated: boolean;
   fetchAll: () => Promise<void>;
+  createCategory: (name: string) => Promise<Category | null>;
+  deleteCategory: (id: string) => Promise<void>;
   upsertProduct: (product: Product) => void;
   createProduct: (data: Omit<Product, 'id'>) => Product;
   removeProduct: (id: string) => void;
@@ -28,19 +31,44 @@ interface CatalogState {
 export const useCatalogStore = create<CatalogState>()((set, get) => ({
   products: PRODUCTS,
   toppings: TOPPINGS,
+  categories: [],
   hydrated: false,
 
   fetchAll: async () => {
     try {
-      const [products, toppings] = await Promise.all([api.products.list(), api.toppings.list()]);
+      const [products, toppings, categories] = await Promise.all([
+        api.products.list(),
+        api.toppings.list(),
+        api.categories.list()
+      ]);
       set((state) => {
-        if (state.hydrated && sameData(state.products, products) && sameData(state.toppings, toppings)) {
+        if (state.hydrated && sameData(state.products, products) && sameData(state.toppings, toppings) && sameData(state.categories, categories)) {
           return state;
         }
-        return { products, toppings, hydrated: true };
+        return { products, toppings, categories, hydrated: true };
       });
     } catch (err) {
       console.error('No se pudo sincronizar el catálogo con el servidor:', err);
+    }
+  },
+
+  createCategory: async (name: string) => {
+    try {
+      const cat = await api.categories.create({ name });
+      set((state) => ({ categories: [...state.categories, cat] }));
+      return cat;
+    } catch (err) {
+      console.error('No se pudo crear la categoría:', err);
+      return null;
+    }
+  },
+
+  deleteCategory: async (id: string) => {
+    try {
+      await api.categories.remove(id);
+      set((state) => ({ categories: state.categories.filter((c) => c.id !== id) }));
+    } catch (err) {
+      console.error('No se pudo eliminar la categoría:', err);
     }
   },
 

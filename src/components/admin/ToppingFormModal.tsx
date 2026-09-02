@@ -17,6 +17,7 @@ const emptyForm = {
   priceExtra: '0',
   stock: '30',
   lowStockThreshold: '8',
+  branchIds: [] as string[],
 };
 
 export function ToppingFormModal({ topping, open, onClose }: ToppingFormModalProps) {
@@ -32,11 +33,28 @@ export function ToppingFormModal({ topping, open, onClose }: ToppingFormModalPro
         priceExtra: String(topping.priceExtra),
         stock: '0',
         lowStockThreshold: String(topping.lowStockThreshold),
+        branchIds: topping.branchIds || [],
       });
     } else {
-      setForm(emptyForm);
+      setForm({ ...emptyForm, branchIds: branches.map((b) => b.id) });
     }
-  }, [topping, open]);
+  }, [topping, open, branches]);
+
+  function toggleBranch(id: string) {
+    setForm((f) => ({
+      ...f,
+      branchIds: f.branchIds.includes(id)
+        ? f.branchIds.filter((b) => b !== id)
+        : [...f.branchIds, id],
+    }));
+  }
+
+  function toggleAllBranches() {
+    setForm((f) => ({
+      ...f,
+      branchIds: f.branchIds.length === branches.length ? [] : branches.map((b) => b.id),
+    }));
+  }
 
   function handleSave() {
     if (!form.name.trim()) return;
@@ -49,6 +67,7 @@ export function ToppingFormModal({ topping, open, onClose }: ToppingFormModalPro
       priceExtra: Number(form.priceExtra) || 0,
       stockByBranch,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
+      branchIds: form.branchIds,
     };
 
     if (topping) {
@@ -90,6 +109,38 @@ export function ToppingFormModal({ topping, open, onClose }: ToppingFormModalPro
           value={form.lowStockThreshold}
           onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))}
         />
+
+        {/* ── Disponibilidad por Sucursal ──────────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Disponibilidad por Sucursal</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.branchIds.length === branches.length && branches.length > 0}
+                onChange={toggleAllBranches}
+                className="rounded border-zinc-300 text-primary-500 focus:ring-primary-500 w-4 h-4"
+              />
+              <span className="text-sm text-ink-muted select-none">En todas</span>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => toggleBranch(b.id)}
+                className={`rounded-full border px-3.5 py-2 text-sm transition-colors cursor-pointer ${
+                  form.branchIds.includes(b.id)
+                    ? 'border-transparent bg-primary-100 font-semibold text-primary-700 dark:bg-primary-900/40 dark:text-primary-300'
+                    : 'border-border text-ink-muted hover:bg-surface-hover dark:hover:bg-zinc-800'
+                }`}
+              >
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="sticky bottom-0 flex items-center gap-3 border-t border-border bg-surface px-6 py-4">

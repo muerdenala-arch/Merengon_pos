@@ -17,20 +17,25 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   const [category, setCategory] = useState<string>('Todos');
   const [query, setQuery] = useState('');
 
+  const branchProducts = useMemo(
+    () => products.filter((p) => p.branchIds.includes(branchId)),
+    [products, branchId],
+  );
+
   const categories = useMemo(
-    () => ['Todos', ...Array.from(new Set(products.map((p) => p.category)))],
-    [products],
+    () => ['Todos', ...Array.from(new Set(branchProducts.map((p) => p.category)))],
+    [branchProducts],
   );
 
   const filtered = useMemo(
     () =>
-      products.filter((p) => {
+      branchProducts.filter((p) => {
         if (!p.active) return false;
         if (category !== 'Todos' && p.category !== category) return false;
         if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false;
         return true;
       }),
-    [products, category, query],
+    [branchProducts, category, query],
   );
 
   return (

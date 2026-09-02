@@ -15,6 +15,7 @@ import { createServer as createViteServer } from 'vite';
 import branchesHandler from './api/branches.js';
 import productsHandler from './api/products.js';
 import toppingsHandler from './api/toppings.js';
+import categoriesHandler from './api/categories.js';
 import staffHandler from './api/staff.js';
 import qrCodesHandler from './api/qr-codes.js';
 import registerSessionsHandler from './api/register-sessions.js';
@@ -46,6 +47,8 @@ async function main() {
   app.all('/api/products/*', adapt(productsHandler));
   app.all('/api/toppings', adapt(toppingsHandler));
   app.all('/api/toppings/*', adapt(toppingsHandler));
+  app.all('/api/categories', adapt(categoriesHandler));
+  app.all('/api/categories/*', adapt(categoriesHandler));
   app.all('/api/staff', adapt(staffHandler));
   app.all('/api/staff/*', adapt(staffHandler));
   app.all('/api/qr-codes', adapt(qrCodesHandler));

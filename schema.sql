@@ -35,9 +35,18 @@ CREATE TABLE IF NOT EXISTS toppings (
   id                  text PRIMARY KEY,
   name                text NOT NULL,
   price_extra         numeric(10, 2) NOT NULL DEFAULT 0,
+  branch_ids          jsonb NOT NULL DEFAULT '[]',
   stock_by_branch     jsonb NOT NULL DEFAULT '{}',
   low_stock_threshold integer NOT NULL DEFAULT 0,
   updated_at          timestamptz NOT NULL DEFAULT now()
+);
+
+-- ── Categorias de Productos ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS categories (
+  id         text PRIMARY KEY,
+  name       text NOT NULL UNIQUE,
+  active     boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 -- ── Catalogo de productos ────────────────────────────────────────────────────
@@ -52,6 +61,7 @@ CREATE TABLE IF NOT EXISTS products (
   sizes                jsonb NOT NULL DEFAULT '[]',
 
   topping_ids          jsonb NOT NULL DEFAULT '[]',
+  branch_ids           jsonb NOT NULL DEFAULT '[]',
   active               boolean NOT NULL DEFAULT true,
   stock_by_branch      jsonb NOT NULL DEFAULT '{}',
   low_stock_threshold  integer NOT NULL DEFAULT 0,
@@ -156,6 +166,13 @@ ON CONFLICT (id) DO NOTHING;
 -- Mediano:  12 oz  / priceDelta:  5 Bs
 -- Grande:   16 oz  / priceDelta: 10 Bs
 -- Familiar: 24 oz  / priceDelta: 18 Bs
+
+-- ── Categorías de Productos ──────────────────────────────────────────────────
+INSERT INTO categories (id, name, active) VALUES
+  ('cat_vasos-de-fresas-con-crema', 'Vasos de Fresas con Crema', true),
+  ('cat_otros-postres', 'Otros Postres', true),
+  ('cat_bebidas-frappes-batidos', 'Bebidas / Frappés / Batidos', true)
+ON CONFLICT (name) DO NOTHING;
 
 -- ── Productos ────────────────────────────────────────────────────────────────
 INSERT INTO products (

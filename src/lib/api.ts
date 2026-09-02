@@ -9,6 +9,7 @@ import type {
   Sale,
   Topping,
   User,
+  Category,
 } from '@/types';
 
 // Si Neon/la función serverless se cuelga (cold start, pool sin responder), sin esto el
@@ -104,6 +105,11 @@ export const api = {
   sales: {
     list: () => get<Sale[]>('/sales'),
     create: (data: Omit<Sale, 'ticketNumber'>) => post<Sale>('/sales', data),
+  },
+  categories: {
+    list: () => get<Category[]>('/categories'),
+    create: (data: Partial<Category>) => post<Category>('/categories', data),
+    remove: (id: string) => del(withId('/categories', id)),
   },
   upload: {
     /** Sube una imagen (data URL comprimido en el navegador) a Cloudinary y devuelve su URL pública. */

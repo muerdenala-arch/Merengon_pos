@@ -42,15 +42,28 @@ const emptyForm = {
   emoji: EMOJI_OPTIONS[0],
   gradient: GRADIENT_OPTIONS[0],
   toppingIds: [] as string[],
+  branchIds: [] as string[],
+  unit: 'vasos',
   sizes: SIZES.map((s) => ({ ...s })) as SizeOption[],
 };
 
+const UNITS = ['vasos', 'unidades', 'botellas', 'latas', 'porciones', 'cajas'];
+
 export function ProductFormModal({ product, open, onClose }: ProductFormModalProps) {
   const toppings = useCatalogStore((s) => s.toppings);
+  const categories = useCatalogStore((s) => s.categories);
   const upsertProduct = useCatalogStore((s) => s.upsertProduct);
   const createProduct = useCatalogStore((s) => s.createProduct);
+  const createCategory = useCatalogStore((s) => s.createCategory);
   const branches = useBranchStore((s) => s.branches);
+  
   const [form, setForm] = useState(emptyForm);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  
+  const [useCalculator, setUseCalculator] = useState(false);
+  const [boxes, setBoxes] = useState('');
+  const [unitsPerBox, setUnitsPerBox] = useState('');
 
   useEffect(() => {
     if (product) {
@@ -64,12 +77,42 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         emoji: product.emoji,
         gradient: product.gradient,
         toppingIds: product.toppingIds,
+        branchIds: product.branchIds || [],
+        unit: product.unit || 'vasos',
         sizes: product.sizes.map((s) => ({ ...s })),
       });
+      setUseCalculator(false);
     } else {
-      setForm(emptyForm);
+      setForm({ ...emptyForm, branchIds: branches.map((b) => b.id) });
+      setUseCalculator(false);
+      setBoxes('');
+      setUnitsPerBox('');
     }
-  }, [product, open]);
+    setIsAddingCategory(false);
+    setNewCategoryName('');
+  }, [product, open, branches]);
+
+  async function handleAddCategory() {
+    if (!newCategoryName.trim()) {
+      setIsAddingCategory(false);
+      return;
+    }
+    const cat = await createCategory(newCategoryName.trim());
+    if (cat) {
+      setForm((f) => ({ ...f, category: cat.name }));
+    }
+    setIsAddingCategory(false);
+    setNewCategoryName('');
+  }
+
+  // Actualizar stock cuando cambia la calculadora
+  useEffect(() => {
+    if (useCalculator && boxes && unitsPerBox) {
+      const b = parseInt(boxes, 10) || 0;
+      const u = parseInt(unitsPerBox, 10) || 0;
+      setForm((f) => ({ ...f, stock: String(b * u) }));
+    }
+  }, [useCalculator, boxes, unitsPerBox]);
 
   // ── Toppings ────────────────────────────────────────────────────────────────
   function toggleTopping(id: string) {
@@ -78,6 +121,22 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       toppingIds: f.toppingIds.includes(id)
         ? f.toppingIds.filter((t) => t !== id)
         : [...f.toppingIds, id],
+    }));
+  }
+
+  function toggleBranch(id: string) {
+    setForm((f) => ({
+      ...f,
+      branchIds: f.branchIds.includes(id)
+        ? f.branchIds.filter((b) => b !== id)
+        : [...f.branchIds, id],
+    }));
+  }
+
+  function toggleAllBranches() {
+    setForm((f) => ({
+      ...f,
+      branchIds: f.branchIds.length === branches.length ? [] : branches.map((b) => b.id),
     }));
   }
 
@@ -124,10 +183,11 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       // Mantenemos en el modelo pero no se muestran en la UI de fresas:
 
       toppingIds: form.toppingIds,
+      branchIds: form.branchIds,
       active: product?.active ?? true,
       stockByBranch,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
-      unit: 'vasos',
+      unit: form.unit,
     };
     if (product) {
       upsertProduct({ ...base, id: product.id });
@@ -148,20 +208,58 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         />
 
         {/* Categoría */}
-        <label className="flex flex-col">
+        <div className="flex flex-col">
           <span className={fieldLabelClasses}>Categoría</span>
-          <select
-            value={form.category}
-            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-            className={cn(fieldClasses, 'min-h-touch')}
-          >
-            {[...new Set([...CATEGORIES, form.category])].map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+          {isAddingCategory ? (
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddCategory();
+                  } else if (e.key === 'Escape') {
+                    setIsAddingCategory(false);
+                  }
+                }}
+                placeholder="Nombre de la categoría..."
+                className={cn(fieldClasses, 'min-h-touch flex-1')}
+              />
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                className="flex items-center justify-center rounded-xl bg-primary-500 px-4 text-sm font-semibold text-white hover:bg-primary-600 cursor-pointer"
+              >
+                Crear
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <select
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                className={cn(fieldClasses, 'min-h-touch flex-1')}
+              >
+                {categories.length === 0 && <option value={form.category}>{form.category}</option>}
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsAddingCategory(true)}
+                title="Nueva categoría"
+                className="flex items-center justify-center rounded-xl bg-surface border border-border px-3 text-ink-muted hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Descripción */}
         <div className="sm:col-span-2">
@@ -186,7 +284,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           onChange={(e) => setForm((f) => ({ ...f, basePrice: e.target.value }))}
         />
 
-        {/* Stock */}
+        {/* Stock y Calculadora */}
         {product ? (
           <div>
             <p className={fieldLabelClasses}>Stock</p>
@@ -195,22 +293,80 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
             </p>
           </div>
         ) : (
-          <Input
-            label="Stock inicial (todas las sucursales)"
-            type="number"
-            min={0}
-            value={form.stock}
-            onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-          />
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <p className={fieldLabelClasses}>Stock inicial (todas las sucursales)</p>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useCalculator}
+                  onChange={(e) => setUseCalculator(e.target.checked)}
+                  className="rounded border-zinc-300 text-primary-500 focus:ring-primary-500 w-3.5 h-3.5"
+                />
+                <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 select-none">Calculadora de Cajas</span>
+              </label>
+            </div>
+            
+            {useCalculator ? (
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center rounded-xl border border-primary-200 bg-primary-50/50 p-3 dark:border-primary-900 dark:bg-primary-900/10">
+                <Input
+                  label="Cant. de Cajas"
+                  type="number"
+                  min={0}
+                  value={boxes}
+                  onChange={(e) => setBoxes(e.target.value)}
+                />
+                <Input
+                  label="Unidades × Caja"
+                  type="number"
+                  min={0}
+                  value={unitsPerBox}
+                  onChange={(e) => setUnitsPerBox(e.target.value)}
+                />
+                <div className="flex flex-col">
+                  <span className={fieldLabelClasses}>Stock Total</span>
+                  <span className="flex min-h-[42px] items-center px-2 font-display text-lg font-bold text-ink">
+                    {form.stock || 0}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <Input
+                label=""
+                type="number"
+                min={0}
+                value={form.stock}
+                onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
+                placeholder="Ej. 30"
+              />
+            )}
+          </div>
         )}
 
-        <Input
-          label="Umbral de stock bajo"
-          type="number"
-          min={0}
-          value={form.lowStockThreshold}
-          onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))}
-        />
+        {/* Unidad y Umbral */}
+        <div className="grid grid-cols-2 gap-5 sm:col-span-2">
+          <label className="flex flex-col">
+            <span className={fieldLabelClasses}>Unidad de medida</span>
+            <select
+              value={form.unit}
+              onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+              className={cn(fieldClasses, 'min-h-touch')}
+            >
+              {UNITS.map((u) => (
+                <option key={u} value={u}>
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Input
+            label="Umbral de stock bajo"
+            type="number"
+            min={0}
+            value={form.lowStockThreshold}
+            onChange={(e) => setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))}
+          />
+        </div>
 
         {/* ── Tamaños de vaso ──────────────────────────────────────────────── */}
         <div className="sm:col-span-2">
@@ -332,6 +488,37 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
                 )}
               >
                 {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Disponibilidad por Sucursal ──────────────────────────────────── */}
+        <div className="sm:col-span-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className={fieldLabelClasses}>Disponibilidad por Sucursal</p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.branchIds.length === branches.length && branches.length > 0}
+                onChange={toggleAllBranches}
+                className="rounded border-zinc-300 text-primary-500 focus:ring-primary-500 w-4 h-4"
+              />
+              <span className="text-sm text-ink-muted select-none">En todas</span>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {branches.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => toggleBranch(b.id)}
+                className={cn(
+                  'rounded-full border px-3.5 py-2 text-sm transition-colors cursor-pointer',
+                  form.branchIds.includes(b.id) ? optionActiveClasses : optionInactiveClasses,
+                )}
+              >
+                {b.name}
               </button>
             ))}
           </div>

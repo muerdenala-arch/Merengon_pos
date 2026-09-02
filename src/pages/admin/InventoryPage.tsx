@@ -22,11 +22,21 @@ export default function InventoryPage() {
   );
   const branch = branches.find((b) => b.id === selectedBranchId);
 
+  const branchProducts = useMemo(
+    () => products.filter((p) => p.branchIds.includes(selectedBranchId)),
+    [products, selectedBranchId],
+  );
+
+  const branchToppings = useMemo(
+    () => toppings.filter((t) => t.branchIds.includes(selectedBranchId)),
+    [toppings, selectedBranchId],
+  );
+
   const lowStockCount = useMemo(
     () =>
-      products.filter((p) => (p.stockByBranch[selectedBranchId] ?? 0) <= p.lowStockThreshold).length +
-      toppings.filter((t) => (t.stockByBranch[selectedBranchId] ?? 0) <= t.lowStockThreshold).length,
-    [products, toppings, selectedBranchId],
+      branchProducts.filter((p) => (p.stockByBranch[selectedBranchId] ?? 0) <= p.lowStockThreshold).length +
+      branchToppings.filter((t) => (t.stockByBranch[selectedBranchId] ?? 0) <= t.lowStockThreshold).length,
+    [branchProducts, branchToppings, selectedBranchId],
   );
 
   return (
@@ -71,17 +81,21 @@ export default function InventoryPage() {
           animate="animate"
           className="mb-8 space-y-2.5"
         >
-          {products.map((product) => (
-            <StockRow
-              key={product.id}
-              name={product.name}
-              category={product.category}
-              stock={product.stockByBranch[selectedBranchId] ?? 0}
-              threshold={product.lowStockThreshold}
-              unit={product.unit}
-              onAdjust={(delta) => adjustStock(product.id, selectedBranchId, delta)}
-            />
-          ))}
+          {branchProducts.length === 0 ? (
+            <p className="text-sm text-ink-muted">No hay productos habilitados para esta sucursal.</p>
+          ) : (
+            branchProducts.map((product) => (
+              <StockRow
+                key={product.id}
+                name={product.name}
+                category={product.category}
+                stock={product.stockByBranch[selectedBranchId] ?? 0}
+                threshold={product.lowStockThreshold}
+                unit={product.unit}
+                onAdjust={(delta) => adjustStock(product.id, selectedBranchId, delta)}
+              />
+            ))
+          )}
         </motion.div>
 
         <h2 className="mb-3 font-display text-lg font-bold text-ink">Agregados / Toppings</h2>
@@ -92,17 +106,21 @@ export default function InventoryPage() {
           animate="animate"
           className="space-y-2.5"
         >
-          {toppings.map((topping) => (
-            <StockRow
-              key={topping.id}
-              name={topping.name}
-              category="Topping"
-              stock={topping.stockByBranch[selectedBranchId] ?? 0}
-              threshold={topping.lowStockThreshold}
-              unit="porciones"
-              onAdjust={(delta) => adjustToppingStock(topping.id, selectedBranchId, delta)}
-            />
-          ))}
+          {branchToppings.length === 0 ? (
+            <p className="text-sm text-ink-muted">No hay agregados habilitados para esta sucursal.</p>
+          ) : (
+            branchToppings.map((topping) => (
+              <StockRow
+                key={topping.id}
+                name={topping.name}
+                category="Topping"
+                stock={topping.stockByBranch[selectedBranchId] ?? 0}
+                threshold={topping.lowStockThreshold}
+                unit="porciones"
+                onAdjust={(delta) => adjustToppingStock(topping.id, selectedBranchId, delta)}
+              />
+            ))
+          )}
         </motion.div>
       </div>
     </AdminShell>
@@ -150,8 +168,8 @@ function StockRow({
           >
             <Minus size={16} />
           </motion.button>
-          <span className={cn('w-14 text-center font-display text-lg font-bold tabular-nums', low && 'text-amber-700')}>
-            {stock} {unit === 'porciones' ? '' : unit}
+          <span className={cn('w-20 text-right font-display text-lg font-bold tabular-nums', low && 'text-amber-700')}>
+            {stock} <span className="text-sm font-normal text-ink-soft">{unit}</span>
           </span>
           <motion.button
             whileTap={{ scale: 0.9 }}
