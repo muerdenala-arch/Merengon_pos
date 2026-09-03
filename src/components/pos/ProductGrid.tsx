@@ -117,7 +117,9 @@ const ProductCard = memo(function ProductCard({
         <p className="text-xs text-ink-muted line-clamp-1">{product.description}</p>
         <div className="mt-auto flex items-center justify-between pt-1.5">
           <span className="font-display text-base font-bold text-primary-600">
-            {formatCurrency(product.basePrice)}
+            {product.sizes && product.sizes.length > 0
+              ? `Desde ${formatCurrency(Math.min(...product.sizes.map(s => s.price)))}`
+              : formatCurrency(product.basePrice)}
           </span>
           {outOfStock ? (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">Agotado</span>

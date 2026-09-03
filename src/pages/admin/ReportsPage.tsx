@@ -29,12 +29,15 @@ export default function ReportsPage() {
   const [weeklyTotal, setWeeklyTotal] = useState<number>(0);
   const [yearlyTotal, setYearlyTotal] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
+      setFetchError(null);
       try {
         let startDate = new Date();
         let endDate = new Date();
@@ -64,13 +67,16 @@ export default function ReportsPage() {
         setYearlyTotal(data.yearlyTotal);
       } catch (err) {
         console.error('Error fetching reports:', err);
+        setFetchError('No se pudo cargar el reporte. Verifica la conexión y vuelve a intentarlo.');
+        setSales([]);
+        setSessions([]);
       } finally {
         setIsLoading(false);
       }
     }
     
     fetchData();
-  }, [range, customDate, adminFilterBranchId]);
+  }, [range, customDate, adminFilterBranchId, retryCount]);
 
   const salesByBranch = useMemo(() => {
     return branches.map((b) => {
@@ -197,6 +203,19 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
+
+        {fetchError && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl bg-red-50 border border-red-200 px-5 py-4 dark:bg-red-500/10 dark:border-red-500/20">
+            <span className="text-red-500 text-xl">⚠️</span>
+            <p className="flex-1 text-sm font-semibold text-red-700 dark:text-red-400">{fetchError}</p>
+            <button
+              onClick={() => setRetryCount(c => c + 1)}
+              className="rounded-lg bg-red-100 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-200 dark:bg-red-500/20 dark:text-red-400 cursor-pointer"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
 
         <motion.div
           variants={staggerContainer}

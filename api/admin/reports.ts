@@ -56,13 +56,14 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const sales = await query<Sale>(
-      `SELECT ${SELECT_SALES} FROM sales WHERE created_at >= $1 AND created_at <= $2 ORDER BY created_at DESC`,
-      [start.toISOString(), end.toISOString()]
+      `SELECT ${SELECT_SALES} FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter} ORDER BY created_at DESC`,
+      params
     );
 
+    const sessionBranchFilter = branchId && branchId !== 'all' ? `AND branch_id = $3` : '';
     const sessions = await query<CashRegisterSession>(
-      `SELECT ${SELECT_SESSIONS} FROM register_sessions WHERE (opened_at >= $1 AND opened_at <= $2) OR (closed_at IS NULL AND opened_at <= $2) ORDER BY opened_at DESC`,
-      [start.toISOString(), end.toISOString()]
+      `SELECT ${SELECT_SESSIONS} FROM register_sessions WHERE ((opened_at >= $1 AND opened_at <= $2) OR (closed_at IS NULL AND opened_at <= $2)) ${sessionBranchFilter} ORDER BY opened_at DESC`,
+      params
     );
 
     const monthlyParams: any[] = [startOfMonth.toISOString(), endOfMonth.toISOString()];

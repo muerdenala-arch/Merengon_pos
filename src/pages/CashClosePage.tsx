@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Wallet } from 'lucide-react';
@@ -13,8 +13,15 @@ export default function CashClosePage() {
   const activeSession = useRegisterStore((s) => s.activeSession());
   const closeRegister = useRegisterStore((s) => s.closeRegister);
   const salesForSession = useSalesStore((s) => s.salesForSession);
+  const fetchSales = useSalesStore((s) => s.fetchAll);
   const [counted, setCounted] = useState('');
   const navigate = useNavigate();
+
+  // Re-sync sales from the server whenever the close page mounts, so
+  // the totals are correct even if the cashier sold from another device.
+  useEffect(() => {
+    fetchSales();
+  }, [fetchSales]);
 
   const sessionSales = useMemo(
     () => (activeSession ? salesForSession(activeSession.id) : []),

@@ -55,7 +55,7 @@ export function CartPanel({ onCheckout, variant = 'sidebar' }: CartPanelProps) {
                 <div className="min-w-0">
                   <p className="truncate font-display text-sm font-bold text-ink">{item.product.name}</p>
                   <p className="text-xs text-ink-muted">
-                    {item.modifiers.size.label}
+                  {item.modifiers.size?.label}
 
                   </p>
                   {item.modifiers.toppings.length > 0 && (

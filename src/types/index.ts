@@ -71,7 +71,7 @@ export interface Product {
 }
 
 export interface CartModifiers {
-  size: SizeOption;
+  size?: SizeOption; // undefined when product has no sizes
   toppings: Topping[];
 }
 

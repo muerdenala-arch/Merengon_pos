@@ -35,7 +35,7 @@ export default function POSPage() {
 
   const handleProductSelect = (product: Product) => {
     if (product.sizes.length === 0 && product.toppingIds.length === 0) {
-      addCartItem(product, { size: undefined as any, toppings: [] }, 1);
+      addCartItem(product, { toppings: [] }, 1);
     } else {
       setModifierProduct(product);
     }

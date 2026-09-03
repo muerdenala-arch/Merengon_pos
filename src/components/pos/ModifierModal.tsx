@@ -77,7 +77,9 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
           <span className="text-3xl">{product.emoji}</span>
           <div className="min-w-0">
             <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
-            <p className="font-display text-base font-bold">{formatCurrency(product.basePrice)} base</p>
+            <p className="font-display text-base font-bold">
+              {product.sizes.length > 0 ? `${formatCurrency(sizePrice)} · ${size?.label ?? ''}` : formatCurrency(product.basePrice)}
+            </p>
           </div>
         </div>
 

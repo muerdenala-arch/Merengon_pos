@@ -55,7 +55,7 @@ export function Ticket({ sale, onClose }: TicketProps) {
             <div key={item.lineId} className="mb-1.5">
               <div className="flex justify-between font-semibold">
                 <span>
-                  {item.quantity}x {item.product.name} ({item.modifiers.size.label})
+                  {item.quantity}x {item.product.name}{item.modifiers.size ? ` (${item.modifiers.size.label})` : ''}
                 </span>
                 <span>{formatCurrency(item.lineTotal)}</span>
               </div>
