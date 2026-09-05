@@ -42,11 +42,17 @@ async function main() {
   ];
 
   for (const top of toppings) {
-    const stock = JSON.stringify({});
+    // Stock inicial de 50 por sucursal habilitada
+    const stockObj: Record<string, number> = {};
+    for (const bId of allBranchIds) {
+      stockObj[bId] = 50;
+    }
+    const stock = JSON.stringify(stockObj);
+    
     const existing = await query('SELECT id FROM toppings WHERE name = $1', [top.name]);
     if (existing.length > 0) {
       top.id = existing[0].id as string;
-      await query(`UPDATE toppings SET price_extra = $1, branch_ids = $2 WHERE id = $3`, [top.price, JSON.stringify(allBranchIds), top.id]);
+      await query(`UPDATE toppings SET price_extra = $1, branch_ids = $2, stock_by_branch = $3 WHERE id = $4`, [top.price, JSON.stringify(allBranchIds), stock, top.id]);
     } else {
       await query(`
         INSERT INTO toppings (id, name, price_extra, stock_by_branch, branch_ids) 
@@ -258,19 +264,27 @@ async function main() {
     // We need the category ID for the product.
     const cat = categories.find(c => c.name === p.category);
     
+    // Stock inicial de 50 por cada sucursal donde el producto esté disponible
+    const stockObj: Record<string, number> = {};
+    for (const bId of p.branchIds) {
+      stockObj[bId] = 50;
+    }
+    const stock = JSON.stringify(stockObj);
+    const lowStockThreshold = 10;
+    
     if (existing.length > 0) {
       await query(`
         UPDATE products SET 
           category = $1, description = $2, base_price = $3, sizes = $4, topping_ids = $5,
-          branch_ids = $6, unit = $7, active = true
-        WHERE id = $8
-      `, [cat?.id || p.category, p.desc, p.basePrice, JSON.stringify(p.sizes), JSON.stringify(p.toppingIds), JSON.stringify(p.branchIds), p.unit || 'unidades', finalId]);
+          branch_ids = $6, unit = $7, stock_by_branch = $8, low_stock_threshold = $9, active = true
+        WHERE id = $10
+      `, [cat?.id || p.category, p.desc, p.basePrice, JSON.stringify(p.sizes), JSON.stringify(p.toppingIds), JSON.stringify(p.branchIds), p.unit || 'unidades', stock, lowStockThreshold, finalId]);
     } else {
       await query(`
         INSERT INTO products (
-          id, name, category, description, base_price, sizes, topping_ids, branch_ids, active, stock_by_branch, unit, gradient, emoji
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, '{}', $9, '', '')
-      `, [finalId, p.name, cat?.id || p.category, p.desc, p.basePrice, JSON.stringify(p.sizes), JSON.stringify(p.toppingIds), JSON.stringify(p.branchIds), p.unit || 'unidades']);
+          id, name, category, description, base_price, sizes, topping_ids, branch_ids, active, stock_by_branch, low_stock_threshold, unit, gradient, emoji
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9, $10, $11, '', '')
+      `, [finalId, p.name, cat?.id || p.category, p.desc, p.basePrice, JSON.stringify(p.sizes), JSON.stringify(p.toppingIds), JSON.stringify(p.branchIds), stock, lowStockThreshold, p.unit || 'unidades']);
     }
   }
   console.log('✅ Catálogo de productos sincronizado.');
