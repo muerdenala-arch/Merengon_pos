@@ -6,13 +6,14 @@ interface MobileCartDrawerProps {
   open: boolean;
   onClose: () => void;
   onCheckout: () => void;
+  branchId: string;
 }
 
 /**
  * Carrito como bottom sheet en móvil/tablet (< lg) — mismo contenido que el sidebar de
  * escritorio (CartPanel), solo que aquí entra deslizando desde abajo.
  */
-export function MobileCartDrawer({ open, onClose, onCheckout }: MobileCartDrawerProps) {
+export function MobileCartDrawer({ open, onClose, onCheckout, branchId }: MobileCartDrawerProps) {
   return (
     <AnimatePresence>
       {open && (
@@ -46,7 +47,7 @@ export function MobileCartDrawer({ open, onClose, onCheckout }: MobileCartDrawer
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-hidden">
-              <CartPanel variant="drawer" onCheckout={onCheckout} />
+              <CartPanel variant="drawer" onCheckout={onCheckout} branchId={branchId} />
             </div>
           </motion.div>
         </>

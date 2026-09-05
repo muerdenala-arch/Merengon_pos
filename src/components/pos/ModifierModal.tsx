@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { fieldClasses } from '@/components/ui/Input';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useCartStore } from '@/store/cartStore';
+import { usePromotionStore } from '@/store/promotionStore';
+import { applyPromoDiscount } from '@/store/cartStore';
 import type { CartModifiers, Product, Topping } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
 
@@ -18,6 +20,7 @@ interface ModifierModalProps {
 export function ModifierModal({ product, branchId, onClose }: ModifierModalProps) {
   const toppingsCatalog = useCatalogStore((s) => s.toppings);
   const addItem = useCartStore((s) => s.addItem);
+  const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
 
   const [sizeId, setSizeId] = useState(product?.sizes[0]?.id ?? '');
   const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
@@ -32,12 +35,15 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
 
   if (!product) return null;
 
+  const promo = activePromotionFor({ id: product.id, category: product.category }, branchId);
   const size = product.sizes.find((s) => s.id === sizeId) ?? product.sizes[0];
   const toppings: Topping[] = availableToppings.filter((t) => selectedToppings.includes(t.id));
   const toppingsTotal = toppings.reduce((sum, t) => sum + t.priceExtra, 0);
   const sizePrice = product.sizes && product.sizes.length > 0 ? size.price : product.basePrice;
-  const unitPrice = sizePrice + toppingsTotal;
+  const originalUnitPrice = sizePrice + toppingsTotal;
+  const unitPrice = applyPromoDiscount(originalUnitPrice, promo);
   const lineTotal = unitPrice * quantity;
+  const hasPromo = !!promo && unitPrice < originalUnitPrice;
 
   function toggleTopping(id: string) {
     setSelectedToppings((prev) =>
@@ -56,10 +62,9 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
   function handleAdd() {
     const modifiers: CartModifiers = {
       size,
-
       toppings,
     };
-    addItem(product!, modifiers, quantity, notes || undefined);
+    addItem(product!, modifiers, quantity, notes || undefined, promo);
     handleReset();
     onClose();
   }
@@ -68,20 +73,23 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
     <Modal open={!!product} onClose={onClose} title={product.name} size="md">
       <div className="px-5 pb-4 pt-3">
         {/* Banner del producto — más compacto */}
-        <div
-          className={cn(
-            'mb-4 flex items-center gap-3 rounded-xl p-3 text-white bg-gradient-to-br',
-            product.gradient,
-          )}
-        >
-          <span className="text-3xl">{product.emoji}</span>
-          <div className="min-w-0">
-            <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
-            <p className="font-display text-base font-bold">
-              {product.sizes.length > 0 ? `${formatCurrency(sizePrice)} · ${size?.label ?? ''}` : formatCurrency(product.basePrice)}
+        <div className={cn('mb-4 flex items-center gap-3 rounded-xl p-3 text-white bg-gradient-to-br', product.gradient)}>
+        <span className="text-3xl">{product.emoji}</span>
+        <div className="min-w-0">
+          <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
+          <div className="flex items-baseline gap-2">
+            {hasPromo && (
+              <p className="font-display text-sm font-bold line-through opacity-60">
+                {product.sizes.length > 0 ? `${formatCurrency(originalUnitPrice)} · ${size?.label ?? ''}` : formatCurrency(originalUnitPrice)}
+              </p>
+            )}
+            <p className={cn('font-display text-base font-bold', hasPromo && 'text-green-300')}>
+              {product.sizes.length > 0 ? `${formatCurrency(unitPrice)} · ${size?.label ?? ''}` : formatCurrency(unitPrice)}
             </p>
+            {hasPromo && <span className="rounded-full bg-green-400/20 px-2 py-0.5 text-[10px] font-bold text-green-200">🏷️ PROMO</span>}
           </div>
         </div>
+      </div>
 
         {/* ── Tamaños (chips) ──────────────────────────────────────────── */}
         <SectionTitle>Tamaño</SectionTitle>
@@ -202,7 +210,14 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
         </Button>
         <Button onClick={handleAdd} className="flex-1" size="lg">
           <span className="font-bold">Agregar</span>
-          <span className="ml-1 opacity-90">· {formatCurrency(lineTotal)}</span>
+          {hasPromo ? (
+            <span className="ml-1 opacity-90">
+              · <span className="line-through opacity-60">{formatCurrency(quantity * originalUnitPrice)}</span>{' '}
+              <span className="text-green-200">{formatCurrency(lineTotal)}</span>
+            </span>
+          ) : (
+            <span className="ml-1 opacity-90">· {formatCurrency(lineTotal)}</span>
+          )}
         </Button>
       </div>
     </Modal>

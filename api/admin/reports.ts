@@ -4,10 +4,16 @@ import { methodNotAllowed, withErrorHandling } from '../_lib/http.js';
 import type { Sale, CashRegisterSession } from '../../src/types/index.js';
 
 const SELECT_SALES = `
-  id, ticket_number as "ticketNumber", items, subtotal, total, payment,
+  id, ticket_number as "ticketNumber", items, subtotal,
+  COALESCE(subtotal_before_discount, subtotal) as "subtotalBeforeDiscount",
+  COALESCE(discount_amount, 0) as "discountAmount",
+  COALESCE(discount_type, 'NONE') as "discountType",
+  coupon_code as "couponCode",
+  total, payment,
   cashier_id as "cashierId", cashier_name as "cashierName",
   register_session_id as "registerSessionId", branch_id as "branchId", created_at as "createdAt"
 `;
+
 
 const SELECT_SESSIONS = `
   id, cashier_id as "cashierId", cashier_name as "cashierName", branch_id as "branchId",
@@ -76,22 +82,25 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       yearlyParams.push(branchId);
     }
 
-    const [monthlyResult, weeklyResult, yearlyResult] = await Promise.all([
+    const [monthlyResult, weeklyResult, yearlyResult, discountsResult] = await Promise.all([
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, monthlyParams),
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, weeklyParams),
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, yearlyParams),
+      query<{ sum: number }>(`SELECT COALESCE(SUM(discount_amount), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, params),
     ]);
 
     const monthlyTotal = Number(monthlyResult[0]?.sum) || 0;
     const weeklyTotal = Number(weeklyResult[0]?.sum) || 0;
     const yearlyTotal = Number(yearlyResult[0]?.sum) || 0;
+    const totalDiscounts = Number(discountsResult[0]?.sum) || 0;
 
     res.status(200).json({
       sales,
       sessions,
       monthlyTotal,
       weeklyTotal,
-      yearlyTotal
+      yearlyTotal,
+      totalDiscounts,
     });
     return;
   }

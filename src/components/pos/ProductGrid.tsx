@@ -2,10 +2,12 @@ import { memo, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { useCatalogStore } from '@/store/catalogStore';
-import type { Product } from '@/types';
+import { usePromotionStore } from '@/store/promotionStore';
+import type { Product, Promotion } from '@/types';
 import { staggerContainer, staggerItem, cardHover } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fieldClasses } from '@/components/ui/Input';
+import { applyPromoDiscount } from '@/store/cartStore';
 
 interface ProductGridProps {
   branchId: string;
@@ -14,6 +16,7 @@ interface ProductGridProps {
 
 export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   const products = useCatalogStore((s) => s.products);
+  const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
   const [category, setCategory] = useState<string>('Todos');
   const [query, setQuery] = useState('');
 
@@ -75,7 +78,13 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
         className="grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3.5 overflow-y-auto p-4 sm:grid-cols-3 lg:grid-cols-4"
       >
         {filtered.map((product) => (
-          <ProductCard key={product.id} product={product} branchId={branchId} onSelect={onSelect} />
+          <ProductCard
+            key={product.id}
+            product={product}
+            branchId={branchId}
+            promo={activePromotionFor({ id: product.id, category: product.category }, branchId)}
+            onSelect={onSelect}
+          />
         ))}
         {filtered.length === 0 && (
           <p className="col-span-full py-16 text-center text-ink-soft">No se encontraron productos.</p>
@@ -91,15 +100,25 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
 const ProductCard = memo(function ProductCard({
   product,
   branchId,
+  promo,
   onSelect,
 }: {
   product: Product;
   branchId: string;
+  promo: Promotion | null;
   onSelect: (p: Product) => void;
 }) {
   const stock = product.stockByBranch[branchId] ?? 0;
   const lowStock = stock <= product.lowStockThreshold;
   const outOfStock = stock <= 0;
+
+  // Calcula precio display (mínimo de tamaños o basePrice, con promo si aplica)
+  const originalBasePrice =
+    product.sizes && product.sizes.length > 0
+      ? Math.min(...product.sizes.map((s) => s.price))
+      : product.basePrice;
+  const displayPrice = promo ? applyPromoDiscount(originalBasePrice, promo) : originalBasePrice;
+  const hasPromo = !!promo;
 
   return (
     <motion.button
@@ -109,6 +128,13 @@ const ProductCard = memo(function ProductCard({
       onClick={() => onSelect(product)}
       className="group relative flex flex-col overflow-hidden rounded-xl2 bg-surface text-left shadow-soft transition-shadow hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
     >
+      {/* Badge de promo */}
+      {hasPromo && (
+        <div className="absolute right-2 top-2 z-10 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
+          🏷️ {promo!.discountType === 'PERCENTAGE' ? `${promo!.discountValue}% OFF` : `-${formatCurrency(promo!.discountValue)}`}
+        </div>
+      )}
+
       <div className={cn('flex h-24 items-center justify-center bg-gradient-to-br text-4xl sm:h-28', product.gradient)}>
         {product.emoji}
       </div>
@@ -116,11 +142,18 @@ const ProductCard = memo(function ProductCard({
         <p className="font-display text-sm font-bold leading-tight text-ink sm:text-base">{product.name}</p>
         <p className="text-xs text-ink-muted line-clamp-1">{product.description}</p>
         <div className="mt-auto flex items-center justify-between pt-1.5">
-          <span className="font-display text-base font-bold text-primary-600">
-            {product.sizes && product.sizes.length > 0
-              ? `Desde ${formatCurrency(Math.min(...product.sizes.map(s => s.price)))}`
-              : formatCurrency(product.basePrice)}
-          </span>
+          <div className="flex flex-col">
+            {hasPromo && (
+              <span className="text-[11px] font-medium text-ink-soft line-through tabular-nums">
+                {product.sizes && product.sizes.length > 0 ? `Desde ${formatCurrency(originalBasePrice)}` : formatCurrency(originalBasePrice)}
+              </span>
+            )}
+            <span className={cn('font-display text-base font-bold tabular-nums', hasPromo ? 'text-green-600' : 'text-primary-600')}>
+              {product.sizes && product.sizes.length > 0
+                ? `Desde ${formatCurrency(displayPrice)}`
+                : formatCurrency(displayPrice)}
+            </span>
+          </div>
           {outOfStock ? (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">Agotado</span>
           ) : lowStock ? (

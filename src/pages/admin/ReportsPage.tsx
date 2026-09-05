@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { BarChart3, Banknote, Building2, Eye, QrCode, Receipt, TrendingUp, Calendar as CalendarIcon, DollarSign, CalendarRange, CalendarDays } from 'lucide-react';
+import { BarChart3, Banknote, Building2, Eye, QrCode, Receipt, TrendingUp, Calendar as CalendarIcon, DollarSign, CalendarRange, CalendarDays, Tag } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -28,6 +28,7 @@ export default function ReportsPage() {
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
   const [weeklyTotal, setWeeklyTotal] = useState<number>(0);
   const [yearlyTotal, setYearlyTotal] = useState<number>(0);
+  const [totalDiscounts, setTotalDiscounts] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -65,6 +66,7 @@ export default function ReportsPage() {
         setMonthlyTotal(data.monthlyTotal);
         setWeeklyTotal(data.weeklyTotal);
         setYearlyTotal(data.yearlyTotal);
+        setTotalDiscounts(data.totalDiscounts ?? 0);
       } catch (err) {
         console.error('Error fetching reports:', err);
         setFetchError('No se pudo cargar el reporte. Verifica la conexión y vuelve a intentarlo.');
@@ -223,17 +225,12 @@ export default function ReportsPage() {
           animate="animate"
           className={cn("mb-6 grid grid-cols-2 gap-3.5 lg:grid-cols-5 transition-opacity", isLoading && "opacity-50")}
         >
-          <StatCard 
-            icon={<TrendingUp size={18} />} 
-            label="Venta del Día" 
-            value={formatCurrency(totalSales)} 
-            tone="primary" 
-            subtext={`Ef: ${formatCurrency(cashTotal)} / QR: ${formatCurrency(qrTotal)}`}
-          />
+          <StatCard icon={<TrendingUp size={18} />} label="Venta del Día" value={formatCurrency(totalSales)} tone="primary" subtext={`Ef: ${formatCurrency(cashTotal)} / QR: ${formatCurrency(qrTotal)}`} />
           <StatCard icon={<CalendarRange size={18} />} label="Semana (Bs)" value={formatCurrency(weeklyTotal)} tone="secondary" />
           <StatCard icon={<CalendarDays size={18} />} label="Mes (Bs)" value={formatCurrency(monthlyTotal)} tone="secondary" />
           <StatCard icon={<DollarSign size={18} />} label="Año (Bs)" value={formatCurrency(yearlyTotal)} tone="accent" />
           <StatCard icon={<Receipt size={18} />} label="Cantidad Ventas" value={String(branchFilteredSales.length)} tone="neutral" />
+          <StatCard icon={<Tag size={18} />} label="Descuentos (Bs)" value={formatCurrency(totalDiscounts)} tone="neutral" />
         </motion.div>
 
         <div className={cn("transition-opacity", isLoading && "opacity-50")}>
@@ -309,6 +306,11 @@ export default function ReportsPage() {
                   <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-100 px-3 py-2 text-sm">
                     <span className="truncate font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</span>
                     <div className="flex flex-shrink-0 items-center gap-2">
+                      {sale.couponCode && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                          🏷️ {sale.couponCode}
+                        </span>
+                      )}
                       {sale.payment.method === 'qr' && sale.payment.receiptImage && (
                         <button
                           onClick={() => setViewingReceipt(sale)}

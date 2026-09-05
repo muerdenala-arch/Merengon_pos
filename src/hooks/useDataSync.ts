@@ -5,6 +5,7 @@ import { useCatalogStore } from '@/store/catalogStore';
 import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
+import { usePromotionStore } from '@/store/promotionStore';
 
 /** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 6s sigue siendo
  *  casi instantáneo para un POS, pero reduce el trabajo de fondo (6 requests + parseo de
@@ -32,6 +33,7 @@ export function useDataSync() {
       useQrCodeStore.getState().fetchAll();
       useRegisterStore.getState().fetchAll();
       useSalesStore.getState().fetchAll();
+      usePromotionStore.getState().fetchAll();
     };
 
     let intervalId: ReturnType<typeof setInterval> | null = null;

@@ -13,6 +13,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
+import { useCouponStore } from '@/store/couponStore';
 import { formatCurrency } from '@/lib/utils';
 import type { Payment, Product, Sale } from '@/types';
 
@@ -22,9 +23,15 @@ export default function POSPage() {
   const activeSession = useRegisterStore((s) => s.activeSession());
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
+  const subtotal = useCartStore((s) => s.subtotal)();
+  const subtotalBeforeDiscount = useCartStore((s) => s.subtotalBeforeDiscount)();
   const adjustStock = useCatalogStore((s) => s.adjustStock);
   const adjustToppingStock = useCatalogStore((s) => s.adjustToppingStock);
   const addSale = useSalesStore((s) => s.addSale);
+
+  const appliedCoupon = useCouponStore((s) => s.appliedCoupon);
+  const discountAmountFn = useCouponStore((s) => s.discountAmount);
+  const removeCoupon = useCouponStore((s) => s.removeCoupon);
 
   const addCartItem = useCartStore((s) => s.addItem);
 
@@ -48,23 +55,40 @@ export default function POSPage() {
     return <Navigate to="/login" replace />;
   }
 
-  const total = items.reduce((sum, item) => sum + item.lineTotal, 0);
+  const couponDiscount = discountAmountFn(items);
+  const total = Math.max(0, subtotal - couponDiscount);
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Determinar el tipo de descuento para el registro en la venta
+  function getDiscountType(): string {
+    const hasPromo = items.some((i) => i.appliedPromotionId);
+    const hasCoupon = !!appliedCoupon;
+    if (hasPromo && hasCoupon) return 'BOTH';
+    if (hasPromo) return 'PROMO';
+    if (hasCoupon) return 'COUPON';
+    return 'NONE';
+  }
 
   async function handleConfirmPayment(payment: Payment) {
     // A diferencia del resto de las acciones del store, addSale espera al servidor: el
     // número de ticket es correlativo y atómico entre dispositivos (ver salesStore).
-    const sale = await addSale({
+    const saleData: Omit<Sale, 'id' | 'ticketNumber'> = {
       items,
-      subtotal: total,
+      subtotal,
+      subtotalBeforeDiscount,
+      discountAmount: couponDiscount,
+      discountType: getDiscountType(),
+      couponCode: appliedCoupon?.code,
       total,
-      payment,
+      payment: { ...payment, amount: total },
       cashierId: currentUser.id,
       cashierName: currentUser.name,
       registerSessionId: activeSession!.id,
       branchId: currentBranchId!,
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    await addSale(saleData);
 
     items.forEach((item) => {
       adjustStock(item.product.id, currentBranchId!, -item.quantity);
@@ -72,9 +96,10 @@ export default function POSPage() {
     });
 
     clearCart();
+    removeCoupon();
     setCartDrawerOpen(false);
     setCheckoutOpen(false);
-    
+
     setToastMessage('¡Venta registrada con éxito!');
     setTimeout(() => setToastMessage(null), 1500);
   }
@@ -84,10 +109,10 @@ export default function POSPage() {
       {/* Toast de Éxito */}
       <AnimatePresence>
         {toastMessage && (
-          <motion.div 
-            initial={{ y: -50, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            exit={{ y: -50, opacity: 0 }} 
+          <motion.div
+            initial={{ y: -50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -50, opacity: 0 }}
             className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-green-500 text-white px-6 py-3 rounded-full shadow-pop font-bold flex items-center gap-2"
           >
             {toastMessage}
@@ -100,7 +125,7 @@ export default function POSPage() {
       <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
         <ProductGrid branchId={currentBranchId} onSelect={handleProductSelect} />
         <div className="hidden h-full min-h-0 lg:block">
-          <CartPanel onCheckout={() => setCheckoutOpen(true)} />
+          <CartPanel branchId={currentBranchId} onCheckout={() => setCheckoutOpen(true)} />
         </div>
       </div>
 
@@ -135,6 +160,7 @@ export default function POSPage() {
           setCartDrawerOpen(false);
           setCheckoutOpen(true);
         }}
+        branchId={currentBranchId}
       />
 
       <ModifierModal branchId={currentBranchId} product={modifierProduct} onClose={() => setModifierProduct(null)} />

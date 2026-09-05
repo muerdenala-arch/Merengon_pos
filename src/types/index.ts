@@ -80,9 +80,45 @@ export interface CartItem {
   product: Product;
   modifiers: CartModifiers;
   quantity: number;
+  /** Precio final por unidad (puede incluir descuento de promo). */
   unitPrice: number;
+  /** Precio original sin promoción (igual a unitPrice si no hay promo). */
+  originalUnitPrice: number;
   lineTotal: number;
   notes?: string;
+  /** ID de la promoción aplicada a este ítem (si aplica). */
+  appliedPromotionId?: string;
+}
+
+export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+export type CouponDiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'FREE_ITEM';
+
+export interface Promotion {
+  id: string;
+  name: string;
+  discountType: DiscountType;
+  discountValue: number;
+  /** 'ALL' o nombre de categoría exacta (ej. 'Fresas con Crema') */
+  appliesTo: string;
+  branchIds: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxUses: number;
+  usedCount: number;
+  expiresAt?: string;
+  isActive: boolean;
+  /** 'ALL' | nombre de categoría | 'PRODUCT:id' */
+  appliesTo: string;
+  /** null = aplica en todas las sucursales */
+  branchId: string | null;
+  createdAt: string;
 }
 
 export type PaymentMethod = 'efectivo' | 'qr';
@@ -98,7 +134,16 @@ export interface Sale {
   id: string;
   ticketNumber: number;
   items: CartItem[];
+  /** Subtotal después de promos de ítem pero antes de cupón. */
   subtotal: number;
+  /** Precio original total sin ningún descuento aplicado. */
+  subtotalBeforeDiscount: number;
+  /** Monto de descuento de cupón en Bs. */
+  discountAmount: number;
+  /** 'NONE' | 'PROMO' | 'COUPON' | 'BOTH' */
+  discountType: string;
+  /** Código del cupón usado (si aplica). */
+  couponCode?: string;
   total: number;
   payment: Payment;
   cashierId: string;

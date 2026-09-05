@@ -4,7 +4,9 @@
 import type {
   Branch,
   CashRegisterSession,
+  Coupon,
   Product,
+  Promotion,
   QrCode,
   Sale,
   Topping,
@@ -122,8 +124,21 @@ export const api = {
     image: (dataUrl: string, folder: 'receipts' | 'qr-codes') =>
       post<{ url: string }>('/upload', { image: dataUrl, folder }),
   },
+  promotions: {
+    list: (activeOnly?: boolean) => get<Promotion[]>(`/promotions${activeOnly ? '?active=true' : ''}`),
+    create: (data: Promotion) => post<Promotion>('/promotions', data),
+    update: (id: string, data: Partial<Promotion>) => patch<Promotion>(withId('/promotions', id), data),
+    remove: (id: string) => del(withId('/promotions', id)),
+  },
+  coupons: {
+    list: () => get<Coupon[]>('/coupons'),
+    validate: (code: string, branchId: string) => get<Coupon>(`/coupons?validate=${encodeURIComponent(code)}&branchId=${encodeURIComponent(branchId)}`),
+    create: (data: Coupon) => post<Coupon>('/coupons', data),
+    update: (id: string, data: Partial<Coupon>) => patch<Coupon>(withId('/coupons', id), data),
+    remove: (id: string) => del(withId('/coupons', id)),
+  },
   adminReports: {
     get: (startDate: string, endDate: string, branchId?: string) => 
-      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
   },
 };
