@@ -7,12 +7,10 @@ import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { usePromotionStore } from '@/store/promotionStore';
 
-/** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 6s sigue siendo
- *  casi instantáneo para un POS, pero reduce el trabajo de fondo (6 requests + parseo de
- *  JSON) en celulares de gama media — cada store además solo re-renderiza si el dato
- *  realmente cambió (ver src/lib/sync.ts), así que esto es una segunda capa del mismo
- *  ajuste, no la única. */
-const POLL_INTERVAL_MS = 6000;
+/** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 
+ *  Se cambió a 60s para evitar lag (congelamiento de la interfaz) por procesar JSONs grandes
+ *  y para evitar exceder los límites diarios de funciones Serverless en Vercel. */
+const POLL_INTERVAL_MS = 60000;
 
 /** Dispara el primer fetch de todos los datos compartidos al montar la app y los
  *  refresca en bucle — así cualquier cambio hecho desde otro dispositivo (otra sucursal,
