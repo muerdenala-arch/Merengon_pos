@@ -5,6 +5,8 @@ import { LogOut, MapPin, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useCartStore } from '@/store/cartStore';
+import { useCouponStore } from '@/store/couponStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { APP_CONFIG } from '@/config/app';
 import logoMark from '@/assets/brand/logo-mark.png';
@@ -83,6 +85,8 @@ export function CashierShell({ children }: { children: ReactNode }) {
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => {
+              useCartStore.getState().clear();
+              useCouponStore.getState().removeCoupon();
               logout();
               navigate('/login');
             }}

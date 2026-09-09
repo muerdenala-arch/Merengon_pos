@@ -101,8 +101,16 @@ export default function ReportsPage() {
   , [sessions, adminFilterBranchId]);
 
   const totalSales = branchFilteredSales.reduce((sum, s) => sum + s.total, 0);
-  const cashTotal = branchFilteredSales.filter((s) => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
-  const qrTotal = branchFilteredSales.filter((s) => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
+  const cashTotal = branchFilteredSales.reduce((sum, s) => {
+    if (s.payment.method === 'efectivo') return sum + s.total;
+    if (s.payment.method === 'mixto') return sum + (s.payment.amountEfectivo || 0);
+    return sum;
+  }, 0);
+  const qrTotal = branchFilteredSales.reduce((sum, s) => {
+    if (s.payment.method === 'qr') return sum + s.total;
+    if (s.payment.method === 'mixto') return sum + (s.payment.amountQr || 0);
+    return sum;
+  }, 0);
 
   const topProducts = useMemo(() => {
     const map = new Map<string, { name: string; qty: number; total: number }>();
@@ -135,8 +143,16 @@ export default function ReportsPage() {
       if (session.status !== 'cerrada' || !session.closedAt) {
         // Compute partials from the day's sales
         const sessionSales = sales.filter(s => s.registerSessionId === session.id);
-        const cashPartial = sessionSales.filter(s => s.payment.method === 'efectivo').reduce((sum, s) => sum + s.total, 0);
-        const qrPartial = sessionSales.filter(s => s.payment.method === 'qr').reduce((sum, s) => sum + s.total, 0);
+        const cashPartial = sessionSales.reduce((sum, s) => {
+          if (s.payment.method === 'efectivo') return sum + s.total;
+          if (s.payment.method === 'mixto') return sum + (s.payment.amountEfectivo || 0);
+          return sum;
+        }, 0);
+        const qrPartial = sessionSales.reduce((sum, s) => {
+          if (s.payment.method === 'qr') return sum + s.total;
+          if (s.payment.method === 'mixto') return sum + (s.payment.amountQr || 0);
+          return sum;
+        }, 0);
         const totalPartial = sessionSales.reduce((sum, s) => sum + s.total, 0);
         return {
           ...session,

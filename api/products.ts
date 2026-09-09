@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
-import type { Product } from '../src/types';
+import type { Product } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
   id, name, category, description, base_price as "basePrice", gradient, emoji, sizes,

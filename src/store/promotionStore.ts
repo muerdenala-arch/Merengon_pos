@@ -13,7 +13,7 @@ interface PromotionState {
   deletePromotion: (id: string) => void;
   toggleActive: (id: string) => void;
   /** Retorna la promoción activa para un producto y sucursal dadas, o null. */
-  activePromotionFor: (product: { id: string; category: string }, branchId: string) => Promotion | null;
+  activePromotionFor: (product: { id: string; category: string; sizeId?: string }, branchId: string) => Promotion | null;
 }
 
 export const usePromotionStore = create<PromotionState>()((set, get) => ({
@@ -74,7 +74,10 @@ export const usePromotionStore = create<PromotionState>()((set, get) => ({
         (p) =>
           p.isActive &&
           p.branchIds.includes(branchId) &&
-          (p.appliesTo === 'ALL' || p.appliesTo === product.category || p.appliesTo === `PRODUCT:${product.id}`),
+          (p.appliesTo === 'ALL' || 
+           p.appliesTo === product.category || 
+           p.appliesTo === `PRODUCT:${product.id}` ||
+           (!!product.sizeId && p.appliesTo === `SIZE:${product.id}:${product.sizeId}`))
       ) ?? null
     );
   },

@@ -56,7 +56,7 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
   }
 
   return (
-    <div className={cn('flex h-full min-h-0 flex-col bg-surface', variant === 'sidebar' && 'border-l border-border')}>
+    <div className={cn('flex h-full min-h-0 flex-col overflow-hidden bg-surface', variant === 'sidebar' && 'border-l border-border')}>
       <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
         <h2 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
           <ShoppingCart size={20} className="text-primary-500" />

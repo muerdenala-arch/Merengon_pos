@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
-import type { User } from '../src/types';
+import type { User } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
   id, name, pin, role, color, status, protected,

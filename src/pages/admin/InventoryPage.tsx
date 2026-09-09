@@ -136,6 +136,7 @@ function StockRow({
   threshold,
   unit,
   onAdjust,
+  onSetStock,
 }: {
   name: string;
   category: string;

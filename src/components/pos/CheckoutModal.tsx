@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Banknote, Camera, ImageOff, QrCode, RefreshCcw, Zap } from 'lucide-react';
+import { Banknote, Camera, ImageOff, QrCode, RefreshCcw, Zap, SplitSquareHorizontal } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -22,6 +22,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const activeQr = useQrCodeStore((s) => (currentBranchId ? s.activeQrCodeForBranch(currentBranchId) : null));
   const [method, setMethod] = useState<PaymentMethod>('efectivo');
+  const [amountEfectivo, setAmountEfectivo] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -31,6 +32,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   useEffect(() => {
     if (open) {
       setMethod('efectivo');
+      setAmountEfectivo('');
       setReceiptImage(null);
       setUploadError(null);
       setConfirming(false);
@@ -55,23 +57,35 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
       onConfirm({ method: 'efectivo', amount: total });
       return;
     }
+
     setConfirming(true);
     try {
-      // El comprobante viaja como data URL local hasta este momento — recién al confirmar
-      // se sube a Cloudinary, así no se suben fotos de pagos que el cajero canceló.
       let uploadedUrl: string | undefined;
       if (receiptImage) {
         const { url } = await api.upload.image(receiptImage, 'receipts');
         uploadedUrl = url;
       }
-      onConfirm({ method: 'qr', amount: total, receiptImage: uploadedUrl });
+      
+      if (method === 'mixto') {
+        const ef = Number(amountEfectivo) || 0;
+        const qr = Math.max(0, total - ef);
+        onConfirm({ method: 'mixto', amount: total, amountEfectivo: ef, amountQr: qr, receiptImage: uploadedUrl });
+      } else {
+        onConfirm({ method: 'qr', amount: total, receiptImage: uploadedUrl });
+      }
     } catch {
       setUploadError('No se pudo subir el comprobante. Intenta de nuevo.');
       setConfirming(false);
     }
   }
 
-  const canConfirm = (method === 'efectivo' || !!receiptImage) && !confirming;
+  const qrAmount = Math.max(0, total - (Number(amountEfectivo) || 0));
+  
+  const canConfirm = !confirming && (
+    method === 'efectivo' 
+    || (method === 'qr' && !!receiptImage) 
+    || (method === 'mixto' && !!receiptImage && Number(amountEfectivo) > 0 && qrAmount > 0)
+  );
 
   return (
     <Modal open={open} onClose={onClose} title="Cobrar" size="md">
@@ -81,7 +95,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
           <p className="font-display text-4xl font-extrabold tabular-nums">{formatCurrency(total)}</p>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 gap-2.5">
+        <div className="mb-5 grid grid-cols-3 gap-2.5">
           <MethodTab
             active={method === 'efectivo'}
             icon={<Banknote size={18} />}
@@ -93,6 +107,12 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
             icon={<QrCode size={18} />}
             label={APP_CONFIG.qrProviderLabel}
             onClick={() => setMethod('qr')}
+          />
+          <MethodTab
+            active={method === 'mixto'}
+            icon={<SplitSquareHorizontal size={18} />}
+            label="Mixto"
+            onClick={() => setMethod('mixto')}
           />
         </div>
 
@@ -116,21 +136,45 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
             </motion.div>
           ) : (
             <motion.div
-              key="qr"
+              key={method}
               initial={{ opacity: 0, x: 8 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -8 }}
               transition={{ duration: 0.15 }}
               className="flex flex-col items-center"
             >
+              {method === 'mixto' && (
+                <div className="mb-5 w-full flex flex-col gap-3 rounded-xl border border-border bg-cream-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-ink">Monto en Efectivo</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-bold text-ink-muted">Bs</span>
+                      <input 
+                        type="number"
+                        min="1"
+                        max={total - 1}
+                        value={amountEfectivo}
+                        onChange={(e) => setAmountEfectivo(e.target.value)}
+                        placeholder="0"
+                        className="w-20 rounded-lg border border-border bg-white px-2 py-1 text-right font-display font-bold text-ink focus:border-primary-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-dashed border-border pt-3">
+                    <span className="text-sm font-bold text-ink">Restante en QR</span>
+                    <span className="font-display text-lg font-extrabold text-accent-600 tabular-nums">
+                      {formatCurrency(qrAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {activeQr ? (
                 <>
                   <p className="mb-3 max-w-[30ch] text-center text-sm font-semibold text-ink">
                     Escanea para pagar vía{' '}
                     {activeQr.bankOrHolder ? `${activeQr.bankOrHolder} - ${activeQr.alias}` : activeQr.alias}
                   </p>
-                  {/* Fondo SIEMPRE blanco y con margen amplio (quiet zone) — nunca usar tokens de
-                      tema aquí: cualquier cámara/lector debe poder escanear el QR sin importar el modo. */}
                   <div 
                     onClick={() => setLightboxOpen(true)}
                     className="relative mb-5 rounded-xl2 border-4 border-primary-200 bg-white p-5 shadow-soft dark:border-primary-400/70 cursor-pointer hover:border-primary-400 transition-colors"

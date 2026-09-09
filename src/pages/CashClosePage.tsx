@@ -32,12 +32,17 @@ export default function CashClosePage() {
     return <Navigate to="/caja/apertura" replace />;
   }
 
-  const cashSalesTotal = sessionSales
-    .filter((s) => s.payment.method === 'efectivo')
-    .reduce((sum, s) => sum + s.total, 0);
-  const qrSalesTotal = sessionSales
-    .filter((s) => s.payment.method === 'qr')
-    .reduce((sum, s) => sum + s.total, 0);
+  const cashSalesTotal = sessionSales.reduce((sum, s) => {
+    if (s.payment.method === 'efectivo') return sum + s.total;
+    if (s.payment.method === 'mixto') return sum + (s.payment.amountEfectivo || 0);
+    return sum;
+  }, 0);
+  
+  const qrSalesTotal = sessionSales.reduce((sum, s) => {
+    if (s.payment.method === 'qr') return sum + s.total;
+    if (s.payment.method === 'mixto') return sum + (s.payment.amountQr || 0);
+    return sum;
+  }, 0);
   const salesTotal = cashSalesTotal + qrSalesTotal;
   const expectedAmount = activeSession.openingAmount + cashSalesTotal;
   const countedAmount = Number(counted || 0);

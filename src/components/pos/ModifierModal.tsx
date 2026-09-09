@@ -15,9 +15,10 @@ interface ModifierModalProps {
   product: Product | null;
   branchId: string;
   onClose: () => void;
+  onAdded: (productName: string) => void;
 }
 
-export function ModifierModal({ product, branchId, onClose }: ModifierModalProps) {
+export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierModalProps) {
   const toppingsCatalog = useCatalogStore((s) => s.toppings);
   const addItem = useCartStore((s) => s.addItem);
   const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
@@ -35,8 +36,8 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
 
   if (!product) return null;
 
-  const promo = activePromotionFor({ id: product.id, category: product.category }, branchId);
   const size = product.sizes.find((s) => s.id === sizeId) ?? product.sizes[0];
+  const promo = activePromotionFor({ id: product.id, category: product.category, sizeId: size?.id }, branchId);
   const toppings: Topping[] = availableToppings.filter((t) => selectedToppings.includes(t.id));
   const toppingsTotal = toppings.reduce((sum, t) => sum + t.priceExtra, 0);
   const sizePrice = product.sizes && product.sizes.length > 0 ? size.price : product.basePrice;
@@ -65,6 +66,7 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
       toppings,
     };
     addItem(product!, modifiers, quantity, notes || undefined, promo);
+    onAdded(product!.name);
     handleReset();
     onClose();
   }

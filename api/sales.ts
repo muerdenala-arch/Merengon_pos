@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
-import type { Sale } from '../src/types';
+import type { Sale } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
   id, ticket_number as "ticketNumber", items, subtotal,

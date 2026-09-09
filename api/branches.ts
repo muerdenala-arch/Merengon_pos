@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
-import type { Branch } from '../src/types';
+import type { Branch } from '../src/types/index.js';
 
 // Un solo archivo maneja la colección (/api/branches) y un ítem puntual
 // (/api/branches?id=xxx) — el plan Hobby de Vercel limita a 12 funciones

@@ -121,12 +121,16 @@ export interface Coupon {
   createdAt: string;
 }
 
-export type PaymentMethod = 'efectivo' | 'qr';
+export type PaymentMethod = 'efectivo' | 'qr' | 'mixto';
 
 export interface Payment {
   method: PaymentMethod;
   amount: number;
-  /** Comprobante de transferencia (foto/captura) adjunto al pago por QR, como data URL. */
+  /** Solo para método 'mixto': cuánto se pagó en efectivo */
+  amountEfectivo?: number;
+  /** Solo para método 'mixto': cuánto se pagó por QR */
+  amountQr?: number;
+  /** Comprobante de transferencia (foto/captura) adjunto al pago por QR o Mixto, como data URL. */
   receiptImage?: string;
 }
 

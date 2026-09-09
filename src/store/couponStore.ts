@@ -96,11 +96,13 @@ export const useCouponStore = create<CouponState>()((set, get) => ({
     const coupon = get().appliedCoupon;
     if (!coupon) return 0;
     
-    // Filtrar ítems elegibles para este cupón
     const eligibleItems = items.filter(item => {
       if (coupon.appliesTo === 'ALL') return true;
       if (coupon.appliesTo.startsWith('PRODUCT:')) {
         return coupon.appliesTo === `PRODUCT:${item.product.id}`;
+      }
+      if (coupon.appliesTo.startsWith('SIZE:')) {
+        return coupon.appliesTo === `SIZE:${item.product.id}:${item.modifiers.size?.id}`;
       }
       return coupon.appliesTo === item.product.category;
     });

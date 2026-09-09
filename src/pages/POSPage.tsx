@@ -43,6 +43,8 @@ export default function POSPage() {
   const handleProductSelect = (product: Product) => {
     if (product.sizes.length === 0 && product.toppingIds.length === 0) {
       addCartItem(product, { toppings: [] }, 1);
+      setToastMessage(`¡${product.name} agregado!`);
+      setTimeout(() => setToastMessage(null), 1500);
     } else {
       setModifierProduct(product);
     }
@@ -163,7 +165,15 @@ export default function POSPage() {
         branchId={currentBranchId}
       />
 
-      <ModifierModal branchId={currentBranchId} product={modifierProduct} onClose={() => setModifierProduct(null)} />
+      <ModifierModal 
+        branchId={currentBranchId} 
+        product={modifierProduct} 
+        onClose={() => setModifierProduct(null)} 
+        onAdded={(name) => {
+          setToastMessage(`¡${name} agregado!`);
+          setTimeout(() => setToastMessage(null), 1500);
+        }}
+      />
       <CheckoutModal
         open={checkoutOpen}
         total={total}

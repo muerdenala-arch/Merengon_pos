@@ -344,6 +344,15 @@ export default function PromotionsPage() {
                   <option key={`p_${p.id}`} value={`PRODUCT:${p.id}`}>{p.name} ({p.category})</option>
                 ))}
               </optgroup>
+              <optgroup label="Tamaños Específicos">
+                {products.filter((p) => p.sizes.length > 0).map((p) => (
+                  p.sizes.map((s) => (
+                    <option key={`p_${p.id}_s_${s.id}`} value={`SIZE:${p.id}:${s.id}`}>
+                      {p.name} - {s.label}
+                    </option>
+                  ))
+                ))}
+              </optgroup>
             </select>
           </div>
 
@@ -482,6 +491,15 @@ export default function PromotionsPage() {
                 <optgroup label="Productos Específicos">
                   {products.map((p) => (
                     <option key={`p_${p.id}`} value={`PRODUCT:${p.id}`}>{p.name} ({p.category})</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Tamaños Específicos">
+                  {products.filter((p) => p.sizes.length > 0).map((p) => (
+                    p.sizes.map((s) => (
+                      <option key={`p_${p.id}_s_${s.id}`} value={`SIZE:${p.id}:${s.id}`}>
+                        {p.name} - {s.label}
+                      </option>
+                    ))
                   ))}
                 </optgroup>
               </select>

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
-import type { CashRegisterSession } from '../src/types';
+import type { CashRegisterSession } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
   id, cashier_id as "cashierId", cashier_name as "cashierName", branch_id as "branchId",
