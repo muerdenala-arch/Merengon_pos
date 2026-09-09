@@ -190,7 +190,10 @@ export function ModifierModal({ product, branchId, onClose }: ModifierModalProps
             <span className="w-6 text-center font-display text-lg font-bold">{quantity}</span>
             <motion.button
               whileTap={{ scale: 0.88 }}
-              onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+              onClick={() => {
+                const maxQuantity = product.stockByBranch[branchId] ?? 0;
+                setQuantity((q) => Math.min(maxQuantity, q + 1));
+              }}
               className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
             >
               <Plus size={15} />

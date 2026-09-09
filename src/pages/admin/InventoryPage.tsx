@@ -93,6 +93,7 @@ export default function InventoryPage() {
                 threshold={product.lowStockThreshold}
                 unit={product.unit}
                 onAdjust={(delta) => adjustStock(product.id, selectedBranchId, delta)}
+                onSetStock={(val) => useCatalogStore.getState().setStock(product.id, selectedBranchId, val)}
               />
             ))
           )}
@@ -118,6 +119,7 @@ export default function InventoryPage() {
                 threshold={topping.lowStockThreshold}
                 unit="porciones"
                 onAdjust={(delta) => adjustToppingStock(topping.id, selectedBranchId, delta)}
+                onSetStock={(val) => useCatalogStore.getState().setToppingStock(topping.id, selectedBranchId, val)}
               />
             ))
           )}
@@ -141,9 +143,29 @@ function StockRow({
   threshold: number;
   unit: string;
   onAdjust: (delta: number) => void;
+  onSetStock: (value: number) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(stock.toString());
+
   const low = stock <= threshold;
   const out = stock <= 0;
+
+  const handleBlur = () => {
+    setIsEditing(false);
+    const parsed = parseInt(inputValue, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      onSetStock(parsed);
+    } else {
+      setInputValue(stock.toString());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
 
   return (
     <motion.div variants={staggerItem}>
@@ -168,9 +190,35 @@ function StockRow({
           >
             <Minus size={16} />
           </motion.button>
-          <span className={cn('w-20 text-right font-display text-lg font-bold tabular-nums', low && 'text-amber-700')}>
-            {stock} <span className="text-sm font-normal text-ink-soft">{unit}</span>
-          </span>
+          
+          <div 
+            className="flex w-24 items-center justify-end px-2 py-1 rounded-md hover:bg-cream-200 cursor-pointer transition-colors"
+            onClick={() => {
+              setInputValue(stock.toString());
+              setIsEditing(true);
+            }}
+          >
+            {isEditing ? (
+              <input
+                type="number"
+                min="0"
+                autoFocus
+                className={cn(
+                  "w-full bg-transparent text-right font-display text-lg font-bold tabular-nums outline-none",
+                  low && 'text-amber-700'
+                )}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onBlur={handleBlur}
+                onKeyDown={handleKeyDown}
+              />
+            ) : (
+              <span className={cn('text-right font-display text-lg font-bold tabular-nums', low && 'text-amber-700')}>
+                {stock} <span className="text-sm font-normal text-ink-soft">{unit}</span>
+              </span>
+            )}
+          </div>
+
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onAdjust(1)}

@@ -4,6 +4,7 @@ import { Minus, Plus, ShoppingCart, Tag, Trash2, X } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useCouponStore } from '@/store/couponStore';
 import { Button } from '@/components/ui/Button';
+import { useCatalogStore } from '@/store/catalogStore';
 import { cn, formatCurrency } from '@/lib/utils';
 
 interface CartPanelProps {
@@ -123,7 +124,12 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
                   <span className="w-5 text-center text-sm font-bold">{item.quantity}</span>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => updateQuantity(item.lineId, item.quantity + 1)}
+                    onClick={() => {
+                      const stock = useCatalogStore.getState().stockFor(item.product, branchId);
+                      if (item.quantity < stock) {
+                        updateQuantity(item.lineId, item.quantity + 1);
+                      }
+                    }}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer"
                   >
                     <Plus size={13} />
