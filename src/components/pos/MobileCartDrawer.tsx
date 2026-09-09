@@ -46,7 +46,7 @@ export function MobileCartDrawer({ open, onClose, onCheckout, branchId }: Mobile
                 <X size={18} />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
               <CartPanel variant="drawer" onCheckout={onCheckout} branchId={branchId} />
             </div>
           </motion.div>
