@@ -15,7 +15,13 @@ const SELECT_COLUMNS = `
 
 async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
-    const sales = await query<Sale>(`select ${SELECT_COLUMNS} from sales order by created_at desc limit 500`);
+    // Optimización de rendimiento: Para evitar que el sistema se vuelva lento o
+    // consuma mucho ancho de banda al tener miles de ventas históricas, el POS 
+    // principal solo necesita sincronizar las ventas recientes (para calcular 
+    // cajas abiertas). Solo descargamos los últimos 5 días.
+    const sales = await query<Sale>(
+      `select ${SELECT_COLUMNS} from sales where created_at >= NOW() - INTERVAL '5 days' order by created_at desc`
+    );
     res.status(200).json(sales);
     return;
   }
