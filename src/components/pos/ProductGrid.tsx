@@ -43,14 +43,14 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-surface px-5 py-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-surface px-5 py-3">
+        <div className="relative w-full">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Buscar producto..."
-            className={cn(fieldClasses, 'min-h-touch pl-10')}
+            className={cn(fieldClasses, 'min-h-touch pl-10 w-full')}
           />
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
