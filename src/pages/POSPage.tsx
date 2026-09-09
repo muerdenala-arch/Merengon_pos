@@ -124,9 +124,9 @@ export default function POSPage() {
 
       {/* < lg: catálogo a pantalla completa, el carrito vive en el drawer inferior.
           >= lg: layout de dos columnas de siempre, carrito fijo a la derecha. */}
-      <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_380px]">
         <ProductGrid branchId={currentBranchId} onSelect={handleProductSelect} />
-        <div className="hidden h-full min-h-0 lg:block lg:overflow-hidden">
+        <div className="hidden h-full min-h-0 md:block md:overflow-hidden">
           <CartPanel branchId={currentBranchId} onCheckout={() => setCheckoutOpen(true)} />
         </div>
       </div>
@@ -140,7 +140,7 @@ export default function POSPage() {
           exit={{ y: 80, opacity: 0 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => setCartDrawerOpen(true)}
-          className="fixed inset-x-3 bottom-3 z-30 flex min-h-touch-lg items-center justify-between rounded-2xl bg-primary-500 px-5 text-white shadow-pop lg:hidden cursor-pointer"
+          className="fixed inset-x-3 bottom-3 z-30 flex min-h-touch-lg items-center justify-between rounded-2xl bg-primary-500 px-5 text-white shadow-pop md:hidden cursor-pointer"
         >
           <span className="flex items-center gap-2 font-display font-bold">
             <ShoppingCart size={19} />
