@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
 import { useCatalogStore } from '@/store/catalogStore';
 import { usePromotionStore } from '@/store/promotionStore';
+import { useSalesStore } from '@/store/salesStore';
 import type { Product, Promotion } from '@/types';
 import { staggerContainer, staggerItem, cardHover } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -16,6 +17,7 @@ interface ProductGridProps {
 
 export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   const products = useCatalogStore((s) => s.products);
+  const sales = useSalesStore((s) => s.sales);
   const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
   const [category, setCategory] = useState<string>('Todos');
   const [query, setQuery] = useState('');
@@ -25,21 +27,47 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
     [products, branchId],
   );
 
-  const categories = useMemo(
-    () => ['Todos', ...Array.from(new Set(branchProducts.map((p) => p.category)))],
-    [branchProducts],
-  );
+  const topSellingProductIds = useMemo(() => {
+    const branchSales = sales.filter((s) => s.branchId === branchId);
+    const counts = new Map<string, number>();
+    for (const sale of branchSales) {
+      for (const item of sale.items) {
+        counts.set(item.product.id, (counts.get(item.product.id) || 0) + item.quantity);
+      }
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map((entry) => entry[0]);
+  }, [sales, branchId]);
 
-  const filtered = useMemo(
-    () =>
-      branchProducts.filter((p) => {
+  const categories = useMemo(() => {
+    const cats = ['Todos', ...Array.from(new Set(branchProducts.map((p) => p.category)))];
+    if (topSellingProductIds.length > 0) {
+      cats.splice(1, 0, '⭐ Más Vendidos');
+    }
+    return cats;
+  }, [branchProducts, topSellingProductIds]);
+
+  const filtered = useMemo(() => {
+    return branchProducts
+      .filter((p) => {
         if (!p.active) return false;
-        if (category !== 'Todos' && p.category !== category) return false;
+        if (category === '⭐ Más Vendidos') {
+          if (!topSellingProductIds.includes(p.id)) return false;
+        } else if (category !== 'Todos' && p.category !== category) {
+          return false;
+        }
         if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false;
         return true;
-      }),
-    [branchProducts, category, query],
-  );
+      })
+      .sort((a, b) => {
+        if (category === '⭐ Más Vendidos') {
+          return topSellingProductIds.indexOf(a.id) - topSellingProductIds.indexOf(b.id);
+        }
+        return 0;
+      });
+  }, [branchProducts, category, query, topSellingProductIds]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
