@@ -144,7 +144,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
               className="flex flex-col items-center"
             >
               {method === 'mixto' && (
-                <div className="mb-5 w-full flex flex-col gap-3 rounded-xl border border-border bg-cream-100 p-4">
+                <div className="mb-5 w-full flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-soft">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-ink">Monto en Efectivo</span>
                     <div className="flex items-center gap-1">
@@ -156,7 +156,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
                         value={amountEfectivo}
                         onChange={(e) => setAmountEfectivo(e.target.value)}
                         placeholder="0"
-                        className="w-20 rounded-lg border border-border bg-white px-2 py-1 text-right font-display font-bold text-ink focus:border-primary-400 focus:outline-none"
+                        className="w-24 rounded-lg border border-border bg-field px-3 py-1.5 text-right font-display font-bold text-ink focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20"
                       />
                     </div>
                   </div>
