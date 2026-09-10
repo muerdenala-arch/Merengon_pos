@@ -124,7 +124,7 @@ export default function POSPage() {
 
       {/* < lg: catálogo a pantalla completa, el carrito vive en el drawer inferior.
           >= lg: layout de dos columnas de siempre, carrito fijo a la derecha. */}
-      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_380px]">
+      <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px] lg:grid-cols-[minmax(0,1fr)_380px]">
         <ProductGrid branchId={currentBranchId} onSelect={handleProductSelect} />
         <div className="hidden h-full min-h-0 md:block md:overflow-hidden">
           <CartPanel branchId={currentBranchId} onCheckout={() => setCheckoutOpen(true)} />

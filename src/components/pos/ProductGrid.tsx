@@ -70,7 +70,7 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   }, [branchProducts, category, query, topSellingProductIds]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
       <div className="flex shrink-0 flex-col gap-3 border-b border-border bg-surface px-5 py-3">
         <div className="relative w-full">
           <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
