@@ -3,7 +3,7 @@ import type { Sale } from '@/types';
 import { sameData } from '@/lib/sync';
 import { api } from '@/lib/api';
 import { uid } from '@/lib/utils';
-import { submitSale } from '@/lib/syncManager';
+import { submitSale, setSaleConfirmCallback } from '@/lib/syncManager';
 
 interface SalesState {
   sales: Sale[];
@@ -58,3 +58,9 @@ export const useSalesStore = create<SalesState>()((set, get) => ({
 
   salesForSession: (sessionId) => get().sales.filter((s) => s.registerSessionId === sessionId),
 }));
+
+// Registrar el callback de confirmación con el SyncManager.
+// Se hace DESPUÉS de crear el store para evitar dependencia circular en el módulo.
+setSaleConfirmCallback((localId, confirmedSale) => {
+  useSalesStore.getState().confirmSale(localId, confirmedSale);
+});

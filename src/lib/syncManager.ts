@@ -5,18 +5,31 @@
  *
  * Llama a startSyncManager() UNA SOLA VEZ al iniciar la app (main.tsx).
  * Internamente se suscribe a los eventos online/offline del navegador.
+ *
+ * NO importa salesStore directamente para evitar dependencia circular.
+ * En cambio, el salesStore se registra mediante setSaleConfirmCallback().
  */
 import { enqueueSale, getPendingQueue, removePendingEntry, incrementRetry, getPendingCount } from './offlineDb';
-import { useSalesStore } from '@/store/salesStore';
 import type { Sale } from '@/types';
 
 type SyncListener = (pendingCount: number, isOnline: boolean) => void;
+type ConfirmCallback = (localId: string, confirmedSale: Sale) => void;
 
 const MAX_RETRIES = 5;
 const listeners: SyncListener[] = [];
 
 let _started = false;
 let _isFlushing = false;
+let _confirmCallback: ConfirmCallback | null = null;
+
+/**
+ * Llamar desde salesStore para registrar la función que actualiza
+ * el ticket temporal por el número real de Neon.
+ * Esto evita la dependencia circular syncManager ↔ salesStore.
+ */
+export function setSaleConfirmCallback(cb: ConfirmCallback) {
+  _confirmCallback = cb;
+}
 
 /** Suscribirse a cambios de estado (pendientes / online). */
 export function onSyncStateChange(cb: SyncListener) {
@@ -35,7 +48,7 @@ async function notifyListeners() {
 
 /**
  * Intenta enviar una sola venta a la API.
- * Retorna true si tuvo éxito, false si falló (red o servidor).
+ * Retorna la venta confirmada si tuvo éxito, null si falló.
  */
 async function pushSale(sale: Sale): Promise<Sale | null> {
   try {
@@ -73,7 +86,7 @@ export async function flushQueue(): Promise<void> {
     if (queue.length === 0) return;
 
     for (const entry of queue) {
-      if (!navigator.onLine) break; // si se fue la red en medio del flush, pausar
+      if (!navigator.onLine) break;
 
       if (entry.retryCount >= MAX_RETRIES) {
         console.warn('[SyncManager] Entrada con demasiados reintentos, omitiendo:', entry.id);
@@ -83,8 +96,8 @@ export async function flushQueue(): Promise<void> {
       const confirmedSale = await pushSale(entry.sale);
 
       if (confirmedSale) {
-        // Éxito: actualizar el store local con el ticket real de Neon
-        useSalesStore.getState().confirmSale(entry.sale.id, confirmedSale);
+        // Notificar al salesStore para actualizar el ticket temporal
+        _confirmCallback?.(entry.sale.id, confirmedSale);
         await removePendingEntry(entry.id);
       } else {
         await incrementRetry(entry.id);
@@ -109,21 +122,18 @@ export function startSyncManager(): void {
   if (_started) return;
   _started = true;
 
-  // Cuando se recupera la conexión, procesar la cola
   window.addEventListener('online', () => {
     console.info('[SyncManager] Conexión recuperada — procesando cola...');
     flushQueue().catch(console.error);
     notifyListeners();
   });
 
-  // Cuando se pierde la conexión, notificar a la UI
   window.addEventListener('offline', () => {
     console.warn('[SyncManager] Sin conexión.');
     notifyListeners();
   });
 
-  // Al iniciar con red disponible, vaciar cualquier cola que haya quedado
-  // pendiente de una sesión anterior (p.ej. el local cerró sin internet ayer)
+  // Al iniciar con red, vaciar cola de sesiones anteriores
   if (navigator.onLine) {
     setTimeout(() => flushQueue().catch(console.error), 2000);
   }
