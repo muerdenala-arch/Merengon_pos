@@ -1,18 +1,25 @@
 import { create } from 'zustand';
 import type { Sale } from '@/types';
-import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
+import { api } from '@/lib/api';
 import { uid } from '@/lib/utils';
+import { submitSale } from '@/lib/syncManager';
 
 interface SalesState {
   sales: Sale[];
   hydrated: boolean;
   fetchAll: () => Promise<void>;
-  /** A diferencia del resto de las acciones del store, esta SÍ espera al servidor: el
-   *  número de ticket es correlativo y atómico entre todos los dispositivos (nextval de
-   *  una secuencia en Postgres), así que no se puede inventar de forma optimista sin
-   *  arriesgar números repetidos entre dos cajeros cobrando al mismo tiempo. */
-  addSale: (sale: Omit<Sale, 'id' | 'ticketNumber'>) => Promise<Sale>;
+  /**
+   * Añade la venta INMEDIATAMENTE al store local (optimistic) y la encola en
+   * IndexedDB. El SyncManager la enviará a Neon en segundo plano.
+   * Retorna la venta optimista al instante — no espera a la red.
+   */
+  addSale: (sale: Omit<Sale, 'id' | 'ticketNumber'>) => Sale;
+  /**
+   * El SyncManager llama a esto cuando Neon confirma la inserción.
+   * Reemplaza el ticket temporal (ticketNumber: 0) por el número real de Neon.
+   */
+  confirmSale: (localId: string, confirmedSale: Sale) => void;
   salesForSession: (sessionId: string) => Sale[];
 }
 
@@ -29,11 +36,24 @@ export const useSalesStore = create<SalesState>()((set, get) => ({
     }
   },
 
-  addSale: async (data) => {
-    const draft = { ...data, id: uid('sale') };
-    const sale = await api.sales.create(draft);
-    set((state) => ({ sales: [sale, ...state.sales] }));
-    return sale;
+  addSale: (data) => {
+    const localId = uid('sale');
+    // ticketNumber: 0 = pendiente de confirmación de Neon
+    const optimisticSale: Sale = { ...data, id: localId, ticketNumber: 0 };
+
+    // 1. Agregar al store local INSTANTÁNEAMENTE (la UI ya puede mostrarlo)
+    set((state) => ({ sales: [optimisticSale, ...state.sales] }));
+
+    // 2. Guardar en IndexedDB + disparar sync en background (fire & forget)
+    submitSale(optimisticSale).catch(console.error);
+
+    return optimisticSale;
+  },
+
+  confirmSale: (localId, confirmedSale) => {
+    set((state) => ({
+      sales: state.sales.map((s) => (s.id === localId ? { ...confirmedSale } : s)),
+    }));
   },
 
   salesForSession: (sessionId) => get().sales.filter((s) => s.registerSessionId === sessionId),

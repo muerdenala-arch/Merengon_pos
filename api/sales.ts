@@ -30,6 +30,17 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const body = requireBody<Omit<Sale, 'ticketNumber'>>(req);
 
     const rows = await withTransaction(async (tx) => {
+      // Idempotencia: si el id ya existe (reintento de la cola offline),
+      // retornar la venta existente con 409 para que el SyncManager la trate como éxito.
+      const existing = await tx<Sale>(
+        `SELECT ${SELECT_COLUMNS} FROM sales WHERE id = $1`,
+        [body.id]
+      );
+      if (existing.length > 0) {
+        res.status(409).json(existing[0]);
+        return null;
+      }
+
       // Quemar el cupón atómicamente si fue utilizado en esta venta
       if (body.couponCode) {
         const coupons = await tx<{ id: string; used_count: number; max_uses: number }>(
@@ -73,6 +84,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       );
     });
 
+    if (!rows) return; // 409 ya enviado arriba
     res.status(201).json(rows[0]);
     return;
   }

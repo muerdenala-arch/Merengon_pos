@@ -72,8 +72,6 @@ export default function POSPage() {
   }
 
   async function handleConfirmPayment(payment: Payment) {
-    // A diferencia del resto de las acciones del store, addSale espera al servidor: el
-    // número de ticket es correlativo y atómico entre dispositivos (ver salesStore).
     const saleData: Omit<Sale, 'id' | 'ticketNumber'> = {
       items,
       subtotal,
@@ -90,8 +88,11 @@ export default function POSPage() {
       createdAt: new Date().toISOString(),
     };
 
-    await addSale(saleData);
+    // Optimistic: registra la venta INMEDIATAMENTE en el store local e IndexedDB.
+    // La sincronización con Neon ocurre en segundo plano (syncManager).
+    addSale(saleData);
 
+    // Descontar stock localmente al instante
     items.forEach((item) => {
       adjustStock(item.product.id, currentBranchId!, -item.quantity);
       item.modifiers.toppings.forEach((t) => adjustToppingStock(t.id, currentBranchId!, -item.quantity));
@@ -102,7 +103,7 @@ export default function POSPage() {
     setCartDrawerOpen(false);
     setCheckoutOpen(false);
 
-    setToastMessage('¡Venta registrada con éxito!');
+    setToastMessage('¡Venta registrada!');
     setTimeout(() => setToastMessage(null), 1500);
   }
 

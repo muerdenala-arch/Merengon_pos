@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, MapPin, Wallet } from 'lucide-react';
+import { LogOut, MapPin, Wallet, WifiOff, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -12,6 +12,7 @@ import { APP_CONFIG } from '@/config/app';
 import logoMark from '@/assets/brand/logo-mark.png';
 import { logoGlowClasses } from '@/lib/brand';
 import { cn } from '@/lib/utils';
+import { onSyncStateChange } from '@/lib/syncManager';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -20,6 +21,17 @@ export function CashierShell({ children }: { children: ReactNode }) {
   const activeSession = useRegisterStore((s) => s.activeSession());
   const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const navigate = useNavigate();
+
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    const unsub = onSyncStateChange((count, online) => {
+      setIsOnline(online);
+      setPendingCount(count);
+    });
+    return unsub;
+  }, []);
 
   return (
     <div className="flex h-dvh flex-col bg-cream">
@@ -65,6 +77,32 @@ export function CashierShell({ children }: { children: ReactNode }) {
             </p>
           </div>
           <ThemeToggle className="ml-1 flex-shrink-0 sm:ml-2" />
+          {/* Indicador de estado de red y ventas pendientes de sincronizar */}
+          {(!isOnline || pendingCount > 0) && (
+            <div
+              title={
+                !isOnline
+                  ? `Sin conexión — ${pendingCount} venta${pendingCount !== 1 ? 's' : ''} en cola`
+                  : `Sincronizando ${pendingCount} venta${pendingCount !== 1 ? 's' : ''}...`
+              }
+              className={cn(
+                'ml-1 flex flex-shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold',
+                !isOnline
+                  ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                  : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+              )}
+            >
+              {!isOnline ? (
+                <WifiOff size={11} className="flex-shrink-0" />
+              ) : (
+                <RefreshCw size={11} className="flex-shrink-0 animate-spin" />
+              )}
+              <span className="hidden sm:inline">
+                {!isOnline ? 'Sin red' : 'Sincronizando'}
+              </span>
+              {pendingCount > 0 && <span>·{pendingCount}</span>}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
