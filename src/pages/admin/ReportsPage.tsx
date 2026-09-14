@@ -40,9 +40,13 @@ export default function ReportsPage() {
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchData() {
-      setIsLoading(true);
-      setFetchError(null);
+      if (isMounted && sales.length === 0) { // Solo mostrar loading la primera vez o si está vacío
+        setIsLoading(true);
+        setFetchError(null);
+      }
       try {
         let startDate = new Date();
         let endDate = new Date();
@@ -81,11 +85,20 @@ export default function ReportsPage() {
         setSales([]);
         setSessions([]);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     }
     
     fetchData();
+    const interval = setInterval(() => {
+      // Polling sin mostrar loading spinner para que sea silencioso
+      if (isMounted) fetchData();
+    }, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [range, customDate, adminFilterBranchId, retryCount]);
 
   const salesByBranch = useMemo(() => {

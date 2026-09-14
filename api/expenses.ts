@@ -23,7 +23,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
     const body = requireBody<Expense>(req);
 
-    if (!body.id || !body.amount || !body.concept || !body.category || !body.cashRegisterId || !body.branchId || !body.userId) {
+    if (!body.id || !body.amount || !body.concept || !body.category || !body.userId) {
       res.status(400).json({ error: 'Faltan campos requeridos en el gasto.' });
       return;
     }
@@ -43,7 +43,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       `INSERT INTO expenses (id, amount, concept, category, cash_register_id, branch_id, user_id, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING ${SELECT_COLUMNS}`,
-      [body.id, body.amount, body.concept, body.category, body.cashRegisterId, body.branchId, body.userId, body.createdAt || new Date().toISOString()]
+      [body.id, body.amount, body.concept, body.category, body.cashRegisterId || null, body.branchId || null, body.userId, body.createdAt || new Date().toISOString()]
     );
 
     res.status(201).json(rows[0]);

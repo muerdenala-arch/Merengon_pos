@@ -4,8 +4,9 @@ import { useExpenseStore } from '@/store/expenseStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useStaffStore } from '@/store/staffStore';
 import { formatCurrency } from '@/lib/utils';
-import { Receipt, Search } from 'lucide-react';
+import { Receipt, Search, PlusCircle, Building2 } from 'lucide-react';
 import { fieldClasses } from '@/components/ui/Input';
+import { AdminExpenseModal } from '@/components/admin/AdminExpenseModal';
 
 export default function ExpensesPage() {
   const expenses = useExpenseStore(s => s.expenses);
@@ -15,9 +16,15 @@ export default function ExpensesPage() {
   const users = useStaffStore(s => s.users);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // Carga inicial y auto-refresco cada 15s (polling)
   useEffect(() => {
     fetchExpenses();
+    const interval = setInterval(() => {
+      fetchExpenses();
+    }, 15000);
+    return () => clearInterval(interval);
   }, [fetchExpenses]);
 
   const filteredExpenses = useMemo(() => {
@@ -57,7 +64,14 @@ export default function ExpensesPage() {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="rounded-xl bg-red-50 px-4 py-2 text-right">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-red-700 active:scale-95 shadow-md shadow-red-500/20"
+              >
+                <PlusCircle size={18} />
+                Registrar Gasto (Admin)
+              </button>
+              <div className="rounded-xl bg-red-50 px-4 py-2 text-right hidden sm:block">
                 <p className="text-xs font-bold uppercase text-red-600/70">Total Filtrado</p>
                 <p className="font-display text-xl font-bold text-red-700">
                   {formatCurrency(totalFiltered)}
@@ -114,7 +128,10 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="py-4 pr-4 text-ink-muted">
-                      {branches.find(b => b.id === expense.branchId)?.name || 'Sucursal Desconocida'}
+                      {expense.branchId 
+                        ? (branches.find(b => b.id === expense.branchId)?.name || 'Sucursal Desconocida')
+                        : <span className="flex items-center gap-1.5 font-bold text-primary-600"><Building2 size={14} /> Gasto de Empresa</span>
+                      }
                     </td>
                     <td className="py-4 pr-4 text-ink-muted">
                       {users.find(u => u.id === expense.userId)?.name || 'Usuario Desconocido'}
@@ -129,6 +146,7 @@ export default function ExpensesPage() {
           )}
         </div>
       </div>
+      {isModalOpen && <AdminExpenseModal onClose={() => setIsModalOpen(false)} />}
     </AdminShell>
   );
 }

@@ -128,8 +128,8 @@ CREATE TABLE IF NOT EXISTS expenses (
   amount              numeric(10, 2) NOT NULL,
   concept             text NOT NULL,
   category            text NOT NULL,
-  cash_register_id    text NOT NULL REFERENCES register_sessions (id),
-  branch_id           text NOT NULL REFERENCES branches (id),
+  cash_register_id    text REFERENCES register_sessions (id),
+  branch_id           text REFERENCES branches (id),
   user_id             text NOT NULL REFERENCES staff (id),
   created_at          timestamptz NOT NULL DEFAULT now()
 );

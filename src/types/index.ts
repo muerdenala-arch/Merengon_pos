@@ -193,8 +193,8 @@ export interface Expense {
   amount: number;
   concept: string;
   category: string;
-  cashRegisterId: string;
-  branchId: string;
+  cashRegisterId?: string | null;
+  branchId?: string | null;
   userId: string;
   createdAt: string;
 }
