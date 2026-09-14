@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, MapPin, Wallet, WifiOff, RefreshCw } from 'lucide-react';
+import { LogOut, MapPin, Wallet, WifiOff, RefreshCw, Receipt } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -13,6 +13,7 @@ import logoMark from '@/assets/brand/logo-mark.png';
 import { logoGlowClasses } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 import { onSyncStateChange } from '@/lib/syncManager';
+import { ExpenseModal } from '@/components/pos/ExpenseModal';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -24,6 +25,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSyncStateChange((count, online) => {
@@ -106,6 +108,15 @@ export function CashierShell({ children }: { children: ReactNode }) {
         </div>
 
         <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
+          {activeSession && (
+            <button
+              onClick={() => setIsExpenseModalOpen(true)}
+              className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 sm:px-3.5 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+            >
+              <Receipt size={18} className="flex-shrink-0" />
+              <span className="hidden sm:inline">Registrar Gasto</span>
+            </button>
+          )}
           <Link
             to={activeSession ? '/caja/cierre' : '/caja/apertura'}
             aria-label={activeSession ? 'Cerrar caja' : 'Abrir caja'}
@@ -136,6 +147,11 @@ export function CashierShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>
+
+      <ExpenseModal 
+        isOpen={isExpenseModalOpen} 
+        onClose={() => setIsExpenseModalOpen(false)} 
+      />
     </div>
   );
 }

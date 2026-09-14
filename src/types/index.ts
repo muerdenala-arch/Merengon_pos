@@ -187,3 +187,14 @@ export interface CashRegisterSession {
   status: RegisterStatus;
   notes?: string;
 }
+
+export interface Expense {
+  id: string;
+  amount: number;
+  concept: string;
+  category: string;
+  cashRegisterId: string;
+  branchId: string;
+  userId: string;
+  createdAt: string;
+}

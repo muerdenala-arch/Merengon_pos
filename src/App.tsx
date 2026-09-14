@@ -17,6 +17,7 @@ import StaffPage from '@/pages/admin/StaffPage';
 import QrConfigPage from '@/pages/admin/QrConfigPage';
 import BranchesPage from '@/pages/admin/BranchesPage';
 import PromotionsPage from '@/pages/admin/PromotionsPage';
+import ExpensesPage from '@/pages/admin/ExpensesPage';
 
 // Si a los 10s la primera sincronización con Neon todavía no terminó (DB caída, env var
 // faltante, función colgada), dejamos de mostrar el spinner infinito y ofrecemos
@@ -129,6 +130,14 @@ export default function App() {
         element={
           <RequireAuth roles={['admin']}>
             <CashAuditPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/gastos"
+        element={
+          <RequireAuth roles={['admin']}>
+            <ExpensesPage />
           </RequireAuth>
         }
       />

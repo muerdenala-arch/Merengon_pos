@@ -28,6 +28,10 @@ export default function ReportsPage() {
   const [monthlyTotal, setMonthlyTotal] = useState<number>(0);
   const [weeklyTotal, setWeeklyTotal] = useState<number>(0);
   const [yearlyTotal, setYearlyTotal] = useState<number>(0);
+  const [dailyExpenses, setDailyExpenses] = useState<number>(0);
+  const [weeklyExpenses, setWeeklyExpenses] = useState<number>(0);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<number>(0);
+  const [yearlyExpenses, setYearlyExpenses] = useState<number>(0);
   const [totalDiscounts, setTotalDiscounts] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -66,6 +70,10 @@ export default function ReportsPage() {
         setMonthlyTotal(data.monthlyTotal);
         setWeeklyTotal(data.weeklyTotal);
         setYearlyTotal(data.yearlyTotal);
+        setDailyExpenses(data.dailyExpenses || 0);
+        setWeeklyExpenses(data.weeklyExpenses || 0);
+        setMonthlyExpenses(data.monthlyExpenses || 0);
+        setYearlyExpenses(data.yearlyExpenses || 0);
         setTotalDiscounts(data.totalDiscounts ?? 0);
       } catch (err) {
         console.error('Error fetching reports:', err);
@@ -241,10 +249,10 @@ export default function ReportsPage() {
           animate="animate"
           className={cn("mb-6 grid grid-cols-2 gap-3.5 lg:grid-cols-5 transition-opacity", isLoading && "opacity-50")}
         >
-          <StatCard icon={<TrendingUp size={18} />} label="Venta del Día" value={formatCurrency(totalSales)} tone="primary" subtext={`Ef: ${formatCurrency(cashTotal)} / QR: ${formatCurrency(qrTotal)}`} />
-          <StatCard icon={<CalendarRange size={18} />} label="Semana (Bs)" value={formatCurrency(weeklyTotal)} tone="secondary" />
-          <StatCard icon={<CalendarDays size={18} />} label="Mes (Bs)" value={formatCurrency(monthlyTotal)} tone="secondary" />
-          <StatCard icon={<DollarSign size={18} />} label="Año (Bs)" value={formatCurrency(yearlyTotal)} tone="accent" />
+          <StatCard icon={<TrendingUp size={18} />} label="Venta del Día (Neta)" value={formatCurrency(totalSales - dailyExpenses)} tone="primary" subtext={`Ingresos: ${formatCurrency(totalSales)} / Gastos: -${formatCurrency(dailyExpenses)}`} />
+          <StatCard icon={<CalendarRange size={18} />} label="Semana (Neta)" value={formatCurrency(weeklyTotal - weeklyExpenses)} tone="secondary" subtext={`Gastos: -${formatCurrency(weeklyExpenses)}`} />
+          <StatCard icon={<CalendarDays size={18} />} label="Mes (Neta)" value={formatCurrency(monthlyTotal - monthlyExpenses)} tone="secondary" subtext={`Gastos: -${formatCurrency(monthlyExpenses)}`} />
+          <StatCard icon={<DollarSign size={18} />} label="Año (Neta)" value={formatCurrency(yearlyTotal - yearlyExpenses)} tone="accent" subtext={`Gastos: -${formatCurrency(yearlyExpenses)}`} />
           <StatCard icon={<Receipt size={18} />} label="Cantidad Ventas" value={String(branchFilteredSales.length)} tone="neutral" />
           <StatCard icon={<Tag size={18} />} label="Descuentos (Bs)" value={formatCurrency(totalDiscounts)} tone="neutral" />
         </motion.div>

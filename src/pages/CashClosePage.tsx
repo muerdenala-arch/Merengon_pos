@@ -7,6 +7,7 @@ import { NumericKeypad } from '@/components/ui/NumericKeypad';
 import { Button } from '@/components/ui/Button';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
+import { useExpenseStore } from '@/store/expenseStore';
 import { cn, formatCurrency } from '@/lib/utils';
 
 export default function CashClosePage() {
@@ -14,6 +15,7 @@ export default function CashClosePage() {
   const closeRegister = useRegisterStore((s) => s.closeRegister);
   const salesForSession = useSalesStore((s) => s.salesForSession);
   const fetchSales = useSalesStore((s) => s.fetchAll);
+  const expenses = useExpenseStore((s) => s.expenses);
   const [counted, setCounted] = useState('');
   const navigate = useNavigate();
 
@@ -21,11 +23,17 @@ export default function CashClosePage() {
   // the totals are correct even if the cashier sold from another device.
   useEffect(() => {
     fetchSales();
+    useExpenseStore.getState().fetchAll();
   }, [fetchSales]);
 
   const sessionSales = useMemo(
     () => (activeSession ? salesForSession(activeSession.id) : []),
     [activeSession, salesForSession],
+  );
+
+  const sessionExpenses = useMemo(
+    () => activeSession ? expenses.filter(e => e.cashRegisterId === activeSession.id) : [],
+    [activeSession, expenses]
   );
 
   if (!activeSession) {
@@ -43,8 +51,11 @@ export default function CashClosePage() {
     if (s.payment.method === 'mixto') return sum + (s.payment.amountQr || 0);
     return sum;
   }, 0);
+  
+  const expensesTotal = sessionExpenses.reduce((sum, e) => sum + e.amount, 0);
+
   const salesTotal = cashSalesTotal + qrSalesTotal;
-  const expectedAmount = activeSession.openingAmount + cashSalesTotal;
+  const expectedAmount = activeSession.openingAmount + cashSalesTotal - expensesTotal;
   const countedAmount = Number(counted || 0);
   const difference = countedAmount - expectedAmount;
 
@@ -82,6 +93,7 @@ export default function CashClosePage() {
             <Row label="Ventas en efectivo" value={formatCurrency(cashSalesTotal)} />
             <Row label="Ventas por QR" value={formatCurrency(qrSalesTotal)} />
             <Row label="Total vendido" value={formatCurrency(salesTotal)} bold />
+            <Row label="Gastos registrados" value={`-${formatCurrency(expensesTotal)}`} bold />
             <div className="my-1 border-t border-dashed border-border" />
             <Row label="Efectivo esperado en caja" value={formatCurrency(expectedAmount)} bold />
           </div>

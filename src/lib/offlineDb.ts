@@ -5,16 +5,18 @@
  * El SyncManager consume esta cola para enviarlas a Neon cuando haya internet.
  */
 import { openDB, type IDBPDatabase } from 'idb';
-import type { Sale } from '@/types';
+import type { Sale, Expense } from '@/types';
 
 const DB_NAME = 'merengon-pos';
 const DB_VERSION = 1;
 const STORE_NAME = 'pendingQueue';
 
 export interface PendingEntry {
-  /** Mismo que sale.id — se usa como keyPath */
+  /** Mismo que sale.id o expense.id — se usa como keyPath */
   id: string;
-  sale: Sale;
+  type: 'sale' | 'expense';
+  sale?: Sale;
+  expense?: Expense;
   /** Fecha en que se encoló, para ordenar y detectar entradas muy antiguas */
   enqueuedAt: string;
   /** Número de intentos fallidos de sync */
@@ -43,6 +45,7 @@ export async function enqueueSale(sale: Sale): Promise<void> {
     if (existing) return; // ya está en cola, no duplicar
     const entry: PendingEntry = {
       id: sale.id,
+      type: 'sale',
       sale,
       enqueuedAt: new Date().toISOString(),
       retryCount: 0,
@@ -53,7 +56,26 @@ export async function enqueueSale(sale: Sale): Promise<void> {
   }
 }
 
-/** Devuelve todas las ventas pendientes de sincronizar, ordenadas por fecha. */
+/** Persiste un gasto en la cola local. */
+export async function enqueueExpense(expense: Expense): Promise<void> {
+  try {
+    const db = await getDb();
+    const existing = await db.get(STORE_NAME, expense.id);
+    if (existing) return; 
+    const entry: PendingEntry = {
+      id: expense.id,
+      type: 'expense',
+      expense,
+      enqueuedAt: new Date().toISOString(),
+      retryCount: 0,
+    };
+    await db.put(STORE_NAME, entry);
+  } catch (err) {
+    console.error('[OfflineDB] Error al encolar gasto:', err);
+  }
+}
+
+/** Devuelve todas las ventas y gastos pendientes de sincronizar, ordenados por fecha. */
 export async function getPendingQueue(): Promise<PendingEntry[]> {
   try {
     const db = await getDb();

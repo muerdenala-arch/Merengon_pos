@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag } from 'lucide-react';
+import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag, Receipt } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -13,6 +13,7 @@ import { logoGlowClasses } from '@/lib/brand';
 
 const NAV_ITEMS = [
   { to: '/admin/reportes', label: 'Reportes de venta', icon: BarChart3 },
+  { to: '/admin/gastos', label: 'Gastos Diarios', icon: Receipt },
   { to: '/admin/catalogo', label: 'Catálogo', icon: Package },
   { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
   { to: '/admin/promociones', label: 'Promociones y Cupones', icon: Tag },

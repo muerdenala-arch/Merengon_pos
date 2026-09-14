@@ -6,22 +6,10 @@ import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { usePromotionStore } from '@/store/promotionStore';
+import { useExpenseStore } from '@/store/expenseStore';
 
-/** "Tiempo real" vía polling: cada cuánto se vuelve a pedir todo a Neon. 
- *  Se cambió a 60s para evitar lag (congelamiento de la interfaz) por procesar JSONs grandes
- *  y para evitar exceder los límites diarios de funciones Serverless en Vercel. */
 const POLL_INTERVAL_MS = 60000;
 
-/** Dispara el primer fetch de todos los datos compartidos al montar la app y los
- *  refresca en bucle — así cualquier cambio hecho desde otro dispositivo (otra sucursal,
- *  otro cajero, el panel admin) llega a esta pantalla sin recargar.
- *
- *  El polling se PAUSA mientras la pestaña/pantalla no está visible (tablet bloqueada,
- *  app en segundo plano) — un POS queda con la pestaña abierta un turno entero (8h+), y
- *  sin esto son ~4800 rondas de 6 fetches + parseo JSON por turno corriendo igual aunque
- *  nadie esté mirando la pantalla, lo que va acumulando trabajo de fondo y puede sentirse
- *  como que "el sistema se pone lento" a medida que avanza el día. Al volver a hacerse
- *  visible se dispara un fetch inmediato para no mostrar datos viejos. */
 export function useDataSync() {
   useEffect(() => {
     const fetchAll = () => {
@@ -32,6 +20,7 @@ export function useDataSync() {
       useRegisterStore.getState().fetchAll();
       useSalesStore.getState().fetchAll();
       usePromotionStore.getState().fetchAll();
+      useExpenseStore.getState().fetchAll();
     };
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -61,9 +50,6 @@ export function useDataSync() {
   }, []);
 }
 
-/** true una vez que las seis fuentes de datos ya trajeron su primera respuesta real del
- *  servidor — se usa para no mostrar la semilla local (que puede no coincidir con lo que
- *  hay en Neon) ni una pantalla de login sin usuarios durante el primer instante. */
 export function useIsDataHydrated(): boolean {
   const branches = useBranchStore((s) => s.hydrated);
   const staff = useStaffStore((s) => s.hydrated);
@@ -71,5 +57,6 @@ export function useIsDataHydrated(): boolean {
   const qrCodes = useQrCodeStore((s) => s.hydrated);
   const registerSessions = useRegisterStore((s) => s.hydrated);
   const sales = useSalesStore((s) => s.hydrated);
-  return branches && staff && catalog && qrCodes && registerSessions && sales;
+  const expenses = useExpenseStore((s) => s.hydrated);
+  return branches && staff && catalog && qrCodes && registerSessions && sales && expenses;
 }

@@ -12,6 +12,7 @@ import type {
   Topping,
   User,
   Category,
+  Expense,
 } from '@/types';
 
 // Si Neon/la función serverless se cuelga (cold start, pool sin responder), sin esto el
@@ -140,5 +141,9 @@ export const api = {
   adminReports: {
     get: (startDate: string, endDate: string, branchId?: string) => 
       get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+  },
+  expenses: {
+    list: () => get<Expense[]>('/expenses'),
+    create: (data: Expense) => post<Expense>('/expenses', data),
   },
 };

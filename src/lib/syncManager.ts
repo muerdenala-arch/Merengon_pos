@@ -9,8 +9,8 @@
  * NO importa salesStore directamente para evitar dependencia circular.
  * En cambio, el salesStore se registra mediante setSaleConfirmCallback().
  */
-import { enqueueSale, getPendingQueue, removePendingEntry, incrementRetry, getPendingCount } from './offlineDb';
-import type { Sale } from '@/types';
+import { enqueueSale, enqueueExpense, getPendingQueue, removePendingEntry, incrementRetry, getPendingCount } from './offlineDb';
+import type { Sale, Expense } from '@/types';
 
 type SyncListener = (pendingCount: number, isOnline: boolean) => void;
 type ConfirmCallback = (localId: string, confirmedSale: Sale) => void;
@@ -25,13 +25,11 @@ let _confirmCallback: ConfirmCallback | null = null;
 /**
  * Llamar desde salesStore para registrar la función que actualiza
  * el ticket temporal por el número real de Neon.
- * Esto evita la dependencia circular syncManager ↔ salesStore.
  */
 export function setSaleConfirmCallback(cb: ConfirmCallback) {
   _confirmCallback = cb;
 }
 
-/** Suscribirse a cambios de estado (pendientes / online). */
 export function onSyncStateChange(cb: SyncListener) {
   listeners.push(cb);
   return () => {
@@ -46,10 +44,6 @@ async function notifyListeners() {
   for (const cb of listeners) cb(count, isOnline);
 }
 
-/**
- * Intenta enviar una sola venta a la API.
- * Retorna la venta confirmada si tuvo éxito, null si falló.
- */
 async function pushSale(sale: Sale): Promise<Sale | null> {
   try {
     const res = await fetch('/api/sales', {
@@ -59,7 +53,6 @@ async function pushSale(sale: Sale): Promise<Sale | null> {
       signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) {
-      // 409 Conflict = ya existe en Neon (idempotencia). Tratamos como éxito.
       if (res.status === 409) {
         const existing = await res.json().catch(() => null);
         return existing as Sale | null;
@@ -72,11 +65,27 @@ async function pushSale(sale: Sale): Promise<Sale | null> {
   }
 }
 
-/**
- * Procesa toda la cola de IndexedDB y sincroniza con Neon.
- * Si no hay internet, sale inmediatamente.
- * Evita ejecuciones concurrentes con el flag _isFlushing.
- */
+async function pushExpense(expense: Expense): Promise<Expense | null> {
+  try {
+    const res = await fetch('/api/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) {
+      if (res.status === 409) {
+        const existing = await res.json().catch(() => null);
+        return existing as Expense | null;
+      }
+      return null;
+    }
+    return (await res.json()) as Expense;
+  } catch {
+    return null;
+  }
+}
+
 export async function flushQueue(): Promise<void> {
   if (_isFlushing || !navigator.onLine) return;
   _isFlushing = true;
@@ -93,11 +102,22 @@ export async function flushQueue(): Promise<void> {
         continue;
       }
 
-      const confirmedSale = await pushSale(entry.sale);
+      let success = false;
 
-      if (confirmedSale) {
-        // Notificar al salesStore para actualizar el ticket temporal
-        _confirmCallback?.(entry.sale.id, confirmedSale);
+      if (entry.type === 'sale' && entry.sale) {
+        const confirmedSale = await pushSale(entry.sale);
+        if (confirmedSale) {
+          _confirmCallback?.(entry.sale.id, confirmedSale);
+          success = true;
+        }
+      } else if (entry.type === 'expense' && entry.expense) {
+        const confirmedExpense = await pushExpense(entry.expense);
+        if (confirmedExpense) {
+          success = true;
+        }
+      }
+
+      if (success) {
         await removePendingEntry(entry.id);
       } else {
         await incrementRetry(entry.id);
@@ -109,11 +129,15 @@ export async function flushQueue(): Promise<void> {
   }
 }
 
-/** Registra la venta en IndexedDB y dispara sync si hay conexión. */
 export async function submitSale(sale: Sale): Promise<void> {
   await enqueueSale(sale);
   await notifyListeners();
-  // fire & forget — no bloquea la UI
+  flushQueue().catch(console.error);
+}
+
+export async function submitExpense(expense: Expense): Promise<void> {
+  await enqueueExpense(expense);
+  await notifyListeners();
   flushQueue().catch(console.error);
 }
 

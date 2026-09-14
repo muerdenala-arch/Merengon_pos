@@ -118,10 +118,24 @@ CREATE TABLE IF NOT EXISTS sales (
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 
+-- ── Gastos (Egresos de caja) ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS expenses (
+  id                  text PRIMARY KEY,
+  amount              numeric(10, 2) NOT NULL,
+  concept             text NOT NULL,
+  category            text NOT NULL,
+  cash_register_id    text NOT NULL REFERENCES register_sessions (id),
+  branch_id           text NOT NULL REFERENCES branches (id),
+  user_id             text NOT NULL REFERENCES staff (id),
+  created_at          timestamptz NOT NULL DEFAULT now()
+);
+
 -- ── Indices para consultas frecuentes ────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_sales_branch ON sales (branch_id);
 CREATE INDEX IF NOT EXISTS idx_sales_session ON sales (register_session_id);
 CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_session ON expenses (cash_register_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_branch ON expenses (branch_id);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_branch ON register_sessions (branch_id);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_status ON register_sessions (status);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_opened_at ON register_sessions (opened_at DESC);

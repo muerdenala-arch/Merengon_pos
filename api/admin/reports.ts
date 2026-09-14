@@ -82,17 +82,26 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       yearlyParams.push(branchId);
     }
 
-    const [monthlyResult, weeklyResult, yearlyResult, discountsResult] = await Promise.all([
+    const [monthlyResult, weeklyResult, yearlyResult, discountsResult, expensesDaily, expensesWeekly, expensesMonthly, expensesYearly] = await Promise.all([
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, monthlyParams),
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, weeklyParams),
       query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, yearlyParams),
       query<{ sum: number }>(`SELECT COALESCE(SUM(discount_amount), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, params),
+      query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, params),
+      query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, weeklyParams),
+      query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, monthlyParams),
+      query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, yearlyParams),
     ]);
 
     const monthlyTotal = Number(monthlyResult[0]?.sum) || 0;
     const weeklyTotal = Number(weeklyResult[0]?.sum) || 0;
     const yearlyTotal = Number(yearlyResult[0]?.sum) || 0;
     const totalDiscounts = Number(discountsResult[0]?.sum) || 0;
+    
+    const dailyExpenses = Number(expensesDaily[0]?.sum) || 0;
+    const weeklyExpenses = Number(expensesWeekly[0]?.sum) || 0;
+    const monthlyExpenses = Number(expensesMonthly[0]?.sum) || 0;
+    const yearlyExpenses = Number(expensesYearly[0]?.sum) || 0;
 
     res.status(200).json({
       sales,
@@ -101,6 +110,10 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       weeklyTotal,
       yearlyTotal,
       totalDiscounts,
+      dailyExpenses,
+      weeklyExpenses,
+      monthlyExpenses,
+      yearlyExpenses
     });
     return;
   }
