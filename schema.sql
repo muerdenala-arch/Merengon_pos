@@ -105,17 +105,21 @@ CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START WITH 1001;
 
 -- ── Ventas ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sales (
-  id                  text PRIMARY KEY,
-  ticket_number       integer NOT NULL DEFAULT nextval('ticket_number_seq'),
-  items               jsonb NOT NULL,
-  subtotal            numeric(10, 2) NOT NULL,
-  total               numeric(10, 2) NOT NULL,
-  payment             jsonb NOT NULL,
-  cashier_id          text NOT NULL,
-  cashier_name        text NOT NULL,
-  register_session_id text NOT NULL REFERENCES register_sessions (id),
-  branch_id           text NOT NULL REFERENCES branches (id),
-  created_at          timestamptz NOT NULL DEFAULT now()
+  id                        text PRIMARY KEY,
+  ticket_number             integer NOT NULL DEFAULT nextval('ticket_number_seq'),
+  items                     jsonb NOT NULL,
+  subtotal                  numeric(10, 2) NOT NULL,
+  subtotal_before_discount  numeric(10, 2) NOT NULL DEFAULT 0,
+  discount_amount           numeric(10, 2) NOT NULL DEFAULT 0,
+  discount_type             text NOT NULL DEFAULT 'NONE',
+  coupon_code               text,
+  total                     numeric(10, 2) NOT NULL,
+  payment                   jsonb NOT NULL,
+  cashier_id                text NOT NULL,
+  cashier_name              text NOT NULL,
+  register_session_id       text NOT NULL REFERENCES register_sessions (id),
+  branch_id                 text NOT NULL REFERENCES branches (id),
+  created_at                timestamptz NOT NULL DEFAULT now()
 );
 
 -- ── Gastos (Egresos de caja) ──────────────────────────────────────────────────

@@ -1,47 +1,56 @@
-import { query } from './_lib/db.js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { query } from './_lib/db.js';
+import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import type { Expense } from '../src/types/index.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  try {
-    if (req.method === 'GET') {
-      const expenses = await query('SELECT * FROM expenses ORDER BY created_at DESC');
-      
-      // Mapear snake_case a camelCase para el frontend
-      const mapped = expenses.map(e => ({
-        id: e.id,
-        amount: Number(e.amount),
-        concept: e.concept,
-        category: e.category,
-        cashRegisterId: e.cash_register_id,
-        branchId: e.branch_id,
-        userId: e.user_id,
-        createdAt: e.created_at,
-      }));
-      
-      return res.status(200).json(mapped);
-    }
+const SELECT_COLUMNS = `
+  id, amount, concept, category,
+  cash_register_id as "cashRegisterId",
+  branch_id as "branchId",
+  user_id as "userId",
+  created_at as "createdAt"
+`;
 
-    if (req.method === 'POST') {
-      const { id, amount, concept, category, cashRegisterId, branchId, userId, createdAt } = req.body;
-      
-      if (!id || !amount || !concept || !category || !cashRegisterId || !branchId || !userId) {
-        return res.status(400).json({ error: 'Faltan campos requeridos en el gasto.' });
-      }
-
-      await query(
-        `INSERT INTO expenses (id, amount, concept, category, cash_register_id, branch_id, user_id, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (id) DO NOTHING`,
-        [id, amount, concept, category, cashRegisterId, branchId, userId, createdAt || new Date().toISOString()]
-      );
-
-      return res.status(201).json(req.body);
-    }
-
-    res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).end(`Method ${req.method} Not Allowed`);
-  } catch (err) {
-    console.error('Expenses API error:', err);
-    return res.status(500).json({ error: 'Error interno del servidor al procesar gastos.' });
+async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === 'GET') {
+    const expenses = await query<Expense>(
+      `SELECT ${SELECT_COLUMNS} FROM expenses ORDER BY created_at DESC`
+    );
+    res.status(200).json(expenses);
+    return;
   }
+
+  if (req.method === 'POST') {
+    const body = requireBody<Expense>(req);
+
+    if (!body.id || !body.amount || !body.concept || !body.category || !body.cashRegisterId || !body.branchId || !body.userId) {
+      res.status(400).json({ error: 'Faltan campos requeridos en el gasto.' });
+      return;
+    }
+
+    // Idempotencia: si el gasto ya existe (reintento de la cola offline),
+    // retornar el existente con 409 para que el SyncManager lo trate como éxito.
+    const existing = await query<Expense>(
+      `SELECT ${SELECT_COLUMNS} FROM expenses WHERE id = $1`,
+      [body.id]
+    );
+    if (existing.length > 0) {
+      res.status(409).json(existing[0]);
+      return;
+    }
+
+    const rows = await query<Expense>(
+      `INSERT INTO expenses (id, amount, concept, category, cash_register_id, branch_id, user_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING ${SELECT_COLUMNS}`,
+      [body.id, body.amount, body.concept, body.category, body.cashRegisterId, body.branchId, body.userId, body.createdAt || new Date().toISOString()]
+    );
+
+    res.status(201).json(rows[0]);
+    return;
+  }
+
+  methodNotAllowed(res, ['GET', 'POST']);
 }
+
+export default withErrorHandling(handler);

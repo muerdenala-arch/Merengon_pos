@@ -18,6 +18,7 @@ export function ExpenseModal({ isOpen, onClose }: ExpenseModalProps) {
   const [concept, setConcept] = useState('');
   const [category, setCategory] = useState(CATEGORIES[1]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const addExpense = useExpenseStore(s => s.addExpense);
   const currentUser = useAuthStore(s => s.currentUser);
@@ -34,6 +35,7 @@ export function ExpenseModal({ isOpen, onClose }: ExpenseModalProps) {
     if (isNaN(numAmount) || numAmount <= 0 || !concept.trim()) return;
 
     setIsSubmitting(true);
+    setErrorMsg(null);
     try {
       await addExpense({
         amount: numAmount,
@@ -49,7 +51,7 @@ export function ExpenseModal({ isOpen, onClose }: ExpenseModalProps) {
       onClose();
     } catch (err) {
       console.error('Error al guardar gasto:', err);
-      alert('Ocurrió un error al intentar guardar el gasto.');
+      setErrorMsg('No se pudo guardar. Revisa la conexión e inténtalo de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -138,24 +140,31 @@ export function ExpenseModal({ isOpen, onClose }: ExpenseModalProps) {
               </div>
             </div>
 
-            <div className="mt-8 flex gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 rounded-xl bg-cream-300 py-3.5 font-bold text-ink transition-colors hover:bg-cream-400"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={cn(
-                  "flex-1 rounded-xl bg-red-500 py-3.5 font-bold text-white transition-transform active:scale-[0.98]",
-                  isSubmitting ? "opacity-70 cursor-wait" : "hover:bg-red-600 shadow-md shadow-red-500/20"
-                )}
-              >
-                {isSubmitting ? 'Guardando...' : 'Guardar Egreso'}
-              </button>
+            <div className="mt-8 flex flex-col gap-3">
+              {errorMsg && (
+                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm font-semibold text-red-700">
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 rounded-xl bg-cream-300 py-3.5 font-bold text-ink transition-colors hover:bg-cream-400"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={cn(
+                    "flex-1 rounded-xl bg-red-500 py-3.5 font-bold text-white transition-transform active:scale-[0.98]",
+                    isSubmitting ? "opacity-70 cursor-wait" : "hover:bg-red-600 shadow-md shadow-red-500/20"
+                  )}
+                >
+                  {isSubmitting ? 'Guardando...' : 'Guardar Egreso'}
+                </button>
+              </div>
             </div>
           </form>
         </motion.div>

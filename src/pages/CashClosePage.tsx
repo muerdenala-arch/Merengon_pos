@@ -60,6 +60,24 @@ export default function CashClosePage() {
   const difference = countedAmount - expectedAmount;
 
   function handleClose() {
+    const diff = countedAmount - expectedAmount;
+    const diffText = Math.abs(diff) < 0.01
+      ? 'La caja está cuadrada ✓'
+      : diff > 0
+        ? `Sobrante de Bs ${Math.abs(diff).toFixed(2)}`
+        : `Faltante de Bs ${Math.abs(diff).toFixed(2)}`;
+    
+    const confirmed = window.confirm(
+      `¿Cerrar la caja?\n\n` +
+      `• Ventas: Bs ${salesTotal.toFixed(2)} (${sessionSales.length} ventas)\n` +
+      `• Gastos: -Bs ${expensesTotal.toFixed(2)}\n` +
+      `• Efectivo esperado: Bs ${expectedAmount.toFixed(2)}\n` +
+      `• Efectivo contado: Bs ${countedAmount.toFixed(2)}\n` +
+      `• ${diffText}\n\n` +
+      `Esta acción no se puede deshacer.`
+    );
+    if (!confirmed) return;
+
     closeRegister(activeSession!.id, {
       closingAmountCounted: countedAmount,
       expectedAmount,

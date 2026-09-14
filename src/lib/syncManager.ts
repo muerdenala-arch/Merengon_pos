@@ -16,10 +16,12 @@ type SyncListener = (pendingCount: number, isOnline: boolean) => void;
 type ConfirmCallback = (localId: string, confirmedSale: Sale) => void;
 
 const MAX_RETRIES = 5;
+const RETRY_INTERVAL_MS = 30_000; // reintenta cada 30s mientras haya internet
 const listeners: SyncListener[] = [];
 
 let _started = false;
 let _isFlushing = false;
+let _retryTimer: ReturnType<typeof setInterval> | null = null;
 let _confirmCallback: ConfirmCallback | null = null;
 
 /**
@@ -87,7 +89,10 @@ async function pushExpense(expense: Expense): Promise<Expense | null> {
 }
 
 export async function flushQueue(): Promise<void> {
-  if (_isFlushing || !navigator.onLine) return;
+  if (_isFlushing || !navigator.onLine) {
+    await notifyListeners();
+    return;
+  }
   _isFlushing = true;
 
   try {
@@ -97,8 +102,11 @@ export async function flushQueue(): Promise<void> {
     for (const entry of queue) {
       if (!navigator.onLine) break;
 
+      // Entradas que superaron el límite: se eliminan definitivamente para no
+      // bloquear el vaciado de la cola por siempre.
       if (entry.retryCount >= MAX_RETRIES) {
-        console.warn('[SyncManager] Entrada con demasiados reintentos, omitiendo:', entry.id);
+        console.error('[SyncManager] Entrada descartada tras demasiados reintentos:', entry.id);
+        await removePendingEntry(entry.id);
         continue;
       }
 
@@ -149,17 +157,34 @@ export function startSyncManager(): void {
   window.addEventListener('online', () => {
     console.info('[SyncManager] Conexión recuperada — procesando cola...');
     flushQueue().catch(console.error);
-    notifyListeners();
+    // Iniciar reintento periódico mientras haya red
+    if (!_retryTimer) {
+      _retryTimer = setInterval(() => {
+        if (navigator.onLine) {
+          flushQueue().catch(console.error);
+        }
+      }, RETRY_INTERVAL_MS);
+    }
   });
 
   window.addEventListener('offline', () => {
     console.warn('[SyncManager] Sin conexión.');
+    // Detener el timer periódico para no hacer requests en vano
+    if (_retryTimer) {
+      clearInterval(_retryTimer);
+      _retryTimer = null;
+    }
     notifyListeners();
   });
 
-  // Al iniciar con red, vaciar cola de sesiones anteriores
+  // Al iniciar con red, vaciar cola de sesiones anteriores y arrancar timer
   if (navigator.onLine) {
     setTimeout(() => flushQueue().catch(console.error), 2000);
+    _retryTimer = setInterval(() => {
+      if (navigator.onLine) {
+        flushQueue().catch(console.error);
+      }
+    }, RETRY_INTERVAL_MS);
   }
 
   console.info('[SyncManager] Iniciado.');
