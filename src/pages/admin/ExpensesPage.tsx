@@ -32,7 +32,7 @@ export default function ExpensesPage() {
       result = result.filter(e => 
         e.concept.toLowerCase().includes(q) || 
         e.category.toLowerCase().includes(q) ||
-        (users.find((u: any) => u.id === e.userId)?.name.toLowerCase().includes(q))
+        (users.find(u => u.id === e.userId)?.name.toLowerCase().includes(q))
       );
     }
     
@@ -100,7 +100,7 @@ export default function ExpensesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredExpenses.map((expense: any) => (
+                {filteredExpenses.map(expense => (
                   <tr key={expense.id} className="transition-colors hover:bg-cream-50/50">
                     <td className="py-4 pr-4 text-ink">
                       {new Date(expense.createdAt).toLocaleString()}
@@ -114,10 +114,10 @@ export default function ExpensesPage() {
                       </span>
                     </td>
                     <td className="py-4 pr-4 text-ink-muted">
-                      {branches.find((b: any) => b.id === expense.branchId)?.name || 'Sucursal Desconocida'}
+                      {branches.find(b => b.id === expense.branchId)?.name || 'Sucursal Desconocida'}
                     </td>
                     <td className="py-4 pr-4 text-ink-muted">
-                      {users.find((u: any) => u.id === expense.userId)?.name || 'Usuario Desconocido'}
+                      {users.find(u => u.id === expense.userId)?.name || 'Usuario Desconocido'}
                     </td>
                     <td className="py-4 text-right font-display font-bold text-red-600">
                       -{formatCurrency(expense.amount)}

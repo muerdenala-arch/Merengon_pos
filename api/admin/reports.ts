@@ -56,9 +56,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     endOfWeek.setHours(23, 59, 59, 999);
 
     const branchFilter = branchId && branchId !== 'all' ? `AND branch_id = $3` : '';
-    const params: any[] = [start.toISOString(), end.toISOString()];
+    const params: (string | number)[] = [start.toISOString(), end.toISOString()];
     if (branchId && branchId !== 'all') {
-      params.push(branchId);
+      params.push(branchId as string);
     }
 
     const sales = await query<Sale>(
@@ -72,9 +72,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       params
     );
 
-    const monthlyParams: any[] = [startOfMonth.toISOString(), endOfMonth.toISOString()];
-    const weeklyParams: any[] = [startOfWeek.toISOString(), endOfWeek.toISOString()];
-    const yearlyParams: any[] = [startOfYear.toISOString(), endOfYear.toISOString()];
+    const monthlyParams: (string | number)[] = [startOfMonth.toISOString(), endOfMonth.toISOString()];
+    const weeklyParams: (string | number)[] = [startOfWeek.toISOString(), endOfWeek.toISOString()];
+    const yearlyParams: (string | number)[] = [startOfYear.toISOString(), endOfYear.toISOString()];
     
     if (branchId && branchId !== 'all') {
       monthlyParams.push(branchId);

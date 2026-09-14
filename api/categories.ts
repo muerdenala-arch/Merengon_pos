@@ -30,8 +30,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         [newId, body.name, body.active ?? true],
       );
       res.status(201).json(rows[0]);
-    } catch (err: any) {
-      if (err.code === '23505') { // unique violation
+    } catch (err) {
+      const dbError = err as { code?: string };
+      if (dbError.code === '23505') { // unique violation
         res.status(409).json({ error: 'La categoría ya existe' });
       } else {
         throw err;
