@@ -140,7 +140,7 @@ export const api = {
   },
   adminReports: {
     get: (startDate: string, endDate: string, branchId?: string) => 
-      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number; dailyExpenses: number; weeklyExpenses: number; monthlyExpenses: number; yearlyExpenses: number; }>(`/admin/reports?startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number; dailyExpenses: number; weeklyExpenses: number; monthlyExpenses: number; yearlyExpenses: number; }>(`/sales?action=reports&startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
   },
   expenses: {
     list: () => get<Expense[]>('/expenses'),
