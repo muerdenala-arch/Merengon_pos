@@ -77,9 +77,10 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const yearlyParams: (string | number)[] = [startOfYear.toISOString(), endOfYear.toISOString()];
     
     if (branchId && branchId !== 'all') {
-      monthlyParams.push(branchId);
-      weeklyParams.push(branchId);
-      yearlyParams.push(branchId);
+      const branchIdStr = branchId as string;
+      monthlyParams.push(branchIdStr);
+      weeklyParams.push(branchIdStr);
+      yearlyParams.push(branchIdStr);
     }
 
     const [monthlyResult, weeklyResult, yearlyResult, discountsResult, expensesDaily, expensesWeekly, expensesMonthly, expensesYearly] = await Promise.all([
