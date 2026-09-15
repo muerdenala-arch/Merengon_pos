@@ -10,7 +10,7 @@
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `merengon-pos-${CACHE_VERSION}`;
 
 // Recursos que se precargan al instalar el SW (app shell mínima)
