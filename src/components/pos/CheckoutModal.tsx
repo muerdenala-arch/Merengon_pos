@@ -27,6 +27,10 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  
+  // Calculadora de cambio
+  const [receivedCash, setReceivedCash] = useState<string>('');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -36,8 +40,9 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
       setReceiptImage(null);
       setUploadError(null);
       setConfirming(false);
+      setReceivedCash(total.toString());
     }
-  }, [open]);
+  }, [open, total]);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -80,9 +85,11 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   }
 
   const qrAmount = Math.max(0, total - (Number(amountEfectivo) || 0));
+  const receivedNum = Number(receivedCash) || 0;
+  const changeAmount = receivedNum - total;
   
   const canConfirm = !confirming && (
-    method === 'efectivo' 
+    (method === 'efectivo' && receivedNum >= total) 
     || (method === 'qr' && !!receiptImage) 
     || (method === 'mixto' && !!receiptImage && Number(amountEfectivo) > 0 && qrAmount > 0)
   );
@@ -129,10 +136,48 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
               <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary-100 text-secondary-600 dark:bg-secondary-500/15 dark:text-secondary-400">
                 <Zap size={30} />
               </div>
-              <p className="font-display text-lg font-bold text-ink">Cobro rápido en efectivo</p>
-              <p className="mt-1 max-w-[26ch] text-sm text-ink-muted">
-                Confirma para registrar la venta por {formatCurrency(total)} en efectivo.
-              </p>
+              <p className="font-display text-lg font-bold text-ink">Cobro en efectivo</p>
+              
+              <div className="mt-4 w-full flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 shadow-soft">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-ink">Efectivo Recibido</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-bold text-ink-muted">Bs</span>
+                    <input 
+                      type="number"
+                      min={total}
+                      value={receivedCash}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => setReceivedCash(e.target.value)}
+                      placeholder={total.toString()}
+                      className="w-24 rounded-lg border border-border bg-field px-3 py-1.5 text-right font-display font-bold text-ink focus:border-secondary-400 focus:outline-none focus:ring-2 focus:ring-secondary-400/20"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 mb-1 justify-end">
+                  {[total, 50, 100, 200].filter((val, idx, arr) => val >= total && arr.indexOf(val) === idx).map(amt => (
+                    <button 
+                      key={amt} 
+                      onClick={() => setReceivedCash(amt.toString())}
+                      className="rounded bg-cream-300 px-2 py-1 text-xs font-bold text-ink-muted hover:bg-cream-400"
+                    >
+                      {amt === total ? 'Exacto' : `Bs ${amt}`}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-dashed border-border pt-3">
+                  <span className="text-sm font-bold text-ink">Cambio a devolver</span>
+                  <span className={cn(
+                    "font-display text-lg font-extrabold tabular-nums",
+                    changeAmount >= 0 ? "text-secondary-600" : "text-red-500"
+                  )}>
+                    {changeAmount >= 0 ? formatCurrency(changeAmount) : `Falta ${formatCurrency(Math.abs(changeAmount))}`}
+                  </span>
+                </div>
+              </div>
             </motion.div>
           ) : (
             <motion.div
