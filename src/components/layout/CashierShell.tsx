@@ -20,6 +20,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const logout = useAuthStore((s) => s.logout);
+  const clearCurrentBranch = useAuthStore((s) => s.clearCurrentBranch);
   const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const navigate = useNavigate();
@@ -37,6 +38,22 @@ export function CashierShell({ children }: { children: ReactNode }) {
     });
     return unsub;
   }, []);
+
+  // Antes de abrir caja, "volver atrás" debe dejar re-elegir sucursal si el cajero tiene
+  // varias asignadas — si no, `navigate(-1)` no vuelve al selector (esa pantalla nunca
+  // tuvo su propia URL) y el cajero queda atrapado en la sucursal que tocó por error.
+  // Con la caja ya abierta no tiene sentido cambiarla a mitad de turno, así que el botón
+  // vuelve a su comportamiento normal de historial.
+  const canReselectBranch = !activeSession && (currentUser?.branchIds.length ?? 0) > 1;
+
+  function handleBack() {
+    if (canReselectBranch) {
+      clearCurrentBranch();
+      navigate('/login', { replace: true });
+    } else {
+      navigate(-1);
+    }
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-cream">
@@ -112,8 +129,9 @@ export function CashierShell({ children }: { children: ReactNode }) {
 
         <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3 relative">
           <button
-            onClick={() => navigate(-1)}
-            aria-label="Volver atrás"
+            onClick={handleBack}
+            aria-label={canReselectBranch ? 'Elegir otra sucursal' : 'Volver atrás'}
+            title={canReselectBranch ? 'Elegir otra sucursal' : undefined}
             className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-border bg-surface text-ink-muted transition-colors hover:border-primary-300 hover:text-primary-700"
           >
             <ArrowLeft size={20} />

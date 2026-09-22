@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle2, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, PartyPopper, ShieldAlert, Wallet } from 'lucide-react';
 import { CashierShell } from '@/components/layout/CashierShell';
 import { NumericKeypad } from '@/components/ui/NumericKeypad';
 import { Button } from '@/components/ui/Button';
+import { Modal } from '@/components/ui/Modal';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { useExpenseStore } from '@/store/expenseStore';
@@ -19,6 +20,7 @@ export default function CashClosePage() {
   const fetchSales = useSalesStore((s) => s.fetchAll);
   const expenses = useExpenseStore((s) => s.expenses);
   const [counted, setCounted] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const navigate = useNavigate();
 
   // Re-sync sales from the server whenever the close page mounts, so
@@ -61,25 +63,7 @@ export default function CashClosePage() {
   const countedAmount = Number(counted || 0);
   const difference = countedAmount - expectedAmount;
 
-  function handleClose() {
-    const diff = countedAmount - expectedAmount;
-    const diffText = Math.abs(diff) < 0.01
-      ? 'La caja está cuadrada ✓'
-      : diff > 0
-        ? `Sobrante de Bs ${Math.abs(diff).toFixed(2)}`
-        : `Faltante de Bs ${Math.abs(diff).toFixed(2)}`;
-    
-    const confirmed = window.confirm(
-      `¿Cerrar la caja?\n\n` +
-      `• Ventas: Bs ${salesTotal.toFixed(2)} (${sessionSales.length} ventas)\n` +
-      `• Gastos: -Bs ${expensesTotal.toFixed(2)}\n` +
-      `• Efectivo esperado: Bs ${expectedAmount.toFixed(2)}\n` +
-      `• Efectivo contado: Bs ${countedAmount.toFixed(2)}\n` +
-      `• ${diffText}\n\n` +
-      `Esta acción no se puede deshacer.`
-    );
-    if (!confirmed) return;
-
+  function performClose() {
     closeRegister(activeSession!.id, {
       closingAmountCounted: countedAmount,
       expectedAmount,
@@ -153,12 +137,111 @@ export default function CashClosePage() {
             </div>
           )}
 
-          <Button size="lg" variant="danger" className="mt-4 w-full" disabled={!counted} onClick={handleClose}>
+          <Button size="lg" variant="danger" className="mt-4 w-full" disabled={!counted} onClick={() => setConfirmOpen(true)}>
             Cerrar caja
           </Button>
         </motion.div>
       </div>
+
+      <CloseConfirmModal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={() => {
+          setConfirmOpen(false);
+          performClose();
+        }}
+        salesTotal={salesTotal}
+        salesCount={sessionSales.length}
+        expensesTotal={expensesTotal}
+        expectedAmount={expectedAmount}
+        countedAmount={countedAmount}
+        difference={difference}
+      />
     </CashierShell>
+  );
+}
+
+function CloseConfirmModal({
+  open,
+  onClose,
+  onConfirm,
+  salesTotal,
+  salesCount,
+  expensesTotal,
+  expectedAmount,
+  countedAmount,
+  difference,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  salesTotal: number;
+  salesCount: number;
+  expensesTotal: number;
+  expectedAmount: number;
+  countedAmount: number;
+  difference: number;
+}) {
+  const squared = Math.abs(difference) < 0.01;
+  const surplus = difference > 0;
+
+  return (
+    <Modal open={open} onClose={onClose} size="sm">
+      <div className="flex flex-col items-center px-6 pb-6 pt-8 text-center">
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0, rotate: -8 }}
+          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+          className={cn(
+            'mb-4 flex h-16 w-16 items-center justify-center rounded-full shadow-pop',
+            squared
+              ? 'bg-secondary-100 text-secondary-600 dark:bg-secondary-500/15 dark:text-secondary-400'
+              : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
+          )}
+        >
+          {squared ? <PartyPopper size={30} /> : <ShieldAlert size={30} />}
+        </motion.div>
+
+        <h2 className="font-display text-lg font-bold text-ink">¿Cerrar la caja?</h2>
+        <p className="mb-5 text-sm text-ink-muted">Revisa los números antes de confirmar.</p>
+
+        <div className="mb-4 w-full space-y-1.5 rounded-xl2 bg-field p-4 text-sm">
+          <Row label={`Ventas (${salesCount})`} value={formatCurrency(salesTotal)} />
+          <Row label="Gastos" value={`-${formatCurrency(expensesTotal)}`} />
+          <div className="my-1 border-t border-dashed border-border" />
+          <Row label="Efectivo esperado" value={formatCurrency(expectedAmount)} bold />
+          <Row label="Efectivo contado" value={formatCurrency(countedAmount)} bold />
+        </div>
+
+        <div
+          className={cn(
+            'mb-5 flex w-full items-center gap-2.5 rounded-xl2 px-4 py-3',
+            squared
+              ? 'bg-secondary-50 text-secondary-700 dark:bg-secondary-500/15 dark:text-secondary-400'
+              : surplus
+                ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+          )}
+        >
+          {squared ? <CheckCircle2 size={20} className="flex-shrink-0" /> : <AlertTriangle size={20} className="flex-shrink-0" />}
+          <span className="flex-1 text-left font-display font-bold">
+            {squared ? 'La caja está cuadrada' : surplus ? 'Sobrante' : 'Faltante'}
+          </span>
+          {!squared && <span className="font-display font-bold tabular-nums">{formatCurrency(Math.abs(difference))}</span>}
+        </div>
+
+        <p className="mb-5 text-xs text-ink-soft">Esta acción no se puede deshacer.</p>
+
+        <div className="flex w-full gap-3">
+          <Button variant="outline" onClick={onClose} className="flex-1">
+            Cancelar
+          </Button>
+          <Button variant="danger" onClick={onConfirm} className="flex-1">
+            Confirmar cierre
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

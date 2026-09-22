@@ -14,6 +14,9 @@ interface AuthState {
   loading: boolean;
   loginWithPin: (pin: string) => Promise<boolean>;
   setCurrentBranch: (branchId: string) => void;
+  /** Vuelve a la pantalla de "elegir sucursal" para un cajero con varias asignadas —
+   *  sin cerrar sesión. Solo tiene sentido antes de abrir caja (ver CashierShell). */
+  clearCurrentBranch: () => void;
   logout: () => void;
   clearError: () => void;
 }
@@ -46,6 +49,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       setCurrentBranch: (branchId) => set({ currentBranchId: branchId }),
+      clearCurrentBranch: () => set({ currentBranchId: null }),
       logout: () => {
         setAuthToken(null);
         set({ currentUser: null, currentBranchId: null, token: null });
