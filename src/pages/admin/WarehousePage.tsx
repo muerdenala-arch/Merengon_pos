@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { PackageSearch, History, Plus, Minus, Search, AlertTriangle, X, Trash2 } from 'lucide-react';
+import { PackageSearch, History, Plus, Minus, Search, AlertTriangle, Trash2, Info } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -33,7 +32,20 @@ export default function WarehousePage() {
     }
   }, [tab, fetchMovements]);
 
-  const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  // Solo productos que tienen asignada la sucursal 'bodega' o que ya tienen stock en bodega
+  const bodegaProducts = products.filter(
+    (p) => p.branchIds.includes('bodega') || (p.stockByBranch['bodega'] || 0) > 0
+  );
+
+  const filteredProducts = bodegaProducts.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Productos con stock bajo en bodega (solo los que están registrados en bodega)
+  const lowStockProducts = bodegaProducts.filter(
+    (p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold
+  );
+  const lowStockCount = lowStockProducts.length;
 
   async function handleAdjustSubmit() {
     if (!adjustmentModal.product || !adjustmentModal.quantity) return;
@@ -42,13 +54,20 @@ export default function WarehousePage() {
 
     const delta = adjustmentModal.type === 'add' ? qty : -qty;
 
-    // Ajustar el stock real de "bodega"
-    adjustStock(adjustmentModal.product.id, 'bodega', delta);
+    // Si el producto no tiene bodega en branchIds, hay que añadirlo primero
+    const product = adjustmentModal.product;
+    if (!product.branchIds.includes('bodega')) {
+      const newBranchIds = [...product.branchIds, 'bodega'];
+      // Actualizar localmente via catalogStore
+      const { upsertProduct } = useCatalogStore.getState();
+      upsertProduct({ ...product, branchIds: newBranchIds });
+    }
 
-    // Guardar el historial de movimiento
+    adjustStock(product.id, 'bodega', delta);
+
     await recordMovement({
       id: uid('mov'),
-      productId: adjustmentModal.product.id,
+      productId: product.id,
       branchId: 'bodega',
       quantityChange: delta,
       type: adjustmentModal.type === 'add' ? 'RESTOCK' : 'MANUAL_ADJUSTMENT',
@@ -75,24 +94,21 @@ export default function WarehousePage() {
     });
   }
 
-  function getLowStockProducts() {
-    return products.filter((p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold);
-  }
-  const lowStockCount = getLowStockProducts().length;
-
   return (
     <AdminShell>
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-ink">
               <PackageSearch size={24} className="text-primary-500" /> Gestión de Bodega
             </h1>
-            <p className="text-sm text-ink-muted">Control de inventario central y registro de descargas/ingresos.</p>
+            <p className="text-sm text-ink-muted mt-1">
+              Control de inventario central. Aquí ves y gestionas el stock físico de bodega.
+            </p>
           </div>
           {lowStockCount > 0 && (
             <div className="flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-2 border border-orange-200">
-              <AlertTriangle size={18} className="text-orange-500" />
+              <AlertTriangle size={18} className="text-orange-500 flex-shrink-0" />
               <span className="text-sm font-bold text-orange-700">
                 {lowStockCount} {lowStockCount === 1 ? 'producto' : 'productos'} con stock bajo en bodega
               </span>
@@ -127,49 +143,91 @@ export default function WarehousePage() {
                 className="w-full rounded-xl border border-border bg-surface py-2 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none"
               />
             </div>
-            
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredProducts.map((p) => {
-                const stock = p.stockByBranch['bodega'] || 0;
-                const isLow = stock <= p.lowStockThreshold;
-                return (
-                  <Card key={p.id} className="p-4 flex flex-col justify-between">
-                    <div>
-                      <h3 className="font-display font-bold text-ink">{p.name}</h3>
-                      <p className="text-xs text-ink-muted">{p.category}</p>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("text-2xl font-bold font-display tabular-nums", isLow ? 'text-red-500' : 'text-ink')}>
-                          {stock}
-                        </span>
-                        <span className="text-xs text-ink-soft">uds</span>
+
+            {filteredProducts.length === 0 ? (
+              <Card className="p-10 text-center">
+                <div className="flex flex-col items-center gap-3 text-ink-muted">
+                  <Info size={36} className="text-primary-300" />
+                  <h3 className="font-display font-bold text-ink">La bodega está vacía</h3>
+                  <p className="text-sm max-w-xs">
+                    Usa el botón <strong>+</strong> en cualquier producto del catálogo para agregar stock a la bodega, 
+                    o bien busca un producto y presiona el botón <strong>+</strong> de abajo.
+                  </p>
+                  <p className="text-xs mt-2 text-ink-soft">
+                    Para agregar un producto a la bodega, primero búscalo abajo y presiona el botón de ajuste (+).
+                  </p>
+                </div>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredProducts.map((p) => {
+                  const stock = p.stockByBranch['bodega'] || 0;
+                  const isLow = stock <= p.lowStockThreshold && stock > 0;
+                  return (
+                    <Card key={p.id} className="p-4 flex flex-col justify-between">
+                      <div>
+                        <h3 className="font-display font-bold text-ink">{p.name}</h3>
+                        <p className="text-xs text-ink-muted">{p.category}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setAdjustmentModal({ open: true, product: p, type: 'subtract', quantity: '', notes: '' })}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
-                        >
-                          <Minus size={16} />
-                        </button>
-                        <button
-                          onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 cursor-pointer transition-colors"
-                        >
-                          <Plus size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleResetToZero(p, stock)}
-                          title="Vaciar stock a 0"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors ml-2"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={cn("text-2xl font-bold font-display tabular-nums", isLow ? 'text-orange-500' : stock === 0 ? 'text-red-500' : 'text-ink')}>
+                            {stock}
+                          </span>
+                          <span className="text-xs text-ink-soft">uds</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setAdjustmentModal({ open: true, product: p, type: 'subtract', quantity: '', notes: '' })}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 cursor-pointer transition-colors"
+                          >
+                            <Minus size={16} />
+                          </button>
+                          <button
+                            onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 cursor-pointer transition-colors"
+                          >
+                            <Plus size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleResetToZero(p, stock)}
+                            title="Vaciar stock a 0"
+                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors ml-2"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
-                );
-              })}
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Sección para agregar cualquier producto al inventario de bodega */}
+            <div className="mt-8 border-t border-border pt-6">
+              <h2 className="font-display text-base font-bold text-ink mb-1">Agregar producto a Bodega</h2>
+              <p className="text-sm text-ink-muted mb-4">
+                Busca cualquier producto del catálogo para ingresarlo a la bodega por primera vez.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-72 overflow-y-auto">
+                {products
+                  .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
+                  .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
+                      className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
+                    >
+                      <div>
+                        <span className="font-semibold text-sm text-ink block">{p.name}</span>
+                        <span className="text-xs text-ink-soft">{p.category}</span>
+                      </div>
+                      <Plus size={16} className="text-primary-500 flex-shrink-0" />
+                    </button>
+                  ))}
+              </div>
             </div>
           </div>
         )}
@@ -229,7 +287,7 @@ export default function WarehousePage() {
             Producto: <span className="text-primary-600">{adjustmentModal.product?.name}</span>
           </p>
           <div>
-            <label className="text-xs font-bold text-ink-muted mb-1 block">Cantidad a {adjustmentModal.type === 'add' ? 'Ingresar' : 'Retirar'}</label>
+            <label className="text-xs font-bold text-ink-muted mb-1 block">Cantidad a {adjustmentModal.type === 'add' ? 'Ingresar a Bodega' : 'Retirar de Bodega'}</label>
             <input 
               type="number"
               min="1"
@@ -237,6 +295,7 @@ export default function WarehousePage() {
               onChange={(e) => setAdjustmentModal(m => ({ ...m, quantity: e.target.value }))}
               className="w-full p-2 border border-border rounded-lg bg-field text-ink focus:border-primary-400 focus:outline-none"
               placeholder="Ej: 10"
+              autoFocus
             />
           </div>
           <div>
