@@ -53,17 +53,24 @@ export default function WarehousePage() {
     if (isNaN(qty) || qty <= 0) return;
 
     const delta = adjustmentModal.type === 'add' ? qty : -qty;
-
-    // Si el producto no tiene bodega en branchIds, hay que añadirlo primero
     const product = adjustmentModal.product;
-    if (!product.branchIds.includes('bodega')) {
-      const newBranchIds = [...product.branchIds, 'bodega'];
-      // Actualizar localmente via catalogStore
-      const { upsertProduct } = useCatalogStore.getState();
-      upsertProduct({ ...product, branchIds: newBranchIds });
-    }
 
-    adjustStock(product.id, 'bodega', delta);
+    // Actualizar branchIds y stockByBranch simultáneamente para evitar race conditions
+    const newBranchIds = product.branchIds.includes('bodega') 
+      ? product.branchIds 
+      : [...product.branchIds, 'bodega'];
+      
+    const newStockByBranch = {
+      ...product.stockByBranch,
+      bodega: Math.max(0, (product.stockByBranch['bodega'] ?? 0) + delta)
+    };
+
+    const { upsertProduct } = useCatalogStore.getState();
+    upsertProduct({
+      ...product,
+      branchIds: newBranchIds,
+      stockByBranch: newStockByBranch
+    });
 
     await recordMovement({
       id: uid('mov'),
@@ -151,9 +158,9 @@ export default function WarehousePage() {
             </div>
 
             {/* Sección para agregar cualquier producto al inventario de bodega */}
-            <div className="mb-6 rounded-xl border border-primary-200 bg-primary-50 p-4">
+            <div className="mb-6 rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50 dark:bg-primary-900/10 p-4">
               <h2 className="font-display text-base font-bold text-ink mb-1 flex items-center gap-2">
-                <Plus size={18} className="text-primary-600" />
+                <Plus size={18} className="text-primary-600 dark:text-primary-400" />
                 Ingresar nuevo producto a Bodega
               </h2>
               <p className="text-sm text-ink-muted mb-4">
@@ -168,7 +175,7 @@ export default function WarehousePage() {
                       <button
                         key={p.id}
                         onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
-                        className="flex items-center justify-between p-3 rounded-xl border border-primary-200 bg-white hover:border-primary-400 hover:bg-primary-50 transition-colors text-left cursor-pointer shadow-sm"
+                        className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer shadow-sm"
                       >
                         <div>
                           <span className="font-semibold text-sm text-ink block">{p.name}</span>
@@ -179,7 +186,7 @@ export default function WarehousePage() {
                     ))}
                 </div>
               ) : (
-                <div className="text-center p-4 text-sm text-ink-soft bg-white/50 rounded-lg border border-primary-100">
+                <div className="text-center p-4 text-sm text-ink-soft bg-surface rounded-lg border border-border">
                   Escribe el nombre del producto en la barra de búsqueda de arriba para encontrarlo en el catálogo y poder ingresarlo a la bodega.
                 </div>
               )}
