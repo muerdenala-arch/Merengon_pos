@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PackageSearch, History, Plus, Minus, Search, AlertTriangle, X } from 'lucide-react';
+import { PackageSearch, History, Plus, Minus, Search, AlertTriangle, X, Trash2 } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -142,6 +142,13 @@ export default function WarehousePage() {
                           className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50 text-primary-600 hover:bg-primary-100 cursor-pointer transition-colors"
                         >
                           <Plus size={16} />
+                        </button>
+                        <button
+                          onClick={() => adjustStock(p.id, 'bodega', -stock, 'Reinicio a cero')}
+                          title="Vaciar stock"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors ml-2"
+                        >
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>

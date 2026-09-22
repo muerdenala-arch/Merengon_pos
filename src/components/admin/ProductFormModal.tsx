@@ -63,6 +63,71 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
   
   const [useCalculator, setUseCalculator] = useState(false);
   const [boxes, setBoxes] = useState('');
+import { useEffect, useState } from 'react';
+import { Plus, Trash2 } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
+import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { optionActiveClasses, optionInactiveClasses } from '@/lib/optionStyles';
+import { useCatalogStore } from '@/store/catalogStore';
+import { useBranchStore } from '@/store/branchStore';
+import { SIZES, CATEGORIES } from '@/data/seed';
+import type { Product, SizeOption } from '@/types';
+import { cn, uid } from '@/lib/utils';
+
+interface ProductFormModalProps {
+  product: Product | null;
+  open: boolean;
+  onClose: () => void;
+}
+
+const EMOJI_OPTIONS = ['🍓', '🍑', '🍉', '🍫', '🥤', '🥛', '🍋', '☕', '🫐', '🍍', '🥭', '🍏'];
+const GRADIENT_OPTIONS = [
+  'from-pink-400 to-rose-500',
+  'from-rose-300 to-pink-500',
+  'from-amber-700 to-rose-600',
+  'from-amber-600 to-red-500',
+  'from-orange-300 to-amber-400',
+  'from-fuchsia-400 to-pink-500',
+  'from-amber-800 to-red-600',
+  'from-pink-400 to-fuchsia-500',
+  'from-rose-300 to-pink-500',
+  'from-amber-600 to-orange-500',
+  'from-yellow-300 to-pink-400',
+  'from-emerald-400 to-teal-500',
+];
+
+const emptyForm = {
+  name: '',
+  category: CATEGORIES[0] ?? 'Vasos de Fresas con Crema',
+  description: '',
+  basePrice: '',
+  stock: '30',
+  lowStockThreshold: '8',
+  emoji: EMOJI_OPTIONS[0],
+  gradient: GRADIENT_OPTIONS[0],
+  toppingIds: [] as string[],
+  branchIds: [] as string[],
+  unit: 'vasos',
+  sizes: SIZES.map((s) => ({ ...s })) as SizeOption[],
+};
+
+const UNITS = ['vasos', 'unidades', 'botellas', 'latas', 'porciones', 'cajas'];
+
+export function ProductFormModal({ product, open, onClose }: ProductFormModalProps) {
+  const toppings = useCatalogStore((s) => s.toppings);
+  const categories = useCatalogStore((s) => s.categories);
+  const upsertProduct = useCatalogStore((s) => s.upsertProduct);
+  const createProduct = useCatalogStore((s) => s.createProduct);
+  const createCategory = useCatalogStore((s) => s.createCategory);
+  const branches = useBranchStore((s) => s.branches);
+  
+  const [form, setForm] = useState(emptyForm);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  
+  const [useCalculator, setUseCalculator] = useState(false);
+  const [boxes, setBoxes] = useState('');
   const [unitsPerBox, setUnitsPerBox] = useState('');
 
   useEffect(() => {
@@ -71,7 +136,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         name: product.name,
         category: product.category,
         description: product.description,
-        basePrice: String(product.basePrice),
+        basePrice: product.basePrice ? String(product.basePrice) : '',
         stock: '0',
         lowStockThreshold: String(product.lowStockThreshold),
         emoji: product.emoji,
@@ -172,7 +237,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       name: form.name.trim(),
       category: form.category,
       description: form.description,
-      basePrice: Number(form.basePrice) || 0,
+      basePrice: form.basePrice ? Number(form.basePrice) : 0,
       gradient: form.gradient,
       emoji: form.emoji,
       sizes: form.sizes.map((s) => ({
@@ -284,71 +349,9 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           onChange={(e) => setForm((f) => {
             const val = e.target.value;
             const nextSizes = f.sizes.length > 0 
-              ? f.sizes.map((s, i) => (i === 0 ? { ...s, price: Number(val) || 0 } : s)) 
+              ? f.sizes.map((s, i) => (i === 0 ? { ...s, price: val ? Number(val) : 0 } : s)) 
               : f.sizes;
             return { ...f, basePrice: val, sizes: nextSizes };
-          })}
-        />
-
-        {/* Stock y Calculadora */}
-        {product ? (
-          <div>
-            <p className={fieldLabelClasses}>Stock</p>
-            <p className="flex min-h-touch items-center rounded-xl border border-border-strong bg-field px-4 text-sm text-ink-muted">
-              Se ajusta por sucursal desde Inventario.
-            </p>
-          </div>
-        ) : (
-          <div className="sm:col-span-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <p className={fieldLabelClasses}>Stock inicial (todas las sucursales)</p>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useCalculator}
-                  onChange={(e) => setUseCalculator(e.target.checked)}
-                  className="rounded border-zinc-300 text-primary-500 focus:ring-primary-500 w-3.5 h-3.5"
-                />
-                <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 select-none">Calculadora de Cajas</span>
-              </label>
-            </div>
-            
-            {useCalculator ? (
-              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center rounded-xl border border-primary-200 bg-primary-50/50 p-3 dark:border-primary-900 dark:bg-primary-900/10">
-                <Input
-                  label="Cant. de Cajas"
-                  type="number"
-                  min={0}
-                  value={boxes}
-                  onChange={(e) => setBoxes(e.target.value)}
-                />
-                <Input
-                  label="Unidades × Caja"
-                  type="number"
-                  min={0}
-                  value={unitsPerBox}
-                  onChange={(e) => setUnitsPerBox(e.target.value)}
-                />
-                <div className="flex flex-col">
-                  <span className={fieldLabelClasses}>Stock Total</span>
-                  <span className="flex min-h-[42px] items-center px-2 font-display text-lg font-bold text-ink">
-                    {form.stock || 0}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <Input
-                label=""
-                type="number"
-                min={0}
-                value={form.stock}
-                onChange={(e) => setForm((f) => ({ ...f, stock: e.target.value }))}
-                placeholder="Ej. 30"
-              />
-            )}
-          </div>
-        )}
-
         {/* Unidad y Umbral */}
         <div className="grid grid-cols-2 gap-5 sm:col-span-2">
           <label className="flex flex-col">
