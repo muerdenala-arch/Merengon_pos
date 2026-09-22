@@ -69,15 +69,34 @@ export const usePromotionStore = create<PromotionState>()((set, get) => ({
 
   activePromotionFor: (product, branchId) => {
     const promos = get().promotions;
+    const now = new Date();
+    
     return (
       promos.find(
-        (p) =>
-          p.isActive &&
-          p.branchIds.includes(branchId) &&
-          (p.appliesTo === 'ALL' || 
-           p.appliesTo === product.category || 
-           p.appliesTo === `PRODUCT:${product.id}` ||
-           (!!product.sizeId && p.appliesTo === `SIZE:${product.id}:${product.sizeId}`))
+        (p) => {
+          if (!p.isActive || !p.branchIds.includes(branchId)) return false;
+          
+          if (p.startDate) {
+            // Check if current date is before start date
+            const start = new Date(p.startDate);
+            // Ignore time, compare dates
+            start.setHours(0, 0, 0, 0);
+            const today = new Date(now);
+            today.setHours(0, 0, 0, 0);
+            if (today < start) return false;
+          }
+          if (p.endDate) {
+            // Check if current date is after end date
+            const end = new Date(p.endDate);
+            end.setHours(23, 59, 59, 999);
+            if (now > end) return false;
+          }
+
+          return p.appliesTo === 'ALL' || 
+                 p.appliesTo === product.category || 
+                 p.appliesTo === `PRODUCT:${product.id}` ||
+                 (!!product.sizeId && p.appliesTo === `SIZE:${product.id}:${product.sizeId}`);
+        }
       ) ?? null
     );
   },

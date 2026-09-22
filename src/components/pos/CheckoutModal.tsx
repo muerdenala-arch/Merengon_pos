@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import { useQrCodeStore } from '@/store/qrCodeStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import { APP_CONFIG } from '@/config/app';
 import { api } from '@/lib/api';
@@ -27,6 +28,8 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const settings = useSettingsStore((s) => s.settings);
+  const requireQrPhoto = settings.require_qr_photo === 'true' || settings.require_qr_photo === true || settings.require_qr_photo === undefined;
   
   // Calculadora de cambio
   const [receivedCash, setReceivedCash] = useState<string>('');
@@ -90,8 +93,8 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   
   const canConfirm = !confirming && (
     (method === 'efectivo' && receivedNum >= total) 
-    || (method === 'qr' && !!receiptImage) 
-    || (method === 'mixto' && !!receiptImage && Number(amountEfectivo) > 0 && qrAmount > 0)
+    || (method === 'qr' && (!requireQrPhoto || !!receiptImage)) 
+    || (method === 'mixto' && (!requireQrPhoto || !!receiptImage) && Number(amountEfectivo) > 0 && qrAmount > 0)
   );
 
   return (
@@ -239,6 +242,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
               <ReceiptUploader
                 receiptImage={receiptImage}
                 error={uploadError}
+                optional={!requireQrPhoto}
                 fileInputRef={fileInputRef}
                 onFileChange={handleFileChange}
                 onRemove={() => {
@@ -283,12 +287,14 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
 function ReceiptUploader({
   receiptImage,
   error,
+  optional,
   fileInputRef,
   onFileChange,
   onRemove,
 }: {
   receiptImage: string | null;
   error: string | null;
+  optional?: boolean;
   fileInputRef: React.RefObject<HTMLInputElement>;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: () => void;
@@ -335,7 +341,9 @@ function ReceiptUploader({
           className="flex min-h-touch-lg w-full flex-col items-center justify-center gap-1.5 rounded-xl2 border-2 border-dashed border-border-strong bg-field px-4 py-6 text-center transition-colors hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-500/10 cursor-pointer"
         >
           <Camera size={26} className="text-primary-500" />
-          <span className="font-display text-sm font-bold text-ink">Tomar foto / Subir comprobante</span>
+          <span className="font-display text-sm font-bold text-ink">
+            {optional ? 'Subir comprobante (Opcional)' : 'Tomar foto / Subir comprobante'}
+          </span>
           <span className="text-xs text-ink-soft">Foto de la transferencia o captura de pantalla</span>
         </button>
       )}

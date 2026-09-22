@@ -20,6 +20,8 @@ type PromoForm = {
   discountValue: string;
   appliesTo: string;
   branchIds: string[];
+  startDate: string;
+  endDate: string;
 };
 
 type CouponForm = {
@@ -38,6 +40,8 @@ const defaultPromoForm: PromoForm = {
   discountValue: '',
   appliesTo: 'ALL',
   branchIds: [],
+  startDate: '',
+  endDate: '',
 };
 
 const defaultCouponForm: CouponForm = {
@@ -76,6 +80,8 @@ export default function PromotionsPage() {
       appliesTo: promoForm.appliesTo,
       branchIds: promoForm.branchIds,
       isActive: true,
+      startDate: promoForm.startDate || undefined,
+      endDate: promoForm.endDate || undefined,
     });
     setPromoForm(defaultPromoForm);
     setPromoModalOpen(false);
@@ -178,6 +184,8 @@ export default function PromotionsPage() {
                         {promo.appliesTo === 'ALL' ? 'Todos los productos' : promo.appliesTo}
                         {' · '}
                         {branches.filter((b) => promo.branchIds.includes(b.id)).map((b) => b.name).join(', ')}
+                        {promo.startDate && ` · Desde ${new Date(promo.startDate).toLocaleDateString()}`}
+                        {promo.endDate && ` hasta ${new Date(promo.endDate).toLocaleDateString()}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -374,6 +382,32 @@ export default function PromotionsPage() {
                   {b.name}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">
+                Fecha Inicio (Opcional)
+              </label>
+              <input
+                type="date"
+                value={promoForm.startDate}
+                onChange={(e) => setPromoForm((f) => ({ ...f, startDate: e.target.value }))}
+                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">
+                Fecha Fin (Opcional)
+              </label>
+              <input
+                type="date"
+                min={promoForm.startDate || undefined}
+                value={promoForm.endDate}
+                onChange={(e) => setPromoForm((f) => ({ ...f, endDate: e.target.value }))}
+                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+              />
             </div>
           </div>
 

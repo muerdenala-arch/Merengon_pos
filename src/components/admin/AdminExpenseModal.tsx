@@ -160,6 +160,22 @@ export function AdminExpenseModal({ onClose }: AdminExpenseModalProps) {
                 ))}
               </div>
             </div>
+
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-bold text-ink">
+                <MapPin size={16} className="text-ink-muted" /> Destino del Gasto
+              </label>
+              <select
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                className={fieldClasses}
+              >
+                <option value="all">Gasto Administrativo / General (Libre)</option>
+                {branches.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="mt-8 flex flex-col gap-3">

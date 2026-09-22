@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag, Receipt } from 'lucide-react';
+import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag, Receipt, Settings, PackageSearch, AlertTriangle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useCatalogStore } from '@/store/catalogStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { fieldClasses } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
@@ -15,12 +16,13 @@ const NAV_ITEMS = [
   { to: '/admin/reportes', label: 'Reportes de venta', icon: BarChart3 },
   { to: '/admin/gastos', label: 'Gastos Diarios', icon: Receipt },
   { to: '/admin/catalogo', label: 'Catálogo', icon: Package },
-  { to: '/admin/inventario', label: 'Inventario', icon: Boxes },
+  { to: '/admin/inventario', label: 'Inventario de Sucursales', icon: Boxes },
+  { to: '/admin/bodega', label: 'Bodega Central', icon: PackageSearch },
   { to: '/admin/promociones', label: 'Promociones y Cupones', icon: Tag },
   { to: '/admin/personal', label: 'Personal / Cajeros', icon: Users },
   { to: '/admin/configuracion-qr', label: 'Configuración QR', icon: QrCode },
   { to: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
-  { to: '/admin/auditoria', label: 'Auditoría de cajas', icon: ShieldCheck },
+  { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
 ];
 
 export function AdminShell({ children }: { children: ReactNode }) {
@@ -93,7 +95,10 @@ function AdminSidebarContent({
   const branches = useBranchStore((s) => s.branches);
   const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
   const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
+  const products = useCatalogStore((s) => s.products);
   const navigate = useNavigate();
+
+  const lowStockCount = products.filter((p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold).length;
 
   return (
     <>
@@ -150,13 +155,18 @@ function AdminSidebarContent({
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-muted transition-colors',
+                'flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-muted transition-colors relative',
                 isActive ? 'bg-primary-50 text-primary-700' : 'hover:bg-cream-300 hover:text-ink',
               )
             }
           >
             <Icon size={19} />
             {label}
+            {to === '/admin/bodega' && lowStockCount > 0 && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                {lowStockCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

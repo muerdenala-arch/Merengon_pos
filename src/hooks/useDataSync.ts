@@ -7,8 +7,9 @@ import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { usePromotionStore } from '@/store/promotionStore';
 import { useExpenseStore } from '@/store/expenseStore';
+import { useSettingsStore } from '@/store/settingsStore';
 
-const POLL_INTERVAL_MS = 60000;
+const POLL_INTERVAL_MS = 10000; // 10s para actualización rápida (pseudo real-time)
 
 export function useDataSync() {
   useEffect(() => {
@@ -21,6 +22,7 @@ export function useDataSync() {
       useSalesStore.getState().fetchAll();
       usePromotionStore.getState().fetchAll();
       useExpenseStore.getState().fetchAll();
+      useSettingsStore.getState().fetchAll();
     };
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -58,5 +60,6 @@ export function useIsDataHydrated(): boolean {
   const registerSessions = useRegisterStore((s) => s.hydrated);
   const sales = useSalesStore((s) => s.hydrated);
   const expenses = useExpenseStore((s) => s.hydrated);
-  return branches && staff && catalog && qrCodes && registerSessions && sales && expenses;
+  const settings = useSettingsStore((s) => s.hydrated);
+  return branches && staff && catalog && qrCodes && registerSessions && sales && expenses && settings;
 }

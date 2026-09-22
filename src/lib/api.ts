@@ -13,6 +13,7 @@ import type {
   User,
   Category,
   Expense,
+  StockMovement,
 } from '@/types';
 
 // Si Neon/la función serverless se cuelga (cold start, pool sin responder), sin esto el
@@ -131,6 +132,10 @@ export const api = {
     update: (id: string, data: Partial<Promotion>) => patch<Promotion>(withId('/promotions', id), data),
     remove: (id: string) => del(withId('/promotions', id)),
   },
+  settings: {
+    get: () => get<Record<string, any>>('/settings'),
+    update: (data: Record<string, any>) => post<Record<string, any>>('/settings', data),
+  },
   coupons: {
     list: () => get<Coupon[]>('/coupons'),
     validate: (code: string, branchId: string) => get<Coupon>(`/coupons?validate=${encodeURIComponent(code)}&branchId=${encodeURIComponent(branchId)}`),
@@ -145,5 +150,16 @@ export const api = {
   expenses: {
     list: () => get<Expense[]>('/expenses'),
     create: (data: Expense) => post<Expense>('/expenses', data),
+  },
+  stockMovements: {
+    list: (branchId?: string, productId?: string, limit?: number) => {
+      const params = new URLSearchParams();
+      if (branchId) params.append('branchId', branchId);
+      if (productId) params.append('productId', productId);
+      if (limit) params.append('limit', limit.toString());
+      const query = params.toString();
+      return get<StockMovement[]>(`/stock_movements${query ? `?${query}` : ''}`);
+    },
+    create: (data: StockMovement) => post<StockMovement>('/stock_movements', data),
   },
 };

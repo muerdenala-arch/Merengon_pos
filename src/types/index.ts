@@ -88,6 +88,8 @@ export interface CartItem {
   notes?: string;
   /** ID de la promoción aplicada a este ítem (si aplica). */
   appliedPromotionId?: string;
+  /** Si el producto se entregará directamente desde bodega en vez de sucursal */
+  deliveredFromBodega?: boolean;
 }
 
 export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
@@ -102,6 +104,8 @@ export interface Promotion {
   appliesTo: string;
   branchIds: string[];
   isActive: boolean;
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
 }
 
@@ -195,6 +199,17 @@ export interface Expense {
   category: string;
   cashRegisterId?: string | null;
   branchId?: string | null;
+  userId: string;
+  createdAt: string;
+}
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  branchId: string;
+  quantityChange: number;
+  type: 'SALE' | 'MANUAL_ADJUSTMENT' | 'RESTOCK';
+  notes?: string;
   userId: string;
   createdAt: string;
 }

@@ -18,6 +18,7 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
+  const toggleBodegaDelivery = useCartStore((s) => s.toggleBodegaDelivery);
   const clear = useCartStore((s) => s.clear);
   const subtotal = useCartStore((s) => s.subtotal)();
   const count = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -145,6 +146,22 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
                     {formatCurrency(item.lineTotal)}
                   </span>
                 </div>
+              </div>
+              
+              {/* Toggle de Bodega */}
+              <div className="mt-2.5 flex items-center justify-between border-t border-cream-200 pt-2">
+                <span className="text-[11px] font-bold text-ink-muted flex items-center gap-1.5">
+                  📦 Sacar de bodega
+                </span>
+                <label className="relative inline-flex cursor-pointer items-center">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={item.deliveredFromBodega || false}
+                    onChange={() => toggleBodegaDelivery(item.lineId)}
+                  />
+                  <div className="peer h-5 w-9 rounded-full bg-cream-300 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-border after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-300"></div>
+                </label>
               </div>
             </motion.div>
           ))}

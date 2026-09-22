@@ -23,6 +23,8 @@ import salesHandler from './api/sales.js';
 import uploadHandler from './api/upload.js';
 import adminReportsHandler from './api/admin/reports.js';
 import promotionsHandler from './api/promotions.js';
+import settingsHandler from './api/settings.js';
+import stockMovementsHandler from './api/stock_movements.js';
 import couponsHandler from './api/coupons.js';
 
 import type { Request, Response } from 'express';
@@ -65,6 +67,10 @@ async function main() {
   app.all('/api/admin/reports/*', adapt(adminReportsHandler));
   app.all('/api/promotions', adapt(promotionsHandler));
   app.all('/api/promotions/*', adapt(promotionsHandler));
+  app.all('/api/settings', adapt(settingsHandler));
+  app.all('/api/settings/*', adapt(settingsHandler));
+  app.all('/api/stock_movements', adapt(stockMovementsHandler));
+  app.all('/api/stock_movements/*', adapt(stockMovementsHandler));
   app.all('/api/coupons', adapt(couponsHandler));
   app.all('/api/coupons/*', adapt(couponsHandler));
 
