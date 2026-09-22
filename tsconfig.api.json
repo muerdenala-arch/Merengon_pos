@@ -15,5 +15,5 @@
     "noUnusedParameters": false,
     "types": ["node"]
   },
-  "include": ["api", "src/types"]
+  "include": ["server/**/*", "api/**/*", "src/types/**/*"]
 }

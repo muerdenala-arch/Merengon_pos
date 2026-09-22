@@ -133,8 +133,8 @@ export const api = {
     remove: (id: string) => del(withId('/promotions', id)),
   },
   settings: {
-    get: () => get<Record<string, any>>('/settings'),
-    update: (data: Record<string, any>) => post<Record<string, any>>('/settings', data),
+    get: () => get<Record<string, unknown>>('/settings'),
+    update: (data: Record<string, unknown>) => post<Record<string, unknown>>('/settings', data),
   },
   coupons: {
     list: () => get<Coupon[]>('/coupons'),

@@ -4,7 +4,7 @@ import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js
 
 interface Setting {
   key: string;
-  value: any;
+  value: unknown;
 }
 
 async function handler(req: VercelRequest, res: VercelResponse) {
@@ -14,14 +14,14 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const settingsObj = rows.reduce((acc, row) => {
       acc[row.key] = row.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
     
     res.status(200).json(settingsObj);
     return;
   }
 
   if (req.method === 'POST') {
-    const body = requireBody<Record<string, any>>(req);
+    const body = requireBody<Record<string, unknown>>(req);
     
     // Upsert each setting
     for (const [key, value] of Object.entries(body)) {
@@ -37,7 +37,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const settingsObj = rows.reduce((acc, row) => {
       acc[row.key] = row.value;
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
     
     res.status(200).json(settingsObj);
     return;

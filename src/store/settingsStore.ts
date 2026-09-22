@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { api } from '@/lib/api';
 
 interface SettingsState {
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   hydrated: boolean;
   fetchAll: () => Promise<void>;
-  updateSetting: (key: string, value: any) => Promise<void>;
+  updateSetting: (key: string, value: unknown) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>()((set, get) => ({
