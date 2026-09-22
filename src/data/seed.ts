@@ -66,6 +66,7 @@ export const USERS: User[] = [
     createdAt: '2026-01-05T09:00:00.000Z',
     protected: true,
     branchIds: ['central', 'norte', 'sur'],
+    requiresPaymentPhoto: true,
   },
   {
     id: 'u-cajero1',
@@ -76,6 +77,7 @@ export const USERS: User[] = [
     status: 'activo',
     createdAt: '2026-02-12T09:00:00.000Z',
     branchIds: ['central'],
+    requiresPaymentPhoto: true,
   },
   {
     id: 'u-cajero2',
@@ -86,6 +88,7 @@ export const USERS: User[] = [
     status: 'activo',
     createdAt: '2026-03-20T09:00:00.000Z',
     branchIds: ['central', 'norte', 'sur'],
+    requiresPaymentPhoto: true,
   },
 ];
 

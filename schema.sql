@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS staff (
   status      text NOT NULL DEFAULT 'activo' CHECK (status IN ('activo', 'bloqueado')),
   protected   boolean NOT NULL DEFAULT false,
   branch_ids  jsonb NOT NULL DEFAULT '[]',
+  -- Si este cajero debe adjuntar foto del comprobante al confirmar un pago QR/mixto.
+  requires_payment_photo boolean NOT NULL DEFAULT true,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );

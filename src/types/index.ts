@@ -27,6 +27,10 @@ export interface User {
   protected?: boolean;
   /** Sucursales donde puede operar. 1 sola = entra directo; varias = elige al iniciar turno. */
   branchIds: string[];
+  /** Si debe adjuntar foto del comprobante para confirmar un pago QR/mixto en el checkout.
+   *  Reemplaza el viejo control por-QR (era confuso: un mismo cajero podía necesitar foto
+   *  en un QR y no en otro sin motivo real — ahora es una política por cajero). */
+  requiresPaymentPhoto: boolean;
 }
 
 /** Estado operativo mostrado en el listado de Personal (además de activo/bloqueado). */

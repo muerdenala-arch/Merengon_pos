@@ -11,6 +11,7 @@ export interface StaffFormData {
   pin: string;
   color: string;
   branchIds: string[];
+  requiresPaymentPhoto: boolean;
 }
 
 interface StaffState {

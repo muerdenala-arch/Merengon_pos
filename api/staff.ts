@@ -9,7 +9,8 @@ import type { User } from '../src/types/index.js';
 // iniciar sesión (la app lo necesitaba para comparar el PIN en el navegador).
 const SELECT_COLUMNS = `
   id, name, role, color, status, protected,
-  branch_ids as "branchIds", created_at as "createdAt"
+  branch_ids as "branchIds", created_at as "createdAt",
+  requires_payment_photo as "requiresPaymentPhoto"
 `;
 
 // Intentos de login fallidos por IP en memoria (best-effort: se reinicia en cada cold
@@ -47,7 +48,8 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     const user = await queryOne<User & { pin: string }>(
-      `select id, name, pin, role, color, status, protected, branch_ids as "branchIds", created_at as "createdAt"
+      `select id, name, pin, role, color, status, protected, branch_ids as "branchIds", created_at as "createdAt",
+         requires_payment_photo as "requiresPaymentPhoto"
        from staff where pin = $1 and status = 'activo'`,
       [body.pin],
     );
@@ -76,13 +78,15 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const body = requireBody<User>(req);
     try {
       const rows = await query<User>(
-        `insert into staff (id, name, pin, role, color, branch_ids)
-         values ($1, $2, $3, $4, $5, $6)
+        `insert into staff (id, name, pin, role, color, branch_ids, requires_payment_photo)
+         values ($1, $2, $3, $4, $5, $6, $7)
          on conflict (id) do update set
            name = excluded.name, pin = excluded.pin, role = excluded.role,
-           color = excluded.color, branch_ids = excluded.branch_ids, updated_at = now()
+           color = excluded.color, branch_ids = excluded.branch_ids,
+           requires_payment_photo = excluded.requires_payment_photo, updated_at = now()
          returning ${SELECT_COLUMNS}`,
-        [body.id, body.name, body.pin, body.role, body.color, JSON.stringify(body.branchIds ?? [])],
+        [body.id, body.name, body.pin, body.role, body.color, JSON.stringify(body.branchIds ?? []),
+         body.requiresPaymentPhoto ?? true],
       );
       res.status(201).json(rows[0]);
     } catch (err) {
@@ -106,6 +110,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
            color = coalesce($5, color),
            status = coalesce($6, status),
            branch_ids = coalesce($7, branch_ids),
+           requires_payment_photo = coalesce($8, requires_payment_photo),
            updated_at = now()
          where id = $1
          returning ${SELECT_COLUMNS}`,
@@ -117,6 +122,7 @@ async function handler(req: VercelRequest, res: VercelResponse) {
           body.color ?? null,
           body.status ?? null,
           body.branchIds ? JSON.stringify(body.branchIds) : null,
+          body.requiresPaymentPhoto ?? null,
         ],
       );
       if (!user) {

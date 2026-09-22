@@ -7,6 +7,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import { useQrCodeStore } from '@/store/qrCodeStore';
 import { useAuthStore } from '@/store/authStore';
+import { useStaffStore } from '@/store/staffStore';
 import { APP_CONFIG } from '@/config/app';
 import { api } from '@/lib/api';
 import type { Payment, PaymentMethod } from '@/types';
@@ -20,14 +21,22 @@ interface CheckoutModalProps {
 
 export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModalProps) {
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
+  const currentUser = useAuthStore((s) => s.currentUser);
   const activeQr = useQrCodeStore((s) => (currentBranchId ? s.activeQrCodeForBranch(currentBranchId) : null));
+  // Política por CAJERO (no por QR): admin la configura en Personal/Cajeros. Se busca la
+  // versión más fresca en staffStore (se sincroniza cada 10s) por si el admin la cambió
+  // durante el turno; si no está aún, se usa la del login como respaldo.
+  const staffUsers = useStaffStore((s) => s.users);
+  const requireQrPhoto =
+    staffUsers.find((u) => u.id === currentUser?.id)?.requiresPaymentPhoto ??
+    currentUser?.requiresPaymentPhoto ??
+    true;
   const [method, setMethod] = useState<PaymentMethod>('efectivo');
   const [amountEfectivo, setAmountEfectivo] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const requireQrPhoto = activeQr?.requirePhoto ?? true;
   
   // Calculadora de cambio
   const [receivedCash, setReceivedCash] = useState<string>('');

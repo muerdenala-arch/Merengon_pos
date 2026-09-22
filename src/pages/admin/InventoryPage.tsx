@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
@@ -21,6 +21,12 @@ export default function InventoryPage() {
     () => adminFilterBranchId ?? branches[0]?.id ?? '',
   );
   const branch = branches.find((b) => b.id === selectedBranchId);
+
+  // Si el filtro global de sucursal cambia (ej. la campana de alertas de stock manda a
+  // reponer un producto de otra sucursal), seguirlo aunque la página ya esté montada.
+  useEffect(() => {
+    if (adminFilterBranchId) setSelectedBranchId(adminFilterBranchId);
+  }, [adminFilterBranchId]);
 
   const branchProducts = useMemo(
     () => products.filter((p) => p.branchIds.includes(selectedBranchId)),

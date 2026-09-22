@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useCatalogStore } from '@/store/catalogStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { LowStockAlertBell } from '@/components/admin/LowStockAlertBell';
 import { fieldClasses } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 import { APP_CONFIG } from '@/config/app';
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { to: '/admin/personal', label: 'Personal / Cajeros', icon: Users },
   { to: '/admin/configuracion-qr', label: 'Configuración QR', icon: QrCode },
   { to: '/admin/sucursales', label: 'Sucursales', icon: Building2 },
+  { to: '/admin/auditoria', label: 'Auditoría de cajas', icon: ShieldCheck },
   { to: '/admin/configuracion', label: 'Configuración', icon: Settings },
 ];
 
@@ -49,10 +51,11 @@ export function AdminShell({ children }: { children: ReactNode }) {
           <ArrowLeft size={22} />
         </button>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm dark:border-primary-900/50">
             <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
           </div>
+          <LowStockAlertBell />
           <ThemeToggle />
         </div>
       </header>
@@ -140,7 +143,10 @@ function AdminSidebarContent({
             <X size={18} />
           </button>
         ) : (
-          <ThemeToggle />
+          <div className="flex flex-shrink-0 items-center gap-1">
+            <LowStockAlertBell />
+            <ThemeToggle />
+          </div>
         )}
       </div>
 

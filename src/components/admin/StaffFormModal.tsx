@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dices, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Camera, Dices, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -22,6 +22,7 @@ const emptyForm = {
   pin: '',
   color: AVATAR_COLORS[0],
   branchIds: [] as string[],
+  requiresPaymentPhoto: true,
 };
 
 function randomPin() {
@@ -42,7 +43,14 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
       // El servidor ya no manda el PIN existente (ver GET /api/staff) — el campo empieza
       // vacío a propósito: "no tocar" en vez de mostrar/reescribir un PIN que ni siquiera
       // se conoce. Solo se manda al servidor si el admin escribe uno nuevo.
-      setForm({ name: user.name, role: user.role, pin: '', color: user.color, branchIds: user.branchIds });
+      setForm({
+        name: user.name,
+        role: user.role,
+        pin: '',
+        color: user.color,
+        branchIds: user.branchIds,
+        requiresPaymentPhoto: user.requiresPaymentPhoto,
+      });
     } else {
       setForm({ ...emptyForm, pin: randomPin() });
     }
@@ -90,6 +98,7 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
           role: form.role,
           color: form.color,
           branchIds: form.branchIds,
+          requiresPaymentPhoto: form.requiresPaymentPhoto,
         };
         if (form.pin) data.pin = form.pin;
         await updateUser(user.id, data);
@@ -100,6 +109,7 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
           pin: form.pin,
           color: form.color,
           branchIds: form.branchIds,
+          requiresPaymentPhoto: form.requiresPaymentPhoto,
         });
       }
       onClose();
@@ -209,6 +219,23 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
           </div>
           {branchError && <p className="mt-1.5 text-xs font-semibold text-red-600">{branchError}</p>}
         </div>
+
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.requiresPaymentPhoto}
+            onChange={(e) => setForm((f) => ({ ...f, requiresPaymentPhoto: e.target.checked }))}
+            className="h-5 w-5 rounded border-zinc-300 text-primary-500 focus:ring-primary-500"
+          />
+          <div className="flex flex-col">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <Camera size={14} /> Exigir foto de comprobante
+            </span>
+            <span className="text-xs text-ink-soft">
+              Al cobrar por QR o pago mixto, debe adjuntar la foto de la transferencia para confirmar la venta.
+            </span>
+          </div>
+        </label>
 
         <div>
           <p className={fieldLabelClasses}>Color identificador</p>
