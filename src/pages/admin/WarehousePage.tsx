@@ -170,7 +170,7 @@ export default function WarehousePage() {
               </div>
               <Button onClick={() => setAddModalOpen(true)} className="whitespace-nowrap shrink-0 gap-2">
                 <Plus size={18} />
-                Traer producto del Catálogo
+                Registrar nuevo insumo
               </Button>
             </div>
 
@@ -319,51 +319,98 @@ export default function WarehousePage() {
           </div>
         </div>
       </Modal>
-      <Modal open={addModalOpen} onClose={() => { setAddModalOpen(false); setCatalogSearch(''); }} title="Traer Producto a Bodega" size="md">
-        <div className="space-y-4 px-1 pb-4">
-          <p className="text-sm text-ink-muted">Busca un producto que ya esté creado en el catálogo de la tienda para asignarle stock físico en bodega.</p>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
+      <Modal open={addModalOpen} onClose={() => { setAddModalOpen(false); setCatalogSearch(''); }} title="Registrar Insumo en Bodega" size="md">
+        <form 
+          className="space-y-4 px-1 pb-4"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const name = formData.get('name') as string;
+            const category = formData.get('category') as string;
+            const stock = parseInt(formData.get('stock') as string, 10) || 0;
+
+            if (!name) return;
+
+            const { createProduct } = useCatalogStore.getState();
+            
+            // Creamos el producto directamente asignado a la bodega con su stock
+            const newProduct = createProduct({
+              name,
+              category: category || 'Insumo',
+              description: 'Insumo registrado desde bodega',
+              basePrice: 0,
+              gradient: 'from-gray-100 to-gray-200',
+              emoji: '📦',
+              sizes: [],
+              toppingIds: [],
+              active: true,
+              branchIds: ['bodega'],
+              stockByBranch: { bodega: stock },
+              lowStockThreshold: 5,
+              unit: 'unidades',
+            });
+
+            // Registrar el movimiento de inventario si el stock es mayor a 0
+            if (stock > 0 && newProduct) {
+              await recordMovement({
+                id: uid('mov'),
+                productId: newProduct.id,
+                branchId: 'bodega',
+                quantityChange: stock,
+                type: 'MANUAL_ADJUSTMENT',
+                notes: 'Registro inicial de insumo en bodega',
+                userId: currentUser?.id || 'admin',
+                createdAt: new Date().toISOString(),
+              });
+            }
+
+            setAddModalOpen(false);
+          }}
+        >
+          <p className="text-sm text-ink-muted mb-4">Crea un nuevo producto o insumo manualmente para controlar su stock en esta bodega.</p>
+          
+          <div>
+            <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Nombre del Producto / Insumo</label>
             <input
+              name="name"
               type="text"
-              placeholder="Buscar en el catálogo general..."
-              value={catalogSearch}
-              onChange={(e) => setCatalogSearch(e.target.value)}
-              className="w-full rounded-xl border border-border bg-field py-3 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none"
+              required
+              placeholder="Ej: Azúcar, Leche, Frutillas..."
+              className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
               autoFocus
             />
           </div>
 
-          <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-            {products
-              .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
-              .filter((p) => catalogSearch ? p.name.toLowerCase().includes(catalogSearch.toLowerCase()) : true)
-              .slice(0, 20) // Mostrar máximo 20 resultados para no sobrecargar el modal
-              .map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    handleAddProductToBodega(p);
-                    setAddModalOpen(false);
-                    setCatalogSearch('');
-                  }}
-                  className="flex w-full items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer group"
-                >
-                  <div>
-                    <span className="font-semibold text-sm text-ink block group-hover:text-primary-700">{p.name}</span>
-                    <span className="text-xs text-ink-soft">{p.category}</span>
-                  </div>
-                  <Plus size={18} className="text-primary-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                </button>
-              ))}
-            {products.filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0).length === 0 && (
-              <div className="text-center p-4 text-sm text-ink-soft bg-surface rounded-lg border border-border">
-                No hay más productos disponibles en el catálogo para traer a la bodega.
-              </div>
-            )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Categoría</label>
+              <input
+                name="category"
+                type="text"
+                defaultValue="Insumos"
+                placeholder="Ej: Lácteos, Frutas..."
+                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Stock Inicial</label>
+              <input
+                name="stock"
+                type="number"
+                min="0"
+                defaultValue="0"
+                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+              />
+            </div>
           </div>
-        </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => setAddModalOpen(false)} className="flex-1">Cancelar</Button>
+            <Button type="submit" className="flex-1">
+              Guardar en Bodega
+            </Button>
+          </div>
+        </form>
       </Modal>
     </AdminShell>
   );
