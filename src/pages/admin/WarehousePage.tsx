@@ -80,18 +80,24 @@ export default function WarehousePage() {
   }
 
   async function handleResetToZero(product: Product, currentStock: number) {
-    if (currentStock <= 0) return;
-    adjustStock(product.id, 'bodega', -currentStock);
-    await recordMovement({
-      id: uid('mov'),
-      productId: product.id,
-      branchId: 'bodega',
-      quantityChange: -currentStock,
-      type: 'MANUAL_ADJUSTMENT',
-      notes: 'Vaciado completo de stock (Reset a 0)',
-      userId: currentUser?.id || 'admin',
-      createdAt: new Date().toISOString(),
-    });
+    if (currentStock > 0) {
+      adjustStock(product.id, 'bodega', -currentStock);
+      await recordMovement({
+        id: uid('mov'),
+        productId: product.id,
+        branchId: 'bodega',
+        quantityChange: -currentStock,
+        type: 'MANUAL_ADJUSTMENT',
+        notes: 'Vaciado completo de stock (Reset a 0) antes de eliminar',
+        userId: currentUser?.id || 'admin',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Remover "bodega" de los branchIds del producto para que desaparezca
+    const newBranchIds = product.branchIds.filter(id => id !== 'bodega');
+    const { upsertProduct } = useCatalogStore.getState();
+    upsertProduct({ ...product, branchIds: newBranchIds });
   }
 
   return (
@@ -153,24 +159,31 @@ export default function WarehousePage() {
               <p className="text-sm text-ink-muted mb-4">
                 Si la bodega está vacía o quieres añadir algo nuevo, búscalo aquí.
               </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto">
-                {products
-                  .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
-                  .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-                  .map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
-                      className="flex items-center justify-between p-3 rounded-xl border border-primary-200 bg-white hover:border-primary-400 hover:bg-primary-50 transition-colors text-left cursor-pointer shadow-sm"
-                    >
-                      <div>
-                        <span className="font-semibold text-sm text-ink block">{p.name}</span>
-                        <span className="text-xs text-ink-soft">{p.category}</span>
-                      </div>
-                      <Plus size={16} className="text-primary-500 flex-shrink-0" />
-                    </button>
-                  ))}
-              </div>
+              {search.trim().length > 0 ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto">
+                  {products
+                    .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
+                    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+                    .map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
+                        className="flex items-center justify-between p-3 rounded-xl border border-primary-200 bg-white hover:border-primary-400 hover:bg-primary-50 transition-colors text-left cursor-pointer shadow-sm"
+                      >
+                        <div>
+                          <span className="font-semibold text-sm text-ink block">{p.name}</span>
+                          <span className="text-xs text-ink-soft">{p.category}</span>
+                        </div>
+                        <Plus size={16} className="text-primary-500 flex-shrink-0" />
+                      </button>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center p-4 text-sm text-ink-soft bg-white/50 rounded-lg border border-primary-100">
+                  Escribe el nombre del producto en la barra de búsqueda de arriba para encontrarlo en el catálogo y poder ingresarlo a la bodega.
+                </div>
+              )}
+
             </div>
 
             <h2 className="font-display text-lg font-bold text-ink mt-8 mb-4">Inventario Actual en Bodega</h2>
