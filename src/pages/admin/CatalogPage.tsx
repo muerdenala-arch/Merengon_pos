@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Package, Plus, Pencil, Trash2, Sparkles } from 'lucide-react';
+import { Package, Plus, Pencil, Trash2, Search, Sparkles } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { useCatalogStore } from '@/store/catalogStore';
 import { ProductFormModal } from '@/components/admin/ProductFormModal';
@@ -9,7 +9,7 @@ import { ProductRow } from '@/components/admin/ProductRow';
 import { Button } from '@/components/ui/Button';
 import type { Product, Topping } from '@/types';
 import { staggerContainer, staggerItem } from '@/lib/motion';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 
 type Tab = 'productos' | 'toppings';
 
@@ -21,6 +21,19 @@ export default function CatalogPage() {
   const [tab, setTab] = useState<Tab>('productos');
   const [editingProduct, setEditingProduct] = useState<Product | null | 'new'>(null);
   const [editingTopping, setEditingTopping] = useState<Topping | null | 'new'>(null);
+  const [search, setSearch] = useState('');
+
+  // Sin distinción de mayúsculas/minúsculas ni acentos — "fresa" encuentra "Fresa con Crema".
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const query = normalize(search);
+  const filteredProducts = useMemo(
+    () => (query ? products.filter((p) => normalize(p.name).includes(query)) : products),
+    [products, query],
+  );
+  const filteredToppings = useMemo(
+    () => (query ? toppings.filter((t) => normalize(t.name).includes(query)) : toppings),
+    [toppings, query],
+  );
 
   return (
     <AdminShell>
@@ -72,6 +85,21 @@ export default function CatalogPage() {
           ))}
         </div>
 
+        {/* Buscador — filtra por nombre, sin importar mayúsculas/minúsculas ni acentos. */}
+        <div className="relative mb-5">
+          <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={tab === 'productos' ? 'Buscar producto…' : 'Buscar topping…'}
+            className={cn(
+              'min-h-touch w-full rounded-xl2 border border-border bg-field pl-10 pr-4 text-sm text-ink placeholder:text-ink-soft',
+              'focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-400/20',
+            )}
+          />
+        </div>
+
         {/* ── Contenido: Productos ─────────────────────────────────────── */}
         {tab === 'productos' && (
           <motion.div
@@ -80,11 +108,16 @@ export default function CatalogPage() {
             animate="animate"
             className="space-y-2.5"
           >
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <motion.div key={product.id} variants={staggerItem}>
                 <ProductRow product={product} onEdit={() => setEditingProduct(product)} />
               </motion.div>
             ))}
+            {filteredProducts.length === 0 && (
+              <p className="py-12 text-center text-sm text-ink-muted">
+                Ningún producto coincide con "{search}".
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -96,7 +129,7 @@ export default function CatalogPage() {
             animate="animate"
             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {toppings.map((t) => (
+            {filteredToppings.map((t) => (
               <motion.div
                 key={t.id}
                 variants={staggerItem}
@@ -129,9 +162,11 @@ export default function CatalogPage() {
               </motion.div>
             ))}
 
-            {toppings.length === 0 && (
+            {filteredToppings.length === 0 && (
               <p className="col-span-full py-12 text-center text-sm text-ink-muted">
-                No hay toppings. Usa "Nuevo topping" para agregar.
+                {toppings.length === 0
+                  ? 'No hay toppings. Usa "Nuevo topping" para agregar.'
+                  : `Ningún topping coincide con "${search}".`}
               </p>
             )}
           </motion.div>

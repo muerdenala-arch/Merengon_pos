@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
+import { useStaffStore } from '@/store/staffStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 
@@ -13,12 +15,53 @@ export default function CashAuditPage() {
   const allSessions = useRegisterStore((s) => s.sessions);
   const branches = useBranchStore((s) => s.branches);
   const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
+  const staff = useStaffStore((s) => s.users);
 
-  const sessions = useMemo(
-    () => (adminFilterBranchId ? allSessions.filter((s) => s.branchId === adminFilterBranchId) : allSessions),
-    [allSessions, adminFilterBranchId],
-  );
+  const [cashierId, setCashierId] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Solo cajeros que efectivamente tienen sesiones registradas — evita un desplegable
+  // lleno de personal que nunca abrió caja.
+  const cashierOptions = useMemo(() => {
+    const ids = new Set(allSessions.map((s) => s.cashierId));
+    return Array.from(ids)
+      .map((id) => {
+        const session = allSessions.find((s) => s.cashierId === id);
+        const staffMember = staff.find((u) => u.id === id);
+        return { id, name: staffMember?.name ?? session?.cashierName ?? id };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allSessions, staff]);
+
+  const sessions = useMemo(() => {
+    const start = startDate ? new Date(`${startDate}T00:00:00`) : null;
+    const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+    return allSessions.filter((s) => {
+      if (adminFilterBranchId && s.branchId !== adminFilterBranchId) return false;
+      if (cashierId !== 'all' && s.cashierId !== cashierId) return false;
+      const opened = new Date(s.openedAt);
+      if (start && opened < start) return false;
+      if (end && opened > end) return false;
+      return true;
+    });
+  }, [allSessions, adminFilterBranchId, cashierId, startDate, endDate]);
+
   const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? id;
+
+  const totals = useMemo(() => {
+    const closed = sessions.filter((s) => s.status === 'cerrada');
+    return {
+      count: sessions.length,
+      openCount: sessions.length - closed.length,
+      salesCount: sessions.reduce((sum, s) => sum + (s.salesCount ?? 0), 0),
+      salesTotal: sessions.reduce((sum, s) => sum + (s.salesTotal ?? 0), 0),
+      difference: closed.reduce((sum, s) => sum + (s.difference ?? 0), 0),
+      closedCount: closed.length,
+    };
+  }, [sessions]);
+
+  const hasFilters = cashierId !== 'all' || !!startDate || !!endDate;
 
   return (
     <AdminShell>
@@ -34,8 +77,67 @@ export default function CashAuditPage() {
           </p>
         </div>
 
+        {/* Filtros: rango de fechas + cajero */}
+        <Card className="mb-4 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+          <label className="flex flex-col">
+            <span className={fieldLabelClasses}>Desde</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className={cn(fieldClasses, 'min-h-touch')}
+            />
+          </label>
+          <label className="flex flex-col">
+            <span className={fieldLabelClasses}>Hasta</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className={cn(fieldClasses, 'min-h-touch')}
+            />
+          </label>
+          <label className="col-span-2 flex flex-col sm:col-span-2">
+            <span className={fieldLabelClasses}>Cajero</span>
+            <select
+              value={cashierId}
+              onChange={(e) => setCashierId(e.target.value)}
+              className={cn(fieldClasses, 'min-h-touch')}
+            >
+              <option value="all">Todos los cajeros</option>
+              {cashierOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </Card>
+
+        {/* Totales agregados del filtro actual */}
+        <Card className="mb-6 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+          <Stat label="Cajas" value={`${totals.count}${totals.openCount > 0 ? ` (${totals.openCount} abiertas)` : ''}`} />
+          <Stat label="Ventas" value={String(totals.salesCount)} />
+          <Stat label="Total vendido" value={formatCurrency(totals.salesTotal)} />
+          <Stat
+            label="Diferencia total"
+            value={totals.closedCount > 0 ? formatCurrency(totals.difference) : '—'}
+            tone={
+              totals.closedCount === 0
+                ? undefined
+                : Math.abs(totals.difference) < 0.01
+                  ? 'green'
+                  : totals.difference > 0
+                    ? 'amber'
+                    : 'red'
+            }
+          />
+        </Card>
+
         {sessions.length === 0 ? (
-          <Card className="p-8 text-center text-ink-soft">Aún no hay sesiones de caja registradas.</Card>
+          <Card className="p-8 text-center text-ink-soft">
+            {hasFilters ? 'No hay cajas que coincidan con estos filtros.' : 'Aún no hay sesiones de caja registradas.'}
+          </Card>
         ) : (
           <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
             {sessions.map((session) => {
