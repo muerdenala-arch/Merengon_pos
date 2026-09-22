@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/Button';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import { useQrCodeStore } from '@/store/qrCodeStore';
-import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import { APP_CONFIG } from '@/config/app';
 import { api } from '@/lib/api';
@@ -28,8 +27,7 @@ export function CheckoutModal({ open, total, onClose, onConfirm }: CheckoutModal
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const settings = useSettingsStore((s) => s.settings);
-  const requireQrPhoto = settings.require_qr_photo === 'true' || settings.require_qr_photo === true || settings.require_qr_photo === undefined;
+  const requireQrPhoto = activeQr?.requirePhoto ?? true;
   
   // Calculadora de cambio
   const [receivedCash, setReceivedCash] = useState<string>('');

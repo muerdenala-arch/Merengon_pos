@@ -24,33 +24,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="space-y-6">
-          <section>
-            <h2 className="mb-3 flex items-center gap-2 font-display text-lg font-bold text-ink">
-              <Shield size={20} className="text-accent-500" /> Permisos de Cajero
-            </h2>
-            <Card className="divide-y divide-border">
-              <div className="flex items-center justify-between p-4 sm:p-5">
-                <div className="pr-4">
-                  <p className="font-bold text-ink flex items-center gap-2">
-                    <Camera size={18} className="text-primary-500" />
-                    Venta por QR sin comprobante fotográfico
-                  </p>
-                  <p className="mt-1 text-sm text-ink-muted">
-                    Si está desactivado, el cajero puede registrar un pago por QR sin necesidad de subir la foto del comprobante.
-                  </p>
-                </div>
-                <label className="relative inline-flex cursor-pointer items-center">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={!requireQrPhoto} // If require_qr_photo is true, then "allow without photo" is false.
-                    onChange={(e) => updateSetting('require_qr_photo', (!e.target.checked).toString())}
-                  />
-                  <div className="peer h-6 w-11 rounded-full bg-cream-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-border after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary-300 dark:border-ink-soft dark:bg-ink-muted"></div>
-                </label>
-              </div>
-            </Card>
-          </section>
+          <Card className="p-8 text-center text-ink-muted">
+            No hay configuraciones globales disponibles por ahora.
+          </Card>
         </div>
       </div>
     </AdminShell>

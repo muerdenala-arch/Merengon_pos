@@ -88,8 +88,6 @@ export interface CartItem {
   notes?: string;
   /** ID de la promoción aplicada a este ítem (si aplica). */
   appliedPromotionId?: string;
-  /** Si el producto se entregará directamente desde bodega en vez de sucursal */
-  deliveredFromBodega?: boolean;
 }
 
 export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
@@ -169,6 +167,7 @@ export interface QrCode {
   active: boolean;
   branchId: string;
   createdAt: string; // ISO
+  requirePhoto: boolean;
 }
 
 export type RegisterStatus = 'abierta' | 'cerrada';

@@ -14,6 +14,8 @@ import { logoGlowClasses } from '@/lib/brand';
 import { cn } from '@/lib/utils';
 import { onSyncStateChange } from '@/lib/syncManager';
 import { ExpenseModal } from '@/components/pos/ExpenseModal';
+import { BodegaWithdrawalModal } from '@/components/pos/BodegaWithdrawalModal';
+import { PackageOpen } from 'lucide-react';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
@@ -26,6 +28,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isBodegaModalOpen, setIsBodegaModalOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSyncStateChange((count, online) => {
@@ -109,13 +112,22 @@ export function CashierShell({ children }: { children: ReactNode }) {
 
         <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
           {activeSession && (
-            <button
-              onClick={() => setIsExpenseModalOpen(true)}
-              className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 sm:px-3.5 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-            >
-              <Receipt size={18} className="flex-shrink-0" />
-              <span className="hidden sm:inline">Registrar Gasto</span>
-            </button>
+            <>
+              <button
+                onClick={() => setIsBodegaModalOpen(true)}
+                className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-primary-200 bg-primary-50 px-2.5 text-sm font-semibold text-primary-700 transition-colors hover:border-primary-300 hover:bg-primary-100 sm:px-3.5 dark:border-primary-900/50 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/40"
+              >
+                <PackageOpen size={18} className="flex-shrink-0" />
+                <span className="hidden sm:inline">📦 Bodega</span>
+              </button>
+              <button
+                onClick={() => setIsExpenseModalOpen(true)}
+                className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 sm:px-3.5 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+              >
+                <Receipt size={18} className="flex-shrink-0" />
+                <span className="hidden sm:inline">Registrar Gasto</span>
+              </button>
+            </>
           )}
           <Link
             to={activeSession ? '/caja/cierre' : '/caja/apertura'}
@@ -152,6 +164,12 @@ export function CashierShell({ children }: { children: ReactNode }) {
         isOpen={isExpenseModalOpen} 
         onClose={() => setIsExpenseModalOpen(false)} 
       />
+      {activeSession && (
+        <BodegaWithdrawalModal
+          open={isBodegaModalOpen}
+          onClose={() => setIsBodegaModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

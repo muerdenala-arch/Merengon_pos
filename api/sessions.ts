@@ -57,7 +57,7 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
 // ── QR Codes ──────────────────────────────────────────────────────────────────
 const QR_COLS = `
   id, alias, bank_or_holder as "bankOrHolder", image_url as "image", active,
-  branch_id as "branchId", created_at as "createdAt"
+  branch_id as "branchId", created_at as "createdAt", require_photo as "requirePhoto"
 `;
 
 async function qrCodesHandler(req: VercelRequest, res: VercelResponse) {
@@ -75,12 +75,12 @@ async function qrCodesHandler(req: VercelRequest, res: VercelResponse) {
     );
     const active = Number(count) === 0;
     const rows = await query<QrCode>(
-      `insert into qr_codes (id, alias, bank_or_holder, image_url, active, branch_id)
-       values ($1,$2,$3,$4,$5,$6)
+      `insert into qr_codes (id, alias, bank_or_holder, image_url, active, branch_id, require_photo)
+       values ($1,$2,$3,$4,$5,$6,$7)
        on conflict (id) do update set alias=excluded.alias, bank_or_holder=excluded.bank_or_holder,
-         image_url=excluded.image_url, branch_id=excluded.branch_id
+         image_url=excluded.image_url, branch_id=excluded.branch_id, require_photo=excluded.require_photo
        returning ${QR_COLS}`,
-      [body.id, body.alias, body.bankOrHolder ?? '', body.image, active, body.branchId],
+      [body.id, body.alias, body.bankOrHolder ?? '', body.image, active, body.branchId, body.requirePhoto ?? true],
     );
     res.status(201).json(rows[0]); return;
   }
@@ -99,9 +99,9 @@ async function qrCodesHandler(req: VercelRequest, res: VercelResponse) {
     }
     const qr = await queryOne<QrCode>(
       `update qr_codes set alias=coalesce($2,alias), bank_or_holder=coalesce($3,bank_or_holder),
-         image_url=coalesce($4,image_url), branch_id=coalesce($5,branch_id)
+         image_url=coalesce($4,image_url), branch_id=coalesce($5,branch_id), require_photo=coalesce($6,require_photo)
        where id=$1 returning ${QR_COLS}`,
-      [id, body.alias ?? null, body.bankOrHolder ?? null, body.image ?? null, body.branchId ?? null],
+      [id, body.alias ?? null, body.bankOrHolder ?? null, body.image ?? null, body.branchId ?? null, body.requirePhoto ?? null],
     );
     if (!qr) { res.status(404).json({ error: 'QR no encontrado' }); return; }
     res.status(200).json(qr); return;

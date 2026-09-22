@@ -18,7 +18,7 @@ interface QrFormModalProps {
 }
 
 function emptyForm(branchId: string) {
-  return { alias: '', bankOrHolder: '', image: '', branchId };
+  return { alias: '', bankOrHolder: '', image: '', branchId, requirePhoto: true };
 }
 
 export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalProps) {
@@ -32,7 +32,7 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
 
   useEffect(() => {
     if (qr) {
-      setForm({ alias: qr.alias, bankOrHolder: qr.bankOrHolder, image: qr.image, branchId: qr.branchId });
+      setForm({ alias: qr.alias, bankOrHolder: qr.bankOrHolder, image: qr.image, branchId: qr.branchId, requirePhoto: qr.requirePhoto ?? true });
     } else {
       setForm(emptyForm(defaultBranchId));
     }
@@ -70,6 +70,7 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
       bankOrHolder: form.bankOrHolder.trim(),
       image: form.image,
       branchId: form.branchId,
+      requirePhoto: form.requirePhoto,
     };
     if (qr) {
       updateQrCode(qr.id, data);
@@ -141,6 +142,19 @@ export function QrFormModal({ qr, open, defaultBranchId, onClose }: QrFormModalP
           onChange={(e) => setForm((f) => ({ ...f, bankOrHolder: e.target.value }))}
           placeholder="Ej. BMSC — Valeria Ríos"
         />
+
+        <label className="flex items-center gap-3 cursor-pointer mt-1">
+          <input
+            type="checkbox"
+            checked={form.requirePhoto}
+            onChange={(e) => setForm((f) => ({ ...f, requirePhoto: e.target.checked }))}
+            className="rounded border-zinc-300 text-primary-500 focus:ring-primary-500 w-5 h-5"
+          />
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-ink">Obligatorio tomar foto</span>
+            <span className="text-xs text-ink-soft">Exigir foto del comprobante para finalizar la venta</span>
+          </div>
+        </label>
 
         {error && (
           <p className="flex items-center gap-1.5 text-xs font-semibold text-red-600">

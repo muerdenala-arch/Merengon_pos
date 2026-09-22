@@ -27,7 +27,6 @@ interface CartState {
   addItem: (product: Product, modifiers: CartModifiers, quantity?: number, notes?: string, promo?: Promotion | null) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   removeItem: (lineId: string) => void;
-  toggleBodegaDelivery: (lineId: string) => void;
   clear: () => void;
   subtotal: () => number;
   /** Subtotal sin ningún descuento de promo (precio original). */
@@ -75,15 +74,6 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   removeItem: (lineId) =>
     set((state) => ({ items: state.items.filter((item) => item.lineId !== lineId) })),
-
-  toggleBodegaDelivery: (lineId) =>
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.lineId === lineId
-          ? { ...item, deliveredFromBodega: !item.deliveredFromBodega }
-          : item
-      ),
-    })),
 
   clear: () => set({ items: [] }),
 

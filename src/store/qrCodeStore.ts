@@ -9,6 +9,7 @@ export interface QrCodeFormData {
   bankOrHolder: string;
   image: string;
   branchId: string;
+  requirePhoto: boolean;
 }
 
 interface QrCodeState {
