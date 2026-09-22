@@ -68,10 +68,21 @@ export default function PromotionsPage() {
   const [couponForm, setCouponForm] = useState<CouponForm>(defaultCouponForm);
   const [savingPromo, setSavingPromo] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
 
   async function handleCreatePromo() {
     if (!promoForm.name || !promoForm.discountValue || promoForm.branchIds.length === 0) return;
+    
+    // Validación lógica de rango de fechas
+    if (promoForm.startDate && promoForm.endDate) {
+      if (new Date(promoForm.endDate) < new Date(promoForm.startDate)) {
+        setPromoError("La fecha de fin no puede ser anterior a la fecha de inicio.");
+        return;
+      }
+    }
+    
+    setPromoError(null);
     setSavingPromo(true);
     await createPromotion({
       name: promoForm.name,
@@ -410,6 +421,12 @@ export default function PromotionsPage() {
               />
             </div>
           </div>
+
+          {promoError && (
+            <div className="mt-2 text-sm font-semibold text-red-600 bg-red-50 p-3 rounded-xl border border-red-200">
+              {promoError}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button variant="outline" onClick={() => setPromoModalOpen(false)} className="flex-1">Cancelar</Button>

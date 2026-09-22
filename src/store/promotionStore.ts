@@ -77,17 +77,18 @@ export const usePromotionStore = create<PromotionState>()((set, get) => ({
           if (!p.isActive || !p.branchIds.includes(branchId)) return false;
           
           if (p.startDate) {
-            // Check if current date is before start date
-            const start = new Date(p.startDate);
-            // Ignore time, compare dates
+            // Extraer año, mes, día del formato YYYY-MM-DD para evitar desfase de zona horaria (UTC a Local)
+            const [y, m, d] = p.startDate.split('T')[0].split('-');
+            const start = new Date(Number(y), Number(m) - 1, Number(d));
             start.setHours(0, 0, 0, 0);
+            
             const today = new Date(now);
             today.setHours(0, 0, 0, 0);
             if (today < start) return false;
           }
           if (p.endDate) {
-            // Check if current date is after end date
-            const end = new Date(p.endDate);
+            const [y, m, d] = p.endDate.split('T')[0].split('-');
+            const end = new Date(Number(y), Number(m) - 1, Number(d));
             end.setHours(23, 59, 59, 999);
             if (now > end) return false;
           }
