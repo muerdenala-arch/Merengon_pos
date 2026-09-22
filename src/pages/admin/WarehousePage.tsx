@@ -144,17 +144,44 @@ export default function WarehousePage() {
               />
             </div>
 
+            {/* Sección para agregar cualquier producto al inventario de bodega */}
+            <div className="mb-6 rounded-xl border border-primary-200 bg-primary-50 p-4">
+              <h2 className="font-display text-base font-bold text-ink mb-1 flex items-center gap-2">
+                <Plus size={18} className="text-primary-600" />
+                Ingresar nuevo producto a Bodega
+              </h2>
+              <p className="text-sm text-ink-muted mb-4">
+                Si la bodega está vacía o quieres añadir algo nuevo, búscalo aquí.
+              </p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto">
+                {products
+                  .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
+                  .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
+                  .map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
+                      className="flex items-center justify-between p-3 rounded-xl border border-primary-200 bg-white hover:border-primary-400 hover:bg-primary-50 transition-colors text-left cursor-pointer shadow-sm"
+                    >
+                      <div>
+                        <span className="font-semibold text-sm text-ink block">{p.name}</span>
+                        <span className="text-xs text-ink-soft">{p.category}</span>
+                      </div>
+                      <Plus size={16} className="text-primary-500 flex-shrink-0" />
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <h2 className="font-display text-lg font-bold text-ink mt-8 mb-4">Inventario Actual en Bodega</h2>
+
             {filteredProducts.length === 0 ? (
               <Card className="p-10 text-center">
                 <div className="flex flex-col items-center gap-3 text-ink-muted">
                   <Info size={36} className="text-primary-300" />
-                  <h3 className="font-display font-bold text-ink">La bodega está vacía</h3>
+                  <h3 className="font-display font-bold text-ink">No hay productos ingresados en Bodega</h3>
                   <p className="text-sm max-w-xs">
-                    Usa el botón <strong>+</strong> en cualquier producto del catálogo para agregar stock a la bodega, 
-                    o bien busca un producto y presiona el botón <strong>+</strong> de abajo.
-                  </p>
-                  <p className="text-xs mt-2 text-ink-soft">
-                    Para agregar un producto a la bodega, primero búscalo abajo y presiona el botón de ajuste (+).
+                    Usa la sección de arriba para ingresar stock por primera vez.
                   </p>
                 </div>
               </Card>
@@ -204,31 +231,7 @@ export default function WarehousePage() {
               </div>
             )}
 
-            {/* Sección para agregar cualquier producto al inventario de bodega */}
-            <div className="mt-8 border-t border-border pt-6">
-              <h2 className="font-display text-base font-bold text-ink mb-1">Agregar producto a Bodega</h2>
-              <p className="text-sm text-ink-muted mb-4">
-                Busca cualquier producto del catálogo para ingresarlo a la bodega por primera vez.
-              </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-72 overflow-y-auto">
-                {products
-                  .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
-                  .filter((p) => !search || p.name.toLowerCase().includes(search.toLowerCase()))
-                  .map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
-                      className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 transition-colors text-left cursor-pointer"
-                    >
-                      <div>
-                        <span className="font-semibold text-sm text-ink block">{p.name}</span>
-                        <span className="text-xs text-ink-soft">{p.category}</span>
-                      </div>
-                      <Plus size={16} className="text-primary-500 flex-shrink-0" />
-                    </button>
-                  ))}
-              </div>
-            </div>
+            {/* Fin de bloque movido */}
           </div>
         )}
 

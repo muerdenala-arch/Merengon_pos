@@ -97,8 +97,7 @@ function AdminSidebarContent({
   const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
   const products = useCatalogStore((s) => s.products);
   const navigate = useNavigate();
-
-  const lowStockCount = products.filter((p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold).length;
+  const lowStockCount = products.filter((p) => p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold).length;
 
   return (
     <>
