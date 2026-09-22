@@ -4,17 +4,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // ── Importar handlers de la API ──────────────────────────────────────────────
 import branchesHandler from './branches.js';
-import productsHandler from './products.js';
-import toppingsHandler from './toppings.js';
-import categoriesHandler from './categories.js';
+import catalogHandler from './catalog.js'; // products + toppings + categories
 import staffHandler from './staff.js';
-import qrCodesHandler from './qr-codes.js';
-import registerSessionsHandler from './register-sessions.js';
+import sessionsHandler from './sessions.js'; // register-sessions + qr-codes
 import salesHandler from './sales.js';
 import uploadHandler from './upload.js';
+import operationsHandler from './operations.js'; // expenses + stock_movements + settings
 import promotionsHandler from './promotions.js';
-import settingsHandler from './settings.js';
-import stockMovementsHandler from './stock_movements.js';
 import couponsHandler from './coupons.js';
 
 // Express req/res son compatibles con Vercel req/res para nuestros handlers
@@ -32,27 +28,28 @@ app.use(express.urlencoded({ extended: true }));
 // ── Rutas de la API ──────────────────────────────────────────────────────────
 app.all('/api/branches', adapt(branchesHandler));
 app.all('/api/branches/*', adapt(branchesHandler));
-app.all('/api/products', adapt(productsHandler));
-app.all('/api/products/*', adapt(productsHandler));
-app.all('/api/toppings', adapt(toppingsHandler));
-app.all('/api/toppings/*', adapt(toppingsHandler));
-app.all('/api/categories', adapt(categoriesHandler));
-app.all('/api/categories/*', adapt(categoriesHandler));
+app.all('/api/products', adapt(catalogHandler));
+app.all('/api/products/*', adapt(catalogHandler));
+app.all('/api/toppings', adapt(catalogHandler));
+app.all('/api/toppings/*', adapt(catalogHandler));
+app.all('/api/categories', adapt(catalogHandler));
+app.all('/api/categories/*', adapt(catalogHandler));
 app.all('/api/staff', adapt(staffHandler));
 app.all('/api/staff/*', adapt(staffHandler));
-app.all('/api/qr-codes', adapt(qrCodesHandler));
-app.all('/api/qr-codes/*', adapt(qrCodesHandler));
-app.all('/api/register-sessions', adapt(registerSessionsHandler));
-app.all('/api/register-sessions/*', adapt(registerSessionsHandler));
+app.all('/api/register-sessions', adapt(sessionsHandler));
+app.all('/api/register-sessions/*', adapt(sessionsHandler));
+app.all('/api/qr-codes', adapt(sessionsHandler));
+app.all('/api/qr-codes/*', adapt(sessionsHandler));
 app.all('/api/sales', adapt(salesHandler));
 app.all('/api/sales/*', adapt(salesHandler));
 app.all('/api/upload', adapt(uploadHandler));
+app.all('/api/expenses', adapt(operationsHandler));
+app.all('/api/stock_movements', adapt(operationsHandler));
+app.all('/api/stock_movements/*', adapt(operationsHandler));
+app.all('/api/settings', adapt(operationsHandler));
+app.all('/api/settings/*', adapt(operationsHandler));
 app.all('/api/promotions', adapt(promotionsHandler));
 app.all('/api/promotions/*', adapt(promotionsHandler));
-app.all('/api/settings', adapt(settingsHandler));
-app.all('/api/settings/*', adapt(settingsHandler));
-app.all('/api/stock_movements', adapt(stockMovementsHandler));
-app.all('/api/stock_movements/*', adapt(stockMovementsHandler));
 app.all('/api/coupons', adapt(couponsHandler));
 app.all('/api/coupons/*', adapt(couponsHandler));
 

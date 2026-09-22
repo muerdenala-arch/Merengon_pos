@@ -1,6 +1,29 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.ts" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/products",           "destination": "/api/catalog.ts"     },
+    { "source": "/api/products/:id",        "destination": "/api/catalog.ts"     },
+    { "source": "/api/toppings",            "destination": "/api/catalog.ts"     },
+    { "source": "/api/toppings/:id",        "destination": "/api/catalog.ts"     },
+    { "source": "/api/categories",          "destination": "/api/catalog.ts"     },
+    { "source": "/api/categories/:id",      "destination": "/api/catalog.ts"     },
+    { "source": "/api/register-sessions",   "destination": "/api/sessions.ts"    },
+    { "source": "/api/register-sessions/:id","destination": "/api/sessions.ts"   },
+    { "source": "/api/qr-codes",            "destination": "/api/sessions.ts"    },
+    { "source": "/api/qr-codes/:id",        "destination": "/api/sessions.ts"    },
+    { "source": "/api/expenses",            "destination": "/api/operations.ts"  },
+    { "source": "/api/stock_movements",     "destination": "/api/operations.ts"  },
+    { "source": "/api/settings",            "destination": "/api/operations.ts"  },
+    { "source": "/api/branches",            "destination": "/api/branches.ts"    },
+    { "source": "/api/branches/:id",        "destination": "/api/branches.ts"    },
+    { "source": "/api/sales",               "destination": "/api/sales.ts"       },
+    { "source": "/api/sales/:id",           "destination": "/api/sales.ts"       },
+    { "source": "/api/staff",               "destination": "/api/staff.ts"       },
+    { "source": "/api/staff/:id",           "destination": "/api/staff.ts"       },
+    { "source": "/api/promotions",          "destination": "/api/promotions.ts"  },
+    { "source": "/api/promotions/:id",      "destination": "/api/promotions.ts"  },
+    { "source": "/api/coupons",             "destination": "/api/coupons.ts"     },
+    { "source": "/api/coupons/:id",         "destination": "/api/coupons.ts"     },
+    { "source": "/api/upload",              "destination": "/api/upload.ts"      },
+    { "source": "/(.*)",                    "destination": "/index.html"         }
   ]
 }
