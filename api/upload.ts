@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { uploadImage, type ImageFolder } from './_lib/cloudinary.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAuth } from './_lib/auth.js';
 
 const ALLOWED_FOLDERS: ImageFolder[] = ['receipts', 'qr-codes'];
 
@@ -9,6 +10,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     methodNotAllowed(res, ['POST']);
     return;
   }
+  // Solo usuarios logueados suben imágenes — antes cualquiera con la URL podía subir
+  // archivos arbitrarios a la cuenta de Cloudinary del negocio (costo/almacenamiento).
+  if (!requireAuth(req, res)) return;
 
   const body = requireBody<{ image?: string; folder?: string }>(req);
   if (!body.image || !body.image.startsWith('data:image/')) {

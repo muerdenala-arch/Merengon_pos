@@ -31,15 +31,18 @@ function randomPin() {
 export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
   const addUser = useStaffStore((s) => s.addUser);
   const updateUser = useStaffStore((s) => s.updateUser);
-  const isPinTaken = useStaffStore((s) => s.isPinTaken);
   const branches = useBranchStore((s) => s.branches);
   const [form, setForm] = useState(emptyForm);
   const [pinError, setPinError] = useState<string | null>(null);
   const [branchError, setBranchError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
-      setForm({ name: user.name, role: user.role, pin: user.pin, color: user.color, branchIds: user.branchIds });
+      // El servidor ya no manda el PIN existente (ver GET /api/staff) — el campo empieza
+      // vacío a propósito: "no tocar" en vez de mostrar/reescribir un PIN que ni siquiera
+      // se conoce. Solo se manda al servidor si el admin escribe uno nuevo.
+      setForm({ name: user.name, role: user.role, pin: '', color: user.color, branchIds: user.branchIds });
     } else {
       setForm({ ...emptyForm, pin: randomPin() });
     }
@@ -61,14 +64,16 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
     setPinError(null);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.name.trim()) return;
-    if (form.pin.length !== 4) {
+    // Al crear, el PIN es obligatorio. Al editar, es opcional — vacío significa "no
+    // cambiar el PIN actual" (el servidor solo lo toca si se lo mandamos).
+    if (!user && form.pin.length !== 4) {
       setPinError('El PIN debe tener exactamente 4 dígitos.');
       return;
     }
-    if (isPinTaken(form.pin, user?.id)) {
-      setPinError('Ese PIN ya está en uso por otro miembro del personal.');
+    if (user && form.pin.length > 0 && form.pin.length !== 4) {
+      setPinError('El PIN debe tener exactamente 4 dígitos (o dejarlo vacío para no cambiarlo).');
       return;
     }
     if (form.branchIds.length === 0) {
@@ -76,19 +81,35 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
       return;
     }
 
-    const data = {
-      name: form.name.trim(),
-      role: form.role,
-      pin: form.pin,
-      color: form.color,
-      branchIds: form.branchIds,
-    };
-    if (user) {
-      updateUser(user.id, data);
-    } else {
-      addUser(data);
+    setSaving(true);
+    setPinError(null);
+    try {
+      if (user) {
+        const data: Partial<typeof form> = {
+          name: form.name.trim(),
+          role: form.role,
+          color: form.color,
+          branchIds: form.branchIds,
+        };
+        if (form.pin) data.pin = form.pin;
+        await updateUser(user.id, data);
+      } else {
+        await addUser({
+          name: form.name.trim(),
+          role: form.role,
+          pin: form.pin,
+          color: form.color,
+          branchIds: form.branchIds,
+        });
+      }
+      onClose();
+    } catch (err) {
+      // El error más común acá es 409 "PIN ya en uso" — el servidor es la única fuente de
+      // verdad ahora que el navegador no tiene la lista de PINs para chequearlo antes.
+      setPinError(err instanceof Error ? err.message : 'No se pudo guardar el usuario.');
+    } finally {
+      setSaving(false);
     }
-    onClose();
   }
 
   const isPrimaryAdmin = !!user?.protected;
@@ -140,7 +161,9 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className={fieldLabelClasses}>PIN de acceso (4 dígitos)</span>
+            <span className={fieldLabelClasses}>
+              PIN de acceso (4 dígitos){user && <span className="font-normal normal-case text-ink-soft"> — opcional</span>}
+            </span>
             <button
               type="button"
               onClick={() => handlePinChange(randomPin())}
@@ -158,6 +181,9 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
             placeholder="0000"
             className={cn(fieldClasses, 'min-h-touch text-center font-display text-2xl font-bold tracking-[0.5em]')}
           />
+          {user && !pinError && (
+            <p className="mt-1.5 text-xs text-ink-soft">Déjalo vacío para no cambiar el PIN actual.</p>
+          )}
           {pinError && <p className="mt-1.5 text-xs font-semibold text-red-600">{pinError}</p>}
         </div>
 
@@ -216,9 +242,9 @@ export function StaffFormModal({ user, open, onClose }: StaffFormModalProps) {
           onClick={handleSave}
           className="flex-[2] !bg-amber-500 py-3 !text-white !shadow-lg hover:!bg-amber-600"
           size="lg"
-          disabled={!form.name.trim()}
+          disabled={!form.name.trim() || saving}
         >
-          {user ? 'Guardar cambios' : 'Crear usuario'}
+          {saving ? 'Guardando…' : user ? 'Guardar cambios' : 'Crear usuario'}
         </Button>
       </div>
     </Modal>

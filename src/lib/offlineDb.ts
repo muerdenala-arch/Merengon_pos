@@ -11,16 +11,43 @@ const DB_NAME = 'merengon-pos';
 const DB_VERSION = 1;
 const STORE_NAME = 'pendingQueue';
 
-export interface PendingEntry {
-  /** Mismo que sale.id o expense.id — se usa como keyPath */
+export interface SessionOpenPayload {
   id: string;
-  type: 'sale' | 'expense';
+  cashierId: string;
+  cashierName: string;
+  branchId: string;
+  openingAmount: number;
+  notes?: string;
+}
+
+export interface SessionClosePayload {
+  id: string;
+  closingAmountCounted: number;
+  expectedAmount: number;
+  salesTotal: number;
+  salesCount: number;
+  cashSalesTotal: number;
+  qrSalesTotal: number;
+  notes?: string;
+}
+
+export interface PendingEntry {
+  /** Mismo que sale.id / expense.id / sessionOpen.id / sessionClose.id — se usa como keyPath.
+   *  Para 'session-close' se prefija para no chocar con la entrada 'session-open' de la
+   *  misma sesión (comparten el mismo id de sesión). */
+  id: string;
+  type: 'sale' | 'expense' | 'session-open' | 'session-close';
   sale?: Sale;
   expense?: Expense;
+  sessionOpen?: SessionOpenPayload;
+  sessionClose?: SessionClosePayload;
   /** Fecha en que se encoló, para ordenar y detectar entradas muy antiguas */
   enqueuedAt: string;
   /** Número de intentos fallidos de sync */
   retryCount: number;
+  /** Última vez que se intentó sincronizar esta entrada (ISO) — para espaciar reintentos y
+   *  no quemar el contador de una entrada en problemas con cada nueva venta del cajero. */
+  lastAttemptAt?: string;
 }
 
 let _db: IDBPDatabase | null = null;
@@ -61,7 +88,7 @@ export async function enqueueExpense(expense: Expense): Promise<void> {
   try {
     const db = await getDb();
     const existing = await db.get(STORE_NAME, expense.id);
-    if (existing) return; 
+    if (existing) return;
     const entry: PendingEntry = {
       id: expense.id,
       type: 'expense',
@@ -72,6 +99,48 @@ export async function enqueueExpense(expense: Expense): Promise<void> {
     await db.put(STORE_NAME, entry);
   } catch (err) {
     console.error('[OfflineDB] Error al encolar gasto:', err);
+  }
+}
+
+/** Persiste una apertura de caja en la cola local. CRÍTICO: si esto no se sincroniza antes
+ *  de que se intenten sincronizar las ventas de esa sesión, esas ventas fallan para siempre
+ *  (la sesión no existe en el servidor) — por eso apertura/cierre pasan por la MISMA cola
+ *  ordenada por fecha que las ventas, en vez de un fetch aparte sin reintento. */
+export async function enqueueSessionOpen(payload: SessionOpenPayload): Promise<void> {
+  try {
+    const db = await getDb();
+    const existing = await db.get(STORE_NAME, payload.id);
+    if (existing) return;
+    const entry: PendingEntry = {
+      id: payload.id,
+      type: 'session-open',
+      sessionOpen: payload,
+      enqueuedAt: new Date().toISOString(),
+      retryCount: 0,
+    };
+    await db.put(STORE_NAME, entry);
+  } catch (err) {
+    console.error('[OfflineDB] Error al encolar apertura de caja:', err);
+  }
+}
+
+/** Persiste un cierre de caja en la cola local. */
+export async function enqueueSessionClose(payload: SessionClosePayload): Promise<void> {
+  try {
+    const db = await getDb();
+    const queueId = `close_${payload.id}`;
+    const existing = await db.get(STORE_NAME, queueId);
+    if (existing) return;
+    const entry: PendingEntry = {
+      id: queueId,
+      type: 'session-close',
+      sessionClose: payload,
+      enqueuedAt: new Date().toISOString(),
+      retryCount: 0,
+    };
+    await db.put(STORE_NAME, entry);
+  } catch (err) {
+    console.error('[OfflineDB] Error al encolar cierre de caja:', err);
   }
 }
 
@@ -106,6 +175,7 @@ export async function incrementRetry(id: string): Promise<void> {
     const entry = await db.get(STORE_NAME, id) as PendingEntry | undefined;
     if (!entry) return;
     entry.retryCount += 1;
+    entry.lastAttemptAt = new Date().toISOString();
     await db.put(STORE_NAME, entry);
   } catch (err) {
     console.error('[OfflineDB] Error al actualizar reintento:', err);

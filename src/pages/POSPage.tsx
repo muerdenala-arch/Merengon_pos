@@ -21,13 +21,13 @@ import type { Payment, Product, Sale } from '@/types';
 export default function POSPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
-  const activeSession = useRegisterStore((s) => s.activeSession());
+  const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const items = useCartStore((s) => s.items);
   const clearCart = useCartStore((s) => s.clear);
   const subtotal = useCartStore((s) => s.subtotal)();
   const subtotalBeforeDiscount = useCartStore((s) => s.subtotalBeforeDiscount)();
-  const adjustStock = useCatalogStore((s) => s.adjustStock);
-  const adjustToppingStock = useCatalogStore((s) => s.adjustToppingStock);
+  const applyLocalStockDelta = useCatalogStore((s) => s.applyLocalStockDelta);
+  const applyLocalToppingStockDelta = useCatalogStore((s) => s.applyLocalToppingStockDelta);
   const addSale = useSalesStore((s) => s.addSale);
 
   const appliedCoupon = useCouponStore((s) => s.appliedCoupon);
@@ -93,10 +93,12 @@ export default function POSPage() {
     // La sincronización con Neon ocurre en segundo plano (syncManager).
     addSale(saleData);
 
-    // Descontar stock localmente al instante
+    // Descontar stock en la UI al instante (solo local — el servidor ya lo descuenta de
+    // forma atómica dentro de la MISMA transacción que crea la venta, ver api/sales.ts,
+    // así que no hace falta ni conviene mandar un PATCH de stock aparte desde aquí).
     items.forEach((item) => {
-      adjustStock(item.product.id, currentBranchId!, -item.quantity);
-      item.modifiers.toppings.forEach((t) => adjustToppingStock(t.id, currentBranchId!, -item.quantity));
+      applyLocalStockDelta(item.product.id, currentBranchId!, -item.quantity);
+      item.modifiers.toppings.forEach((t) => applyLocalToppingStockDelta(t.id, currentBranchId!, -item.quantity));
     });
 
     clearCart();

@@ -17,12 +17,11 @@ interface StaffState {
   users: User[];
   hydrated: boolean;
   fetchAll: () => Promise<void>;
-  addUser: (data: StaffFormData) => User;
-  updateUser: (id: string, data: StaffFormData) => void;
+  addUser: (data: StaffFormData) => Promise<User>;
+  updateUser: (id: string, data: Partial<StaffFormData>) => Promise<void>;
   toggleBlocked: (id: string) => void;
-  resetPin: (id: string, pin: string) => void;
-  removeUser: (id: string) => void;
-  isPinTaken: (pin: string, excludeId?: string) => boolean;
+  resetPin: (id: string, pin: string) => Promise<void>;
+  removeUser: (id: string) => Promise<void>;
 }
 
 export const useStaffStore = create<StaffState>()((set, get) => ({
@@ -38,15 +37,19 @@ export const useStaffStore = create<StaffState>()((set, get) => ({
     }
   },
 
-  addUser: (data) => {
+  // addUser/updateUser/resetPin NO son optimistas: el servidor puede rechazar el PIN por
+  // duplicado (409) y, como ya no viaja ningún PIN existente al navegador (ver
+  // GET /api/staff), no hay forma de detectar el choque ANTES de mandarlo — se espera la
+  // respuesta real y se propaga el error para que el formulario lo muestre.
+  addUser: async (data) => {
     const user: User = { ...data, id: uid('user'), status: 'activo', createdAt: new Date().toISOString() };
-    set((state) => ({ users: [...state.users, user] }));
-    api.staff.create(user).catch((err) => console.error('No se pudo crear el usuario:', err));
-    return user;
+    const created = await api.staff.create(user);
+    set((state) => ({ users: [...state.users, created] }));
+    return created;
   },
-  updateUser: (id, data) => {
-    set((state) => ({ users: state.users.map((u) => (u.id === id ? { ...u, ...data } : u)) }));
-    api.staff.update(id, data).catch((err) => console.error('No se pudo actualizar el usuario:', err));
+  updateUser: async (id, data) => {
+    const updated = await api.staff.update(id, data);
+    set((state) => ({ users: state.users.map((u) => (u.id === id ? updated : u)) }));
   },
   toggleBlocked: (id) => {
     const user = get().users.find((u) => u.id === id);
@@ -55,15 +58,14 @@ export const useStaffStore = create<StaffState>()((set, get) => ({
     set((state) => ({ users: state.users.map((u) => (u.id === id ? { ...u, status } : u)) }));
     api.staff.update(id, { status }).catch((err) => console.error('No se pudo actualizar el estado:', err));
   },
-  resetPin: (id, pin) => {
-    set((state) => ({ users: state.users.map((u) => (u.id === id ? { ...u, pin } : u)) }));
-    api.staff.update(id, { pin }).catch((err) => console.error('No se pudo restablecer el PIN:', err));
+  resetPin: async (id, pin) => {
+    await api.staff.update(id, { pin });
   },
-  removeUser: (id) => {
-    // Nunca elimina al administrador principal, aunque coincida el id (el backend
-    // también lo rechaza — esto es solo para que la UI reaccione al instante).
+  removeUser: async (id) => {
+    // No optimista: el servidor puede rechazar el borrado (ej. tiene gastos registrados),
+    // y si se quita de la lista antes de tiempo la UI muestra "eliminado" cuando en
+    // realidad sigue en la base de datos (reaparecía confuso en el siguiente poll).
+    await api.staff.remove(id);
     set((state) => ({ users: state.users.filter((u) => !(u.id === id && !u.protected)) }));
-    api.staff.remove(id).catch((err) => console.error('No se pudo eliminar el usuario:', err));
   },
-  isPinTaken: (pin, excludeId) => get().users.some((u) => u.pin === pin && u.id !== excludeId),
 }));

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { Coupon } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
@@ -15,8 +16,11 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   const validateCode = typeof req.query.validate === 'string' ? req.query.validate : undefined;
   const branchIdQ = typeof req.query.branchId === 'string' ? req.query.branchId : null;
 
-  // GET /api/coupons?validate=CODE&branchId=X — valida si un cupón es canjeado, sin quemarlo
+  // GET /api/coupons?validate=CODE&branchId=X — valida si un cupón es canjeado, sin quemarlo.
+  // Requiere estar logueado (cualquier rol) para no dejar sondear códigos sin ni siquiera
+  // haber iniciado sesión, pero no requiere admin: lo usa el cajero en el checkout.
   if (req.method === 'GET' && validateCode) {
+    if (!requireAuth(req, res)) return;
     const coupon = await queryOne<Coupon>(
       `SELECT ${SELECT_COLUMNS} FROM coupons WHERE UPPER(code) = UPPER($1)`,
       [validateCode]
@@ -46,6 +50,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(coupon);
     return;
   }
+
+  // Todo lo demás (listar todos los cupones, crear/editar/borrar) es exclusivo de admin.
+  if (!requireAdmin(req, res)) return;
 
   // GET /api/coupons — lista para admin
   if (req.method === 'GET' && !id) {

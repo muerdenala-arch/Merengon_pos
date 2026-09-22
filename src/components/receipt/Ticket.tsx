@@ -75,9 +75,27 @@ export function Ticket({ sale, onClose }: TicketProps) {
           </div>
           <div className="mt-1 flex justify-between text-ink-muted">
             <span>Pago</span>
-            <span className="uppercase">{sale.payment.method === 'efectivo' ? 'Efectivo' : APP_CONFIG.qrProviderLabel}</span>
+            <span className="uppercase">
+              {sale.payment.method === 'efectivo'
+                ? 'Efectivo'
+                : sale.payment.method === 'mixto'
+                  ? `Mixto (${APP_CONFIG.qrProviderLabel} + Efectivo)`
+                  : APP_CONFIG.qrProviderLabel}
+            </span>
           </div>
-          {sale.payment.method === 'qr' && (
+          {sale.payment.method === 'mixto' && (
+            <>
+              <div className="flex justify-between text-ink-muted">
+                <span>· Efectivo</span>
+                <span>{formatCurrency(sale.payment.amountEfectivo ?? 0)}</span>
+              </div>
+              <div className="flex justify-between text-ink-muted">
+                <span>· {APP_CONFIG.qrProviderLabel}</span>
+                <span>{formatCurrency(sale.payment.amountQr ?? 0)}</span>
+              </div>
+            </>
+          )}
+          {(sale.payment.method === 'qr' || sale.payment.method === 'mixto') && (
             <div className="flex justify-between text-ink-muted">
               <span>Comprobante</span>
               <span>{sale.payment.receiptImage ? 'Adjunto' : 'Sin adjuntar'}</span>

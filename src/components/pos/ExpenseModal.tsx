@@ -23,7 +23,7 @@ export function ExpenseModal({ isOpen, onClose }: ExpenseModalProps) {
   const addExpense = useExpenseStore(s => s.addExpense);
   const currentUser = useAuthStore(s => s.currentUser);
   const currentBranchId = useAuthStore(s => s.currentBranchId);
-  const activeSession = useRegisterStore(s => s.activeSession());
+  const activeSession = useRegisterStore(s => s.activeSession(currentBranchId));
 
   if (!isOpen) return null;
 

@@ -4,6 +4,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { CashRegisterSession, QrCode } from '../src/types/index.js';
 
 // ── Register Sessions ─────────────────────────────────────────────────────────
@@ -24,8 +25,17 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
     );
     res.status(200).json(sessions); return;
   }
+  if (req.method !== 'GET' && !requireAuth(req, res)) return;
+
   if (req.method === 'POST' && !id) {
     const body = requireBody<CashRegisterSession>(req);
+    // Idempotencia: si el id ya existe (reintento de la cola offline tras un timeout de
+    // red tras un INSERT que sí llegó a commitear), devolver la existente con 409 en vez de
+    // "insert on conflict do nothing" — eso devolvía 0 filas y el cliente recibía `undefined`.
+    const existing = await query<CashRegisterSession>(
+      `select ${SESSION_COLS} from register_sessions where id = $1`, [body.id],
+    );
+    if (existing.length > 0) { res.status(409).json(existing[0]); return; }
     const rows = await query<CashRegisterSession>(
       `insert into register_sessions (id, cashier_id, cashier_name, branch_id, opening_amount, notes)
        values ($1,$2,$3,$4,$5,$6) on conflict (id) do nothing returning ${SESSION_COLS}`,
@@ -39,17 +49,25 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
       salesCount: number; cashSalesTotal: number; qrSalesTotal: number; notes?: string;
     }>(req);
     const difference = body.closingAmountCounted - body.expectedAmount;
+    // WHERE status='abierta': un reintento (doble tap, red lenta, cola offline) de un cierre
+    // YA aplicado no debe volver a escribir — eso sobreescribiría el arqueo original (montos
+    // contados, diferencia) sin dejar rastro de que pasó. Si ya está cerrada, se devuelve tal
+    // cual está (idempotente) en vez de un error o de un segundo cierre silencioso.
     const session = await queryOne<CashRegisterSession>(
       `update register_sessions set status='cerrada', closed_at=now(),
          closing_amount_counted=$2, expected_amount=$3, difference=$4,
          sales_total=$5, sales_count=$6, cash_sales_total=$7, qr_sales_total=$8,
          notes=coalesce($9, notes)
-       where id=$1 returning ${SESSION_COLS}`,
+       where id=$1 and status='abierta' returning ${SESSION_COLS}`,
       [id, body.closingAmountCounted, body.expectedAmount, difference,
        body.salesTotal, body.salesCount, body.cashSalesTotal, body.qrSalesTotal, body.notes ?? null],
     );
-    if (!session) { res.status(404).json({ error: 'Sesión de caja no encontrada' }); return; }
-    res.status(200).json(session); return;
+    if (session) { res.status(200).json(session); return; }
+    const alreadyClosed = await queryOne<CashRegisterSession>(
+      `select ${SESSION_COLS} from register_sessions where id=$1`, [id],
+    );
+    if (!alreadyClosed) { res.status(404).json({ error: 'Sesión de caja no encontrada' }); return; }
+    res.status(200).json(alreadyClosed); return;
   }
   methodNotAllowed(res, ['GET','POST','PATCH']);
 }
@@ -67,6 +85,8 @@ async function qrCodesHandler(req: VercelRequest, res: VercelResponse) {
     const qrCodes = await query<QrCode>(`select ${QR_COLS} from qr_codes order by created_at desc`);
     res.status(200).json(qrCodes); return;
   }
+  if (req.method !== 'GET' && !requireAdmin(req, res)) return;
+
   if (req.method === 'POST' && !id) {
     const body = requireBody<QrCode>(req);
     const [{ count }] = await query<{ count: string }>(

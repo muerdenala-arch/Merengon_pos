@@ -14,7 +14,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 export default function CashOpenPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
-  const activeSession = useRegisterStore((s) => s.activeSession());
+  const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const openRegister = useRegisterStore((s) => s.openRegister);
   const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const [amount, setAmount] = useState('');
@@ -60,7 +60,7 @@ export default function CashOpenPage() {
 
           <NumericKeypad
             extraKey="."
-            onDigit={(d) => setAmount((prev) => (prev + d).slice(0, 8))}
+            onDigit={(d) => setAmount((prev) => (d === '.' && prev.includes('.') ? prev : (prev + d).slice(0, 8)))}
             onBackspace={() => setAmount((p) => p.slice(0, -1))}
             onClear={() => setAmount('')}
           />

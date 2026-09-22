@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { Sale, CashRegisterSession } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
@@ -18,6 +19,10 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     const { action, startDate, endDate, branchId } = req.query;
 
     if (action === 'reports') {
+      // Los reportes de facturación son exclusivos de admin — la lista default de abajo
+      // sigue pública porque la usa la pantalla de login para hidratar antes de autenticar
+      // (ver src/hooks/useDataSync.ts) y para que el cajero calcule el total de su turno.
+      if (!requireAdmin(req, res)) return;
       if (!startDate || !endDate) {
         res.status(400).json({ error: 'startDate and endDate are required' });
         return;
@@ -126,7 +131,28 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
+    if (!requireAuth(req, res)) return;
     const body = requireBody<Omit<Sale, 'ticketNumber'>>(req);
+
+    // Saneamiento de montos: el cliente ya calculó todo (promos/cupones incluidos), pero
+    // no se confía a ciegas — si el subtotal/total no cuadra aritméticamente con los ítems
+    // (precio desincronizado, bug de UI, o un POST armado a mano) se rechaza con 400 en vez
+    // de grabar un monto arbitrario que luego descuadra la caja y los reportes.
+    const items = Array.isArray(body.items) ? body.items : [];
+    const computedSubtotal = items.reduce(
+      (sum, it) => sum + (typeof it.lineTotal === 'number' ? it.lineTotal : it.unitPrice * it.quantity),
+      0,
+    );
+    const TOLERANCE = 0.05;
+    if (Math.abs(computedSubtotal - body.subtotal) > TOLERANCE) {
+      res.status(400).json({ error: 'El subtotal no coincide con los ítems de la venta.' });
+      return;
+    }
+    const expectedTotal = Math.max(0, body.subtotal - (body.discountAmount ?? 0));
+    if (body.total < -TOLERANCE || Math.abs(expectedTotal - body.total) > TOLERANCE) {
+      res.status(400).json({ error: 'El total no coincide con el subtotal y el descuento de la venta.' });
+      return;
+    }
 
     const rows = await withTransaction(async (tx) => {
       // Idempotencia: si el id ya existe (reintento de la cola offline),
@@ -138,6 +164,34 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       if (existing.length > 0) {
         res.status(409).json(existing[0]);
         return null;
+      }
+
+      // Descontar stock ATÓMICAMENTE (jsonb_set dentro del propio UPDATE, no lectura+escritura
+      // en JS) y en la MISMA transacción que la venta — así ninguna venta queda registrada sin
+      // su descuento de stock, ni dos ventas concurrentes se pisan el stock entre sí (ver
+      // scripts/fix_stock.ts, scripts/clear_bodega.ts: así se corrompió el stock antes).
+      for (const item of items) {
+        await tx(
+          `UPDATE products SET stock_by_branch = jsonb_set(
+             coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
+             to_jsonb(GREATEST(0, COALESCE((stock_by_branch->>$2)::int,0) - $3::int))
+           ), updated_at = now() WHERE id = $1`,
+          [item.product.id, body.branchId, item.quantity],
+        );
+        await tx(
+          `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)
+           VALUES ($1,$2,$3,$4,'SALE',$5,$6) ON CONFLICT (id) DO NOTHING`,
+          [`sm_${body.id}_${item.lineId}`, item.product.id, body.branchId, -item.quantity, `Venta ${body.id}`, body.cashierId],
+        );
+        for (const topping of item.modifiers?.toppings ?? []) {
+          await tx(
+            `UPDATE toppings SET stock_by_branch = jsonb_set(
+               coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
+               to_jsonb(GREATEST(0, COALESCE((stock_by_branch->>$2)::int,0) - $3::int))
+             ), updated_at = now() WHERE id = $1`,
+            [topping.id, body.branchId, item.quantity],
+          );
+        }
       }
 
       // Quemar el cupón atómicamente si fue utilizado en esta venta

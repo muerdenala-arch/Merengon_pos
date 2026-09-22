@@ -8,10 +8,12 @@ import { Button } from '@/components/ui/Button';
 import { useRegisterStore } from '@/store/registerStore';
 import { useSalesStore } from '@/store/salesStore';
 import { useExpenseStore } from '@/store/expenseStore';
+import { useAuthStore } from '@/store/authStore';
 import { cn, formatCurrency } from '@/lib/utils';
 
 export default function CashClosePage() {
-  const activeSession = useRegisterStore((s) => s.activeSession());
+  const currentBranchId = useAuthStore((s) => s.currentBranchId);
+  const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const closeRegister = useRegisterStore((s) => s.closeRegister);
   const salesForSession = useSalesStore((s) => s.salesForSession);
   const fetchSales = useSalesStore((s) => s.fetchAll);
@@ -125,7 +127,7 @@ export default function CashClosePage() {
 
           <NumericKeypad
             extraKey="."
-            onDigit={(d) => setCounted((prev) => (prev + d).slice(0, 8))}
+            onDigit={(d) => setCounted((prev) => (d === '.' && prev.includes('.') ? prev : (prev + d).slice(0, 8)))}
             onBackspace={() => setCounted((p) => p.slice(0, -1))}
             onClear={() => setCounted('')}
           />

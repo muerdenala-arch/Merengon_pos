@@ -46,8 +46,8 @@ export default function LoginPage() {
     setPin(next);
     if (next.length === 4) {
       // Pequeña pausa para que el último punto se vea antes de autenticar.
-      setTimeout(() => {
-        const ok = loginWithPin(next);
+      setTimeout(async () => {
+        const ok = await loginWithPin(next);
         if (!ok) setPin('');
       }, 140);
     }

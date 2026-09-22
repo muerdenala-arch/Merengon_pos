@@ -21,6 +21,11 @@ interface CatalogState {
   setStock: (id: string, branchId: string, value: number) => void;
   adjustToppingStock: (id: string, branchId: string, delta: number) => void;
   setToppingStock: (id: string, branchId: string, value: number) => void;
+  /** Solo actualiza el estado local (sin red) — para reflejar al instante un descuento de
+   *  stock que el SERVIDOR ya aplicó atómicamente como parte de otra operación (ej. una
+   *  venta: ver api/sales.ts). No usar para ajustes que deban persistirse por su cuenta. */
+  applyLocalStockDelta: (id: string, branchId: string, delta: number) => void;
+  applyLocalToppingStockDelta: (id: string, branchId: string, delta: number) => void;
   stockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string) => number;
   /** CRUD de toppings */
   createTopping: (data: Omit<Topping, 'id'>) => Topping;
@@ -97,39 +102,80 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
     set((state) => ({ products: state.products.map((p) => (p.id === id ? { ...p, active } : p)) }));
     api.products.update(id, { active }).catch((err) => console.error('No se pudo actualizar el producto:', err));
   },
+  // Los 4 métodos de abajo mandan `stockOp` (ajuste atómico de UNA sucursal resuelto en la
+  // propia query SQL) en vez del objeto `stockByBranch` completo — así dos ajustes
+  // concurrentes (dos cajeros, o un cajero + un retiro de bodega) nunca se pisan entre sí
+  // ni pisan el stock de otras sucursales. El estado local se actualiza optimistamente para
+  // que la UI responda al instante, y se reconcilia con lo que devuelve el servidor.
   adjustStock: (id, branchId, delta) => {
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
-    const stockByBranch = {
-      ...product.stockByBranch,
-      [branchId]: Math.max(0, (product.stockByBranch[branchId] ?? 0) + delta),
-    };
-    set((state) => ({ products: state.products.map((p) => (p.id === id ? { ...p, stockByBranch } : p)) }));
-    api.products.update(id, { stockByBranch }).catch((err) => console.error('No se pudo ajustar el stock:', err));
+    const optimistic = Math.max(0, (product.stockByBranch[branchId] ?? 0) + delta);
+    set((state) => ({
+      products: state.products.map((p) =>
+        p.id === id ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: optimistic } } : p,
+      ),
+    }));
+    api.products.update(id, { stockOp: { branchId, delta } })
+      .then((updated) => set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) })))
+      .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
   setStock: (id, branchId, value) => {
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
-    const stockByBranch = { ...product.stockByBranch, [branchId]: Math.max(0, value) };
-    set((state) => ({ products: state.products.map((p) => (p.id === id ? { ...p, stockByBranch } : p)) }));
-    api.products.update(id, { stockByBranch }).catch((err) => console.error('No se pudo ajustar el stock:', err));
+    const optimistic = Math.max(0, value);
+    set((state) => ({
+      products: state.products.map((p) =>
+        p.id === id ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: optimistic } } : p,
+      ),
+    }));
+    api.products.update(id, { stockOp: { branchId, set: value } })
+      .then((updated) => set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) })))
+      .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
   adjustToppingStock: (id, branchId, delta) => {
     const topping = get().toppings.find((t) => t.id === id);
     if (!topping) return;
-    const stockByBranch = {
-      ...topping.stockByBranch,
-      [branchId]: Math.max(0, (topping.stockByBranch[branchId] ?? 0) + delta),
-    };
-    set((state) => ({ toppings: state.toppings.map((t) => (t.id === id ? { ...t, stockByBranch } : t)) }));
-    api.toppings.update(id, { stockByBranch }).catch((err) => console.error('No se pudo ajustar el stock:', err));
+    const optimistic = Math.max(0, (topping.stockByBranch[branchId] ?? 0) + delta);
+    set((state) => ({
+      toppings: state.toppings.map((t) =>
+        t.id === id ? { ...t, stockByBranch: { ...t.stockByBranch, [branchId]: optimistic } } : t,
+      ),
+    }));
+    api.toppings.update(id, { stockOp: { branchId, delta } })
+      .then((updated) => set((state) => ({ toppings: state.toppings.map((t) => (t.id === id ? updated : t)) })))
+      .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
   setToppingStock: (id, branchId, value) => {
     const topping = get().toppings.find((t) => t.id === id);
     if (!topping) return;
-    const stockByBranch = { ...topping.stockByBranch, [branchId]: Math.max(0, value) };
-    set((state) => ({ toppings: state.toppings.map((t) => (t.id === id ? { ...t, stockByBranch } : t)) }));
-    api.toppings.update(id, { stockByBranch }).catch((err) => console.error('No se pudo ajustar el stock:', err));
+    const optimistic = Math.max(0, value);
+    set((state) => ({
+      toppings: state.toppings.map((t) =>
+        t.id === id ? { ...t, stockByBranch: { ...t.stockByBranch, [branchId]: optimistic } } : t,
+      ),
+    }));
+    api.toppings.update(id, { stockOp: { branchId, set: value } })
+      .then((updated) => set((state) => ({ toppings: state.toppings.map((t) => (t.id === id ? updated : t)) })))
+      .catch((err) => console.error('No se pudo ajustar el stock:', err));
+  },
+  applyLocalStockDelta: (id, branchId, delta) => {
+    set((state) => ({
+      products: state.products.map((p) =>
+        p.id === id
+          ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: Math.max(0, (p.stockByBranch[branchId] ?? 0) + delta) } }
+          : p,
+      ),
+    }));
+  },
+  applyLocalToppingStockDelta: (id, branchId, delta) => {
+    set((state) => ({
+      toppings: state.toppings.map((t) =>
+        t.id === id
+          ? { ...t, stockByBranch: { ...t.stockByBranch, [branchId]: Math.max(0, (t.stockByBranch[branchId] ?? 0) + delta) } }
+          : t,
+      ),
+    }));
   },
   stockFor: (product, branchId) => product.stockByBranch[branchId] ?? 0,
 

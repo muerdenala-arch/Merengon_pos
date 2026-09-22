@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAdmin } from './_lib/auth.js';
 import type { Branch } from '../src/types/index.js';
 
 // Un solo archivo maneja la colección (/api/branches) y un ítem puntual
@@ -17,6 +18,9 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(branches);
     return;
   }
+
+  // Crear/editar/borrar sucursales es exclusivo de administradores.
+  if (req.method !== 'GET' && !requireAdmin(req, res)) return;
 
   if (req.method === 'POST' && !id) {
     const body = requireBody<Branch>(req);
@@ -53,12 +57,28 @@ async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'DELETE' && id) {
+    // Nunca se borra una sucursal con historial financiero: ventas, cajas o gastos
+    // registrados son datos del negocio y no se destruyen por una acción administrativa
+    // de "eliminar sucursal" (evita perder contabilidad real por error o por reintento).
+    const [{ count: salesCount }] = await query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM sales WHERE branch_id = $1', [id],
+    );
+    const [{ count: sessionsCount }] = await query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM register_sessions WHERE branch_id = $1', [id],
+    );
+    const [{ count: expensesCount }] = await query<{ count: string }>(
+      'SELECT count(*)::text AS count FROM expenses WHERE branch_id = $1', [id],
+    );
+    if (Number(salesCount) > 0 || Number(sessionsCount) > 0 || Number(expensesCount) > 0) {
+      res.status(409).json({
+        error: 'No se puede eliminar esta sucursal: tiene ventas, cajas o gastos registrados. ' +
+          'Desactívala en su lugar (editar → inactiva) para conservar el historial.',
+      });
+      return;
+    }
+
     try {
       await withTransaction(async (tx) => {
-        // 1. Delete historical financial records (User explicitly requested hard delete)
-        await tx('DELETE FROM sales WHERE branch_id = $1', [id]);
-        await tx('DELETE FROM register_sessions WHERE branch_id = $1', [id]);
-        
         // 2. Delete QR codes linked to the branch
         await tx('DELETE FROM qr_codes WHERE branch_id = $1', [id]);
         

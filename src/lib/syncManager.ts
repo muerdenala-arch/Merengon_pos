@@ -9,20 +9,34 @@
  * NO importa salesStore directamente para evitar dependencia circular.
  * En cambio, el salesStore se registra mediante setSaleConfirmCallback().
  */
-import { enqueueSale, enqueueExpense, getPendingQueue, removePendingEntry, incrementRetry, getPendingCount } from './offlineDb';
-import type { Sale, Expense } from '@/types';
+import {
+  enqueueSale, enqueueExpense, enqueueSessionOpen, enqueueSessionClose,
+  getPendingQueue, removePendingEntry, incrementRetry, getPendingCount,
+  type SessionOpenPayload, type SessionClosePayload,
+} from './offlineDb';
+import type { Sale, Expense, CashRegisterSession } from '@/types';
+import { getAuthHeaders } from '@/lib/api';
 
 type SyncListener = (pendingCount: number, isOnline: boolean) => void;
 type ConfirmCallback = (localId: string, confirmedSale: Sale) => void;
+type SessionSyncedCallback = (session: CashRegisterSession) => void;
 
-const MAX_RETRIES = 5;
+// Nunca se descartan ventas/gastos/cajas sin sincronizar solo por agotar reintentos — son
+// datos reales de dinero, no basura de cola. En vez de eso, tras MAX_RETRIES se espacian los
+// reintentos (backoff) para no martillar al servidor, pero la entrada queda visible en el
+// contador de pendientes hasta que sincroniza (o un admin la revisa).
+const MAX_FAST_RETRIES = 5;
 const RETRY_INTERVAL_MS = 30_000; // reintenta cada 30s mientras haya internet
+const SLOW_RETRY_INTERVAL_MS = 5 * 60_000; // tras agotar los reintentos rápidos, cada 5min
+const MIN_ATTEMPT_GAP_MS = 15_000; // no reintentar la misma entrada más seguido que esto
 const listeners: SyncListener[] = [];
 
 let _started = false;
 let _isFlushing = false;
 let _retryTimer: ReturnType<typeof setInterval> | null = null;
 let _confirmCallback: ConfirmCallback | null = null;
+let _sessionOpenSyncedCallback: SessionSyncedCallback | null = null;
+let _sessionCloseSyncedCallback: SessionSyncedCallback | null = null;
 
 /**
  * Llamar desde salesStore para registrar la función que actualiza
@@ -30,6 +44,15 @@ let _confirmCallback: ConfirmCallback | null = null;
  */
 export function setSaleConfirmCallback(cb: ConfirmCallback) {
   _confirmCallback = cb;
+}
+
+/** Llamar desde registerStore para enterarse cuando una apertura/cierre encolado
+ *  finalmente se confirma contra el servidor (útil para reconciliar el id/estado local). */
+export function setSessionOpenSyncedCallback(cb: SessionSyncedCallback) {
+  _sessionOpenSyncedCallback = cb;
+}
+export function setSessionCloseSyncedCallback(cb: SessionSyncedCallback) {
+  _sessionCloseSyncedCallback = cb;
 }
 
 export function onSyncStateChange(cb: SyncListener) {
@@ -50,7 +73,7 @@ async function pushSale(sale: Sale): Promise<Sale | null> {
   try {
     const res = await fetch('/api/sales', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(sale),
       signal: AbortSignal.timeout(12000),
     });
@@ -71,7 +94,7 @@ async function pushExpense(expense: Expense): Promise<Expense | null> {
   try {
     const res = await fetch('/api/expenses', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(expense),
       signal: AbortSignal.timeout(12000),
     });
@@ -83,6 +106,43 @@ async function pushExpense(expense: Expense): Promise<Expense | null> {
       return null;
     }
     return (await res.json()) as Expense;
+  } catch {
+    return null;
+  }
+}
+
+async function pushSessionOpen(payload: SessionOpenPayload): Promise<CashRegisterSession | null> {
+  try {
+    const res = await fetch('/api/register-sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) {
+      if (res.status === 409) {
+        const existing = await res.json().catch(() => null);
+        return existing as CashRegisterSession | null;
+      }
+      return null;
+    }
+    return (await res.json()) as CashRegisterSession;
+  } catch {
+    return null;
+  }
+}
+
+async function pushSessionClose(payload: SessionClosePayload): Promise<CashRegisterSession | null> {
+  try {
+    const { id, ...data } = payload;
+    const res = await fetch(`/api/register-sessions?id=${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as CashRegisterSession;
   } catch {
     return null;
   }
@@ -102,12 +162,14 @@ export async function flushQueue(): Promise<void> {
     for (const entry of queue) {
       if (!navigator.onLine) break;
 
-      // Entradas que superaron el límite: se eliminan definitivamente para no
-      // bloquear el vaciado de la cola por siempre.
-      if (entry.retryCount >= MAX_RETRIES) {
-        console.error('[SyncManager] Entrada descartada tras demasiados reintentos:', entry.id);
-        await removePendingEntry(entry.id);
-        continue;
+      // Backoff: no martillar una entrada que ya falló recientemente en este mismo flush
+      // (evita quemar reintentos solo porque el cajero siguió vendiendo y cada venta nueva
+      // dispara flushQueue()). Tras agotar los reintentos "rápidos" se espacia aún más, pero
+      // la entrada NUNCA se borra sola: son ventas/gastos/cajas reales, no basura de cola.
+      if (entry.lastAttemptAt) {
+        const sinceLast = Date.now() - new Date(entry.lastAttemptAt).getTime();
+        const requiredGap = entry.retryCount >= MAX_FAST_RETRIES ? SLOW_RETRY_INTERVAL_MS : MIN_ATTEMPT_GAP_MS;
+        if (sinceLast < requiredGap) continue;
       }
 
       let success = false;
@@ -123,12 +185,30 @@ export async function flushQueue(): Promise<void> {
         if (confirmedExpense) {
           success = true;
         }
+      } else if (entry.type === 'session-open' && entry.sessionOpen) {
+        const confirmedSession = await pushSessionOpen(entry.sessionOpen);
+        if (confirmedSession) {
+          _sessionOpenSyncedCallback?.(confirmedSession);
+          success = true;
+        }
+      } else if (entry.type === 'session-close' && entry.sessionClose) {
+        const confirmedSession = await pushSessionClose(entry.sessionClose);
+        if (confirmedSession) {
+          _sessionCloseSyncedCallback?.(confirmedSession);
+          success = true;
+        }
       }
 
       if (success) {
         await removePendingEntry(entry.id);
       } else {
         await incrementRetry(entry.id);
+        if (entry.retryCount + 1 === MAX_FAST_RETRIES) {
+          console.warn(
+            `[SyncManager] "${entry.id}" (${entry.type}) lleva ${MAX_FAST_RETRIES} intentos fallidos — ` +
+            'se sigue reintentando cada 5min, pero puede necesitar revisión manual.',
+          );
+        }
       }
     }
   } finally {
@@ -145,6 +225,18 @@ export async function submitSale(sale: Sale): Promise<void> {
 
 export async function submitExpense(expense: Expense): Promise<void> {
   await enqueueExpense(expense);
+  await notifyListeners();
+  flushQueue().catch(console.error);
+}
+
+export async function submitSessionOpen(payload: SessionOpenPayload): Promise<void> {
+  await enqueueSessionOpen(payload);
+  await notifyListeners();
+  flushQueue().catch(console.error);
+}
+
+export async function submitSessionClose(payload: SessionClosePayload): Promise<void> {
+  await enqueueSessionClose(payload);
   await notifyListeners();
   flushQueue().catch(console.error);
 }

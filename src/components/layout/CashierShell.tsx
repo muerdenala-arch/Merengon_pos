@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, MapPin, Wallet, WifiOff, RefreshCw, Receipt } from 'lucide-react';
+import { LogOut, MapPin, Wallet, WifiOff, RefreshCw, Receipt, ArrowLeft, MoreVertical, PackageOpen } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -15,13 +15,12 @@ import { cn } from '@/lib/utils';
 import { onSyncStateChange } from '@/lib/syncManager';
 import { ExpenseModal } from '@/components/pos/ExpenseModal';
 import { BodegaWithdrawalModal } from '@/components/pos/BodegaWithdrawalModal';
-import { PackageOpen } from 'lucide-react';
 
 export function CashierShell({ children }: { children: ReactNode }) {
   const currentUser = useAuthStore((s) => s.currentUser);
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
   const logout = useAuthStore((s) => s.logout);
-  const activeSession = useRegisterStore((s) => s.activeSession());
+  const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
   const navigate = useNavigate();
 
@@ -29,6 +28,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isBodegaModalOpen, setIsBodegaModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSyncStateChange((count, online) => {
@@ -110,52 +110,78 @@ export function CashierShell({ children }: { children: ReactNode }) {
           )}
         </div>
 
-        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3">
-          {activeSession && (
-            <>
-              <button
-                onClick={() => setIsBodegaModalOpen(true)}
-                className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-primary-200 bg-primary-50 px-2.5 text-sm font-semibold text-primary-700 transition-colors hover:border-primary-300 hover:bg-primary-100 sm:px-3.5 dark:border-primary-900/50 dark:bg-primary-900/20 dark:text-primary-400 dark:hover:bg-primary-900/40"
-              >
-                <PackageOpen size={18} className="flex-shrink-0" />
-                <span className="hidden sm:inline">📦 Bodega</span>
-              </button>
-              <button
-                onClick={() => setIsExpenseModalOpen(true)}
-                className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-red-200 bg-red-50 px-2.5 text-sm font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 sm:px-3.5 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-              >
-                <Receipt size={18} className="flex-shrink-0" />
-                <span className="hidden sm:inline">Registrar Gasto</span>
-              </button>
-            </>
-          )}
-          <Link
-            to={activeSession ? '/caja/cierre' : '/caja/apertura'}
-            aria-label={activeSession ? 'Cerrar caja' : 'Abrir caja'}
-            className="flex h-11 flex-shrink-0 items-center gap-1.5 rounded-xl border-2 border-border px-2.5 text-sm font-semibold text-ink-muted transition-colors hover:border-primary-300 hover:text-primary-700 sm:px-3.5"
+        <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-3 relative">
+          <button
+            onClick={() => navigate(-1)}
+            aria-label="Volver atrás"
+            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-border bg-surface text-ink-muted transition-colors hover:border-primary-300 hover:text-primary-700"
           >
-            <Wallet size={18} className="flex-shrink-0" />
-            <span className="hidden sm:inline">{activeSession ? 'Cerrar caja' : 'Abrir caja'}</span>
-          </Link>
+            <ArrowLeft size={20} />
+          </button>
+          
           <div className="flex flex-shrink-0 items-center gap-2 rounded-full bg-cream-300 py-1.5 pl-1.5 pr-1.5 sm:pr-3">
             <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${currentUser?.color}`}>
               {currentUser?.name.charAt(0)}
             </div>
             <span className="hidden text-sm font-semibold text-ink sm:inline">{currentUser?.name.split(' ')[0]}</span>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => {
-              useCartStore.getState().clear();
-              useCouponStore.getState().removeCoupon();
-              logout();
-              navigate('/login');
-            }}
-            aria-label="Cerrar sesión"
-            className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
-          >
-            <LogOut size={20} />
-          </motion.button>
+
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Menú de opciones"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border-2 border-border bg-surface text-ink-muted transition-colors hover:border-primary-300 hover:text-primary-700"
+            >
+              <MoreVertical size={20} />
+            </button>
+
+            {isMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setIsMenuOpen(false)} 
+                />
+                <div className="absolute right-0 top-full mt-2 w-56 flex flex-col gap-2 rounded-xl border border-border bg-surface p-2 shadow-card z-50">
+                  {activeSession && (
+                    <>
+                      <button
+                        onClick={() => { setIsBodegaModalOpen(true); setIsMenuOpen(false); }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/30 transition-colors"
+                      >
+                        <PackageOpen size={18} /> Bodega
+                      </button>
+                      <button
+                        onClick={() => { setIsExpenseModalOpen(true); setIsMenuOpen(false); }}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 transition-colors"
+                      >
+                        <Receipt size={18} /> Registrar Gasto
+                      </button>
+                    </>
+                  )}
+                  <Link
+                    to={activeSession ? '/caja/cierre' : '/caja/apertura'}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-ink hover:bg-cream-100 transition-colors"
+                  >
+                    <Wallet size={18} /> {activeSession ? 'Cerrar caja' : 'Abrir caja'}
+                  </Link>
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      useCartStore.getState().clear();
+                      useCouponStore.getState().removeCoupon();
+                      logout();
+                      navigate('/login');
+                    }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={18} /> Cerrar sesión
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </header>
       <main className="min-h-0 flex-1 overflow-hidden">{children}</main>

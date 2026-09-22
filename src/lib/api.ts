@@ -14,6 +14,7 @@ import type {
   Category,
   Expense,
   StockMovement,
+  StockOp,
 } from '@/types';
 
 // Si Neon/la función serverless se cuelga (cold start, pool sin responder), sin esto el
@@ -21,6 +22,20 @@ import type {
 // app se queda trabada en "Sincronizando…" sin feedback. Con el timeout, la promesa
 // rechaza a tiempo y cada store puede mostrar el error en vez de esperar para siempre.
 const REQUEST_TIMEOUT_MS = 10000;
+
+// Token de sesión firmado por el servidor (ver api/_lib/auth.ts) — se guarda acá en vez de
+// leer el authStore directamente para evitar un ciclo de imports (authStore -> staffStore
+// -> api.ts -> authStore). authStore llama a setAuthToken() al iniciar sesión, al
+// rehidratarse desde localStorage y al cerrar sesión.
+let _authToken: string | null = null;
+export function setAuthToken(token: string | null) {
+  _authToken = token;
+}
+/** Para llamadas que hacen `fetch` directo en vez de pasar por `request()` (syncManager —
+ *  las ventas/gastos/cajas encoladas offline se mandan fuera de este módulo). */
+export function getAuthHeaders(): Record<string, string> {
+  return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController();
@@ -32,8 +47,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       url.searchParams.append('_t', Date.now().toString());
     }
 
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (_authToken) headers.Authorization = `Bearer ${_authToken}`;
+
     const res = await fetch(url.pathname + url.search, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       signal: controller.signal,
       ...options,
     });
@@ -75,17 +93,22 @@ export const api = {
     create: (data: Omit<User, 'status' | 'createdAt' | 'protected'>) => post<User>('/staff', data),
     update: (id: string, data: Partial<User>) => patch<User>(withId('/staff', id), data),
     remove: (id: string) => del(withId('/staff', id)),
+    /** Login real: el PIN se valida en el servidor, que devuelve el usuario (sin pin) +
+     *  un token firmado. Reemplaza la comparación de PIN en el navegador. */
+    login: (pin: string) => post<{ user: User; token: string }>('/staff?action=login', { pin }),
   },
   products: {
     list: () => get<Product[]>('/products'),
     create: (data: Product) => post<Product>('/products', data),
-    update: (id: string, data: Partial<Product>) => patch<Product>(withId('/products', id), data),
+    update: (id: string, data: Partial<Product> & { stockOp?: StockOp }) =>
+      patch<Product>(withId('/products', id), data),
     remove: (id: string) => del(withId('/products', id)),
   },
   toppings: {
     list: () => get<Topping[]>('/toppings'),
     create: (data: Topping) => post<Topping>('/toppings', data),
-    update: (id: string, data: Partial<Topping>) => patch<Topping>(withId('/toppings', id), data),
+    update: (id: string, data: Partial<Topping> & { stockOp?: StockOp }) =>
+      patch<Topping>(withId('/toppings', id), data),
     remove: (id: string) => del(withId('/toppings', id)),
   },
   qrCodes: {
@@ -161,5 +184,13 @@ export const api = {
       return get<StockMovement[]>(`/stock_movements${query ? `?${query}` : ''}`);
     },
     create: (data: StockMovement) => post<StockMovement>('/stock_movements', data),
+    /** Transferencia atómica de stock entre 2 sucursales (ej. retiro de bodega) — se
+     *  descuenta+acredita+registra el kardex en una sola transacción del servidor. */
+    transfer: (data: {
+      id: string; productId: string; fromBranchId: string; toBranchId: string;
+      quantity: number; userId: string; notes?: string;
+    }) => post<{ alreadyDone: boolean; stockByBranch?: Record<string, number> }>(
+      '/stock_movements?action=transfer', data,
+    ),
   },
 };

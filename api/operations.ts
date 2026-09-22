@@ -2,8 +2,9 @@
  * api/operations.ts — Expenses + Stock Movements + Settings (3 en 1 para el plan Hobby)
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { query } from './_lib/db.js';
+import { query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { Expense } from '../src/types/index.js';
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
@@ -21,6 +22,7 @@ async function expensesHandler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(expenses); return;
   }
   if (req.method === 'POST') {
+    if (!requireAuth(req, res)) return;
     const body = requireBody<Expense>(req);
     if (!body.id || !body.amount || !body.concept || !body.category || !body.userId) {
       res.status(400).json({ error: 'Faltan campos requeridos en el gasto.' }); return;
@@ -52,7 +54,14 @@ const MOVEMENT_COLS = `
   user_id as "userId", created_at as "createdAt"
 `;
 
+interface TransferBody {
+  id: string; productId: string; fromBranchId: string; toBranchId: string;
+  quantity: number; userId: string; notes?: string;
+}
+
 async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
+  const action = typeof req.query.action === 'string' ? req.query.action : undefined;
+
   if (req.method === 'GET') {
     const { branchId, productId, limit = '100' } = req.query;
     let whereClause = 'WHERE 1=1';
@@ -66,7 +75,73 @@ async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
     );
     res.status(200).json(movements); return;
   }
+
+  // POST /api/stock_movements?action=transfer — mueve stock de UNA sucursal a otra (ej.
+  // retiro de bodega) en UNA sola transacción atómica: o se descuenta+acredita+registra
+  // el kardex completo, o no pasa nada. Reemplaza el patrón anterior de 2 PATCH + 2 POST
+  // independientes desde el cliente, donde un fallo de red a mitad de camino hacía
+  // desaparecer stock (descontado de bodega, nunca acreditado a la sucursal).
+  if (req.method === 'POST' && action === 'transfer') {
+    if (!requireAuth(req, res)) return;
+    const body = requireBody<TransferBody>(req);
+    if (!body.id || !body.productId || !body.fromBranchId || !body.toBranchId || !body.userId || !(body.quantity > 0)) {
+      res.status(400).json({ error: 'Faltan campos requeridos para la transferencia.' }); return;
+    }
+    try {
+      const result = await withTransaction(async (tx) => {
+        const existing = await tx<StockMovement>(
+          `SELECT ${MOVEMENT_COLS} FROM stock_movements WHERE id = $1`, [`${body.id}_out`],
+        );
+        if (existing.length > 0) return { alreadyDone: true as const };
+
+        const [product] = await tx<{ stockByBranch: Record<string, number> }>(
+          `SELECT stock_by_branch as "stockByBranch" FROM products WHERE id = $1 FOR UPDATE`,
+          [body.productId],
+        );
+        const available = product ? (product.stockByBranch[body.fromBranchId] ?? 0) : 0;
+        if (available < body.quantity) {
+          throw new Error(`Stock insuficiente en bodega: quedan ${available}.`);
+        }
+
+        await tx(
+          `UPDATE products SET stock_by_branch = jsonb_set(
+             coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
+             to_jsonb(GREATEST(0, COALESCE((stock_by_branch->>$2)::int,0) - $3::int))
+           ), updated_at = now() WHERE id = $1`,
+          [body.productId, body.fromBranchId, body.quantity],
+        );
+        await tx(
+          `UPDATE products SET stock_by_branch = jsonb_set(
+             coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
+             to_jsonb(COALESCE((stock_by_branch->>$2)::int,0) + $3::int)
+           ), updated_at = now() WHERE id = $1`,
+          [body.productId, body.toBranchId, body.quantity],
+        );
+        await tx(
+          `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)
+           VALUES ($1,$2,$3,$4,'MANUAL_ADJUSTMENT',$5,$6)`,
+          [`${body.id}_out`, body.productId, body.fromBranchId, -body.quantity, body.notes ?? 'Retiro hacia sucursal', body.userId],
+        );
+        await tx(
+          `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)
+           VALUES ($1,$2,$3,$4,'RESTOCK',$5,$6)`,
+          [`${body.id}_in`, body.productId, body.toBranchId, body.quantity, body.notes ?? 'Ingreso desde bodega', body.userId],
+        );
+        const [updatedProduct] = await tx<{ stockByBranch: Record<string, number> }>(
+          `SELECT stock_by_branch as "stockByBranch" FROM products WHERE id = $1`, [body.productId],
+        );
+        return { alreadyDone: false as const, stockByBranch: updatedProduct?.stockByBranch ?? {} };
+      });
+      res.status(200).json(result);
+      return;
+    } catch (err) {
+      res.status(409).json({ error: err instanceof Error ? err.message : 'No se pudo completar la transferencia.' });
+      return;
+    }
+  }
+
   if (req.method === 'POST') {
+    if (!requireAdmin(req, res)) return;
     const body = requireBody<StockMovement>(req);
     const rows = await query<StockMovement>(
       `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)
@@ -89,6 +164,7 @@ async function settingsHandler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(toObj(rows)); return;
   }
   if (req.method === 'POST') {
+    if (!requireAdmin(req, res)) return;
     const body = requireBody<Record<string, unknown>>(req);
     for (const [key, value] of Object.entries(body)) {
       await query(

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag, Receipt, Settings, PackageSearch, AlertTriangle } from 'lucide-react';
+import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, Building2, Menu, X, Tag, Receipt, Settings, PackageSearch, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useCatalogStore } from '@/store/catalogStore';
@@ -27,11 +27,12 @@ const NAV_ITEMS = [
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-dvh flex-col bg-cream lg:flex-row">
       {/* Barra superior — solo < lg. El sidebar completo vive en el drawer. */}
-      <header className="flex flex-shrink-0 items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
+      <header className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-surface px-4 py-3 lg:hidden">
         <button
           onClick={() => setMobileNavOpen(true)}
           aria-label="Abrir menú"
@@ -39,14 +40,31 @@ export function AdminShell({ children }: { children: ReactNode }) {
         >
           <Menu size={22} />
         </button>
-        <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm dark:border-primary-900/50">
-          <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
+        
+        <button
+          onClick={() => navigate(-1)}
+          aria-label="Volver atrás"
+          className="flex h-11 w-11 items-center justify-center rounded-xl text-ink-muted transition-colors hover:bg-cream-300 hover:text-ink cursor-pointer"
+        >
+          <ArrowLeft size={22} />
+        </button>
+
+        <div className="ml-auto flex items-center gap-3">
+          <div className="h-8 w-8 flex-shrink-0 overflow-hidden rounded-full border border-primary-200 shadow-sm dark:border-primary-900/50">
+            <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
+          </div>
+          <ThemeToggle />
         </div>
-        <ThemeToggle />
       </header>
 
       {/* Sidebar fijo — solo >= lg. */}
       <aside className="hidden w-64 flex-shrink-0 flex-col border-r border-border bg-surface lg:flex">
+        <div className="flex h-16 shrink-0 items-center px-4">
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-semibold text-ink-muted transition-colors hover:text-primary-600">
+            <ArrowLeft size={18} />
+            Volver
+          </button>
+        </div>
         <AdminSidebarContent />
       </aside>
 

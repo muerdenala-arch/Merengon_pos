@@ -26,7 +26,7 @@ export default function BranchesPage() {
       await deleteBranch(branchToDelete.id);
       setBranchToDelete(null);
     } catch (error) {
-      alert('Hubo un error al eliminar la sucursal.');
+      alert(error instanceof Error ? error.message : 'Hubo un error al eliminar la sucursal.');
     } finally {
       setIsDeleting(false);
     }

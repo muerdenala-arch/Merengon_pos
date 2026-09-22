@@ -14,7 +14,7 @@ interface BodegaWithdrawalModalProps {
 
 export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalProps) {
   const products = useCatalogStore((s) => s.products);
-  const adjustStock = useCatalogStore((s) => s.adjustStock);
+  const applyLocalStockDelta = useCatalogStore((s) => s.applyLocalStockDelta);
   const currentUser = useAuthStore((s) => s.currentUser);
   const currentBranchId = useAuthStore((s) => s.currentBranchId);
   
@@ -36,34 +36,23 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
 
     setLoading(true);
     try {
-      // 1. Restar de bodega localmente
-      adjustStock(selectedProduct.id, 'bodega', -qty);
-      // 2. Sumar a la sucursal actual localmente
-      adjustStock(selectedProduct.id, currentBranchId, qty);
-
-      // 3. Registrar movimiento en BD para bodega (Salida)
-      await api.stockMovements.create({
+      // Transferencia ATÓMICA en el servidor: descuenta de bodega, acredita a la sucursal
+      // y registra el kardex en una sola transacción — si algo falla, no pasa nada (antes
+      // eran 2 PATCH + 2 POST independientes y un corte de red a mitad de camino hacía
+      // desaparecer stock sin dejar rastro).
+      await api.stockMovements.transfer({
         id: uid('mov'),
         productId: selectedProduct.id,
-        branchId: 'bodega',
-        quantityChange: -qty,
-        type: 'MANUAL_ADJUSTMENT',
+        fromBranchId: 'bodega',
+        toBranchId: currentBranchId,
+        quantity: qty,
+        userId: currentUser.id,
         notes: `Retiro hacia sucursal por ${currentUser.name}`,
-        userId: currentUser.id,
-        createdAt: new Date().toISOString(),
       });
 
-      // 4. Registrar movimiento en BD para sucursal (Entrada)
-      await api.stockMovements.create({
-        id: uid('mov'),
-        productId: selectedProduct.id,
-        branchId: currentBranchId,
-        quantityChange: qty,
-        type: 'RESTOCK',
-        notes: `Ingreso desde bodega por ${currentUser.name}`,
-        userId: currentUser.id,
-        createdAt: new Date().toISOString(),
-      });
+      // Reflejar el cambio en la UI al instante (el servidor ya lo persistió).
+      applyLocalStockDelta(selectedProduct.id, 'bodega', -qty);
+      applyLocalStockDelta(selectedProduct.id, currentBranchId, qty);
 
       onClose();
       setQuantity('');
@@ -71,7 +60,7 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
       setSearchTerm('');
     } catch (e) {
       console.error(e);
-      alert('Hubo un error al registrar el retiro');
+      alert(e instanceof Error ? e.message : 'Hubo un error al registrar el retiro');
     } finally {
       setLoading(false);
     }
@@ -88,13 +77,13 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
           onChange={(e) => setSearchTerm(e.target.value)} 
         />
 
-        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border border-border rounded-xl p-2 bg-white">
+        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto border border-border rounded-xl p-2 bg-surface">
           {filteredProducts.map(p => (
             <button
               key={p.id}
               onClick={() => setSelectedProductId(p.id)}
               className={`flex justify-between items-center p-3 rounded-lg text-left transition-colors cursor-pointer ${
-                selectedProductId === p.id ? 'bg-primary-50 border border-primary-300' : 'hover:bg-cream-100 border border-transparent'
+                selectedProductId === p.id ? 'bg-primary-50 border border-primary-300 dark:bg-primary-900/30 dark:border-primary-500' : 'hover:bg-cream-100 dark:hover:bg-white/5 border border-transparent'
               }`}
             >
               <span className="font-bold text-sm text-ink">{p.name}</span>

@@ -68,7 +68,12 @@ export default function StaffPage() {
         description="Esta acción no se puede deshacer. El usuario perderá acceso al sistema de inmediato."
         confirmLabel="Eliminar"
         tone="danger"
-        onConfirm={() => pendingDelete && removeUser(pendingDelete.id)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          removeUser(pendingDelete.id).catch((err) =>
+            alert(err instanceof Error ? err.message : 'No se pudo eliminar el usuario.'),
+          );
+        }}
         onClose={() => setPendingDelete(null)}
       />
 
@@ -78,7 +83,12 @@ export default function StaffPage() {
         description={`Se generará un nuevo PIN: ${pendingReset?.newPin ?? ''}. El usuario deberá usarlo en su próximo ingreso.`}
         confirmLabel="Aplicar nuevo PIN"
         tone="primary"
-        onConfirm={() => pendingReset && resetPin(pendingReset.user.id, pendingReset.newPin)}
+        onConfirm={() => {
+          if (!pendingReset) return;
+          resetPin(pendingReset.user.id, pendingReset.newPin).catch((err) =>
+            alert(err instanceof Error ? err.message : 'No se pudo restablecer el PIN.'),
+          );
+        }}
         onClose={() => setPendingReset(null)}
       />
     </AdminShell>

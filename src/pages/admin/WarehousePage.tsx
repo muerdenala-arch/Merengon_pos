@@ -328,6 +328,7 @@ export default function WarehousePage() {
             const name = formData.get('name') as string;
             const category = formData.get('category') as string;
             const stock = parseInt(formData.get('stock') as string, 10) || 0;
+            const lowStock = parseInt(formData.get('lowStock') as string, 10) || 5;
 
             if (!name) return;
 
@@ -346,7 +347,7 @@ export default function WarehousePage() {
               active: true,
               branchIds: ['bodega'],
               stockByBranch: { bodega: stock },
-              lowStockThreshold: 5,
+              lowStockThreshold: lowStock,
               unit: 'unidades',
             });
 
@@ -381,17 +382,21 @@ export default function WarehousePage() {
             />
           </div>
 
+          <div>
+            <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide flex items-center justify-between">
+              <span>Categoría</span>
+              <span className="text-primary-600 flex items-center gap-1"><Plus size={14} /> Nueva / Existente</span>
+            </label>
+            <input
+              name="category"
+              type="text"
+              defaultValue="Insumos"
+              placeholder="Ej: Lácteos, Frutas..."
+              className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Categoría</label>
-              <input
-                name="category"
-                type="text"
-                defaultValue="Insumos"
-                placeholder="Ej: Lácteos, Frutas..."
-                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
-              />
-            </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Stock Inicial</label>
               <input
@@ -399,6 +404,16 @@ export default function WarehousePage() {
                 type="number"
                 min="0"
                 defaultValue="0"
+                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Alerta de Stock (Mínimo)</label>
+              <input
+                name="lowStock"
+                type="number"
+                min="0"
+                defaultValue="5"
                 className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
               />
             </div>

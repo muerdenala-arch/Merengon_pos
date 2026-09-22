@@ -15,7 +15,10 @@ export type StaffStatus = 'activo' | 'bloqueado';
 export interface User {
   id: string;
   name: string;
-  pin: string; // PIN de 4 dígitos para login táctil
+  /** PIN de 4 dígitos. El servidor NUNCA lo devuelve en `GET /api/staff` (solo se valida
+   *  server-side en el login) — por eso es opcional acá: el cliente solo lo conoce al
+   *  crear un usuario o al fijarle uno nuevo, nunca al leer la lista existente. */
+  pin?: string;
   role: Role;
   color: string; // clase tailwind para el avatar (fondo del círculo)
   status: StaffStatus; // 'bloqueado' no puede iniciar sesión ni aparece en el login
@@ -200,6 +203,16 @@ export interface Expense {
   branchId?: string | null;
   userId: string;
   createdAt: string;
+}
+
+/** Ajuste atómico de stock para UNA sucursal, resuelto en el propio UPDATE de la DB
+ *  (jsonb_set) — `delta` suma/resta, `set` fija el valor. Nunca se manda `stockByBranch`
+ *  completo para modificar una sola sucursal: eso pisaría cambios concurrentes de otro
+ *  dispositivo y el stock de las demás sucursales (ver api/catalog.ts). */
+export interface StockOp {
+  branchId: string;
+  delta?: number;
+  set?: number;
 }
 
 export interface StockMovement {

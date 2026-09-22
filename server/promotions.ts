@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
+import { requireAdmin } from './_lib/auth.js';
 import type { Promotion } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
@@ -22,6 +23,8 @@ async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(promotions);
     return;
   }
+
+  if (!requireAdmin(req, res)) return;
 
   if (req.method === 'POST' && !id) {
     const body = requireBody<Promotion>(req);

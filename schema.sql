@@ -134,6 +134,58 @@ CREATE TABLE IF NOT EXISTS expenses (
   created_at          timestamptz NOT NULL DEFAULT now()
 );
 
+-- ── Promociones (descuento automático por producto/categoría/tamaño) ─────────
+-- Nota: esta tabla y `coupons`/`settings`/`stock_movements` ya existían en la base de
+-- datos de producción (creadas ahí directamente); se agregan aquí para que este archivo
+-- sea la fuente única de verdad y una instalación nueva quede completa desde cero.
+CREATE TABLE IF NOT EXISTS promotions (
+  id             text PRIMARY KEY,
+  name           text NOT NULL,
+  discount_type  text NOT NULL CHECK (discount_type IN ('PERCENTAGE', 'FIXED_AMOUNT')),
+  discount_value numeric(10, 2) NOT NULL,
+  applies_to     text NOT NULL DEFAULT 'ALL',
+  branch_ids     jsonb NOT NULL DEFAULT '[]',
+  is_active      boolean NOT NULL DEFAULT true,
+  start_date     timestamptz,
+  end_date       timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- ── Cupones (código canjeado manualmente en el checkout) ──────────────────────
+CREATE TABLE IF NOT EXISTS coupons (
+  id             text PRIMARY KEY,
+  code           text NOT NULL UNIQUE,
+  discount_type  text NOT NULL CHECK (discount_type IN ('PERCENTAGE', 'FIXED_AMOUNT', 'FREE_ITEM')),
+  discount_value numeric(10, 2) NOT NULL DEFAULT 0,
+  max_uses       integer NOT NULL DEFAULT 1,
+  used_count     integer NOT NULL DEFAULT 0,
+  expires_at     timestamptz,
+  is_active      boolean NOT NULL DEFAULT true,
+  applies_to     text NOT NULL DEFAULT 'ALL',
+  branch_id      text REFERENCES branches (id),
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- ── Ajustes globales (clave/valor) ────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS settings (
+  key   text PRIMARY KEY,
+  value jsonb NOT NULL
+);
+
+-- ── Kardex de movimientos de stock (auditoría de ventas/ajustes/restocks) ─────
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id              text PRIMARY KEY,
+  product_id      text NOT NULL,
+  branch_id       text NOT NULL,
+  quantity_change integer NOT NULL,
+  type            text NOT NULL, -- 'SALE' | 'MANUAL_ADJUSTMENT' | 'RESTOCK'
+  notes           text,
+  user_id         text NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
 -- ── Indices para consultas frecuentes ────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_sales_branch ON sales (branch_id);
 CREATE INDEX IF NOT EXISTS idx_sales_session ON sales (register_session_id);
@@ -144,6 +196,11 @@ CREATE INDEX IF NOT EXISTS idx_register_sessions_branch ON register_sessions (br
 CREATE INDEX IF NOT EXISTS idx_register_sessions_status ON register_sessions (status);
 CREATE INDEX IF NOT EXISTS idx_register_sessions_opened_at ON register_sessions (opened_at DESC);
 CREATE INDEX IF NOT EXISTS idx_qr_codes_branch ON qr_codes (branch_id);
+CREATE INDEX IF NOT EXISTS idx_promotions_active ON promotions (is_active);
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons (code);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements (product_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_branch ON stock_movements (branch_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_created_at ON stock_movements (created_at DESC);
 
 -- ============================================================================
 -- DATOS SEMILLA — Fresas con Crema EL MERENGON
@@ -155,8 +212,16 @@ CREATE INDEX IF NOT EXISTS idx_qr_codes_branch ON qr_codes (branch_id);
 INSERT INTO branches (id, name, address, phone, active) VALUES
   ('central', 'Sucursal Central', 'Av. Principal 123, Centro', '700-00001', true),
   ('norte',   'Sucursal Norte',   'Av. Norte 456, Zona Norte', '700-00002', true),
-  ('sur',     'Sucursal Sur',     'Av. Sur 789, Zona Sur',     '700-00003', true)
+  ('sur',     'Sucursal Sur',     'Av. Sur 789, Zona Sur',     '700-00003', true),
+  -- No es un local de venta: es el almacén interno usado por el módulo de Bodega
+  -- (WarehousePage/BodegaWithdrawalModal) como una sucursal más de `stock_by_branch`.
+  ('bodega',  'Bodega Central',   'Almacén Principal',         '',          true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ── Ajustes por defecto ────────────────────────────────────────────────────────
+INSERT INTO settings (key, value) VALUES
+  ('require_qr_photo', 'true'::jsonb)
+ON CONFLICT (key) DO NOTHING;
 
 -- ── Personal ─────────────────────────────────────────────────────────────────
 INSERT INTO staff (id, name, pin, role, color, status, protected, branch_ids, created_at) VALUES
