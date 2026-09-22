@@ -60,6 +60,21 @@ export default function WarehousePage() {
     setAdjustmentModal({ open: false, product: null, type: 'add', quantity: '', notes: '' });
   }
 
+  async function handleResetToZero(product: Product, currentStock: number) {
+    if (currentStock <= 0) return;
+    adjustStock(product.id, 'bodega', -currentStock);
+    await recordMovement({
+      id: uid('mov'),
+      productId: product.id,
+      branchId: 'bodega',
+      quantityChange: -currentStock,
+      type: 'MANUAL_ADJUSTMENT',
+      notes: 'Vaciado completo de stock (Reset a 0)',
+      userId: currentUser?.id || 'admin',
+      createdAt: new Date().toISOString(),
+    });
+  }
+
   function getLowStockProducts() {
     return products.filter((p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold);
   }
@@ -144,8 +159,8 @@ export default function WarehousePage() {
                           <Plus size={16} />
                         </button>
                         <button
-                          onClick={() => adjustStock(p.id, 'bodega', -stock, 'Reinicio a cero')}
-                          title="Vaciar stock"
+                          onClick={() => handleResetToZero(p, stock)}
+                          title="Vaciar stock a 0"
                           className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors ml-2"
                         >
                           <Trash2 size={16} />
