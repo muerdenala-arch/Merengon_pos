@@ -17,6 +17,8 @@ export default function WarehousePage() {
   const { movements, fetchMovements, recordMovement } = useWarehouseStore();
   const currentUser = useAuthStore((s) => s.currentUser);
   const [search, setSearch] = useState('');
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [catalogSearch, setCatalogSearch] = useState('');
 
   const [adjustmentModal, setAdjustmentModal] = useState<{ open: boolean; product: Product | null; type: 'add' | 'subtract'; quantity: string; notes: string }>({
     open: false,
@@ -155,55 +157,24 @@ export default function WarehousePage() {
 
         {tab === 'inventory' && (
           <div className="space-y-4">
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
-              <input
-                type="text"
-                placeholder="Buscar productos en bodega..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-border bg-surface py-2 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none"
-              />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+              <div className="relative w-full max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
+                <input
+                  type="text"
+                  placeholder="Buscar en el inventario actual..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none"
+                />
+              </div>
+              <Button onClick={() => setAddModalOpen(true)} className="whitespace-nowrap shrink-0 gap-2">
+                <Plus size={18} />
+                Traer producto del Catálogo
+              </Button>
             </div>
 
-            {/* Sección para agregar cualquier producto al inventario de bodega */}
-            <div className="mb-6 rounded-xl border border-primary-200 dark:border-primary-900/50 bg-primary-50 dark:bg-primary-900/10 p-4">
-              <h2 className="font-display text-base font-bold text-ink mb-1 flex items-center gap-2">
-                <Plus size={18} className="text-primary-600 dark:text-primary-400" />
-                Ingresar nuevo producto a Bodega
-              </h2>
-              <p className="text-sm text-ink-muted mb-4">
-                Si la bodega está vacía o quieres añadir algo nuevo, búscalo aquí.
-              </p>
-              {search.trim().length > 0 ? (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-56 overflow-y-auto">
-                  {products
-                    .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
-                    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
-                    .map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleAddProductToBodega(p)}
-                        className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer shadow-sm group"
-                      >
-                        <div>
-                          <span className="font-semibold text-sm text-ink block group-hover:text-primary-700">{p.name}</span>
-                          <span className="text-xs text-ink-soft">{p.category}</span>
-                        </div>
-                        <Plus size={18} className="text-primary-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                      </button>
-                    ))}
-                </div>
-              ) : (
-                <div className="text-center p-4 text-sm text-ink-soft bg-surface rounded-lg border border-border">
-                  Escribe el nombre del producto en la barra de búsqueda de arriba para encontrarlo en el catálogo y poder ingresarlo a la bodega.
-                </div>
-              )}
-
-            </div>
-
-            <h2 className="font-display text-lg font-bold text-ink mt-8 mb-4">Inventario Actual en Bodega</h2>
+            <h2 className="font-display text-lg font-bold text-ink mt-2 mb-4">Inventario Actual en Bodega</h2>
 
             {filteredProducts.length === 0 ? (
               <Card className="p-10 text-center">
@@ -345,6 +316,52 @@ export default function WarehousePage() {
             <Button className="flex-1" onClick={handleAdjustSubmit} disabled={!adjustmentModal.quantity}>
               Confirmar
             </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal open={addModalOpen} onClose={() => { setAddModalOpen(false); setCatalogSearch(''); }} title="Traer Producto a Bodega" size="md">
+        <div className="space-y-4 px-1 pb-4">
+          <p className="text-sm text-ink-muted">Busca un producto que ya esté creado en el catálogo de la tienda para asignarle stock físico en bodega.</p>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar en el catálogo general..."
+              value={catalogSearch}
+              onChange={(e) => setCatalogSearch(e.target.value)}
+              className="w-full rounded-xl border border-border bg-field py-3 pl-10 pr-4 text-sm focus:border-primary-400 focus:outline-none"
+              autoFocus
+            />
+          </div>
+
+          <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+            {products
+              .filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0)
+              .filter((p) => catalogSearch ? p.name.toLowerCase().includes(catalogSearch.toLowerCase()) : true)
+              .slice(0, 20) // Mostrar máximo 20 resultados para no sobrecargar el modal
+              .map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    handleAddProductToBodega(p);
+                    setAddModalOpen(false);
+                    setCatalogSearch('');
+                  }}
+                  className="flex w-full items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer group"
+                >
+                  <div>
+                    <span className="font-semibold text-sm text-ink block group-hover:text-primary-700">{p.name}</span>
+                    <span className="text-xs text-ink-soft">{p.category}</span>
+                  </div>
+                  <Plus size={18} className="text-primary-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                </button>
+              ))}
+            {products.filter((p) => !p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) === 0).length === 0 && (
+              <div className="text-center p-4 text-sm text-ink-soft bg-surface rounded-lg border border-border">
+                No hay más productos disponibles en el catálogo para traer a la bodega.
+              </div>
+            )}
           </div>
         </div>
       </Modal>
