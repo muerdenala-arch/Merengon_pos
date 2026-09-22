@@ -47,6 +47,15 @@ export default function WarehousePage() {
   );
   const lowStockCount = lowStockProducts.length;
 
+  async function handleAddProductToBodega(product: Product) {
+    if (!product.branchIds.includes('bodega')) {
+      const newBranchIds = [...product.branchIds, 'bodega'];
+      const { upsertProduct } = useCatalogStore.getState();
+      upsertProduct({ ...product, branchIds: newBranchIds });
+    }
+    setSearch('');
+  }
+
   async function handleAdjustSubmit() {
     if (!adjustmentModal.product || !adjustmentModal.quantity) return;
     const qty = parseInt(adjustmentModal.quantity, 10);
@@ -174,14 +183,15 @@ export default function WarehousePage() {
                     .map((p) => (
                       <button
                         key={p.id}
-                        onClick={() => setAdjustmentModal({ open: true, product: p, type: 'add', quantity: '', notes: '' })}
-                        className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer shadow-sm"
+                        type="button"
+                        onClick={() => handleAddProductToBodega(p)}
+                        className="flex items-center justify-between p-3 rounded-xl border border-border bg-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors text-left cursor-pointer shadow-sm group"
                       >
                         <div>
-                          <span className="font-semibold text-sm text-ink block">{p.name}</span>
+                          <span className="font-semibold text-sm text-ink block group-hover:text-primary-700">{p.name}</span>
                           <span className="text-xs text-ink-soft">{p.category}</span>
                         </div>
-                        <Plus size={16} className="text-primary-500 flex-shrink-0" />
+                        <Plus size={18} className="text-primary-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
                       </button>
                     ))}
                 </div>
