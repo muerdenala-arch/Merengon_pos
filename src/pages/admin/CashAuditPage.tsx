@@ -1,18 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, Lock } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
 import { fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useStaffStore } from '@/store/staffStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
-import type { CashRegisterSession } from '@/types';
 
 export default function CashAuditPage() {
   const allSessions = useRegisterStore((s) => s.sessions);
@@ -23,7 +20,6 @@ export default function CashAuditPage() {
   const [cashierId, setCashierId] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [closingSession, setClosingSession] = useState<CashRegisterSession | null>(null);
 
   // Solo cajeros que efectivamente tienen sesiones registradas — evita un desplegable
   // lleno de personal que nunca abrió caja.
@@ -172,14 +168,6 @@ export default function CashAuditPage() {
                         <Badge tone={session.status === 'abierta' ? 'secondary' : 'neutral'}>
                           {session.status === 'abierta' ? 'Abierta' : 'Cerrada'}
                         </Badge>
-                        {session.status === 'abierta' && (
-                          <button
-                            onClick={() => setClosingSession(session)}
-                            className="flex items-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-100 cursor-pointer dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20"
-                          >
-                            <Lock size={12} /> Cerrar caja
-                          </button>
-                        )}
                       </div>
                     </div>
 
@@ -205,95 +193,7 @@ export default function CashAuditPage() {
           </motion.div>
         )}
       </div>
-
-      <AdminCloseSessionModal session={closingSession} onClose={() => setClosingSession(null)} />
     </AdminShell>
-  );
-}
-
-function AdminCloseSessionModal({
-  session,
-  onClose,
-}: {
-  session: CashRegisterSession | null;
-  onClose: () => void;
-}) {
-  const adminCloseRegister = useRegisterStore((s) => s.adminCloseRegister);
-  const [counted, setCounted] = useState('');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Limpiar el formulario cada vez que se abre para una sesión distinta.
-  const sessionId = session?.id;
-  useEffect(() => {
-    setCounted('');
-    setNotes('');
-    setError(null);
-  }, [sessionId]);
-
-  if (!session) return null;
-
-  async function handleConfirm() {
-    if (!session || counted.trim() === '') return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      await adminCloseRegister(session.id, Number(counted), notes.trim() || undefined);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo cerrar la caja.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Modal open={!!session} onClose={onClose} title="Cerrar caja (forzado por admin)" size="sm">
-      <div className="flex flex-col gap-4 px-6 pb-6 pt-2">
-        <p className="text-sm text-ink-muted">
-          Vas a cerrar la caja de <strong className="text-ink">{session.cashierName}</strong>, abierta el{' '}
-          {formatDateTime(session.openedAt)}. El total vendido, efectivo y QR se calculan directo desde
-          las ventas registradas de ese turno — no hace falta que los ingreses.
-        </p>
-        <label className="flex flex-col">
-          <span className={fieldLabelClasses}>Efectivo contado físicamente</span>
-          <input
-            type="number"
-            step="0.01"
-            value={counted}
-            onChange={(e) => setCounted(e.target.value)}
-            placeholder="0.00"
-            className={cn(fieldClasses, 'min-h-touch')}
-            autoFocus
-          />
-        </label>
-        <label className="flex flex-col">
-          <span className={fieldLabelClasses}>Notas (opcional)</span>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder="Ej. Caja cerrada por el admin porque el cajero olvidó hacerlo"
-            className={cn(fieldClasses, 'resize-none')}
-          />
-        </label>
-        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onClose} className="flex-1" disabled={submitting}>
-            Cancelar
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleConfirm}
-            className="flex-1"
-            disabled={submitting || counted.trim() === ''}
-          >
-            {submitting ? 'Cerrando...' : 'Cerrar caja'}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
