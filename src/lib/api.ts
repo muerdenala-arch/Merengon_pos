@@ -37,6 +37,17 @@ export function getAuthHeaders(): Record<string, string> {
   return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
 }
 
+// El token dura 24h en el servidor (ver api/_lib/auth.ts), pero el front nunca lo revisaba:
+// un admin que dejaba la tablet "logueada" más de un día seguía viendo su usuario en pantalla
+// (currentUser vive en localStorage sin fecha de vencimiento) y cada acción que sí exige
+// sesión (reportes, editar personal, etc.) fallaba con 401 para siempre — "Reintentar" nunca
+// arreglaba nada porque se reenviaba el mismo token vencido. Con este hook, authStore se
+// entera del 401 y cierra la sesión al toque para que la persona vuelva a poner su PIN.
+let _onSessionExpired: (() => void) | null = null;
+export function setSessionExpiredHandler(fn: () => void) {
+  _onSessionExpired = fn;
+}
+
 async function request<T>(path: string, options?: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -57,6 +68,7 @@ async function request<T>(path: string, options?: RequestInit, timeoutMs = REQUE
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}) as { error?: string });
+      if (res.status === 401) _onSessionExpired?.();
       throw new Error(body.error || `Error ${res.status} en ${path}`);
     }
     if (res.status === 204) return undefined as T;

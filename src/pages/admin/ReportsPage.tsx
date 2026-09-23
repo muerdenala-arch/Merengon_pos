@@ -81,7 +81,12 @@ export default function ReportsPage() {
         setTotalDiscounts(data.totalDiscounts ?? 0);
       } catch (err) {
         console.error('Error fetching reports:', err);
-        setFetchError('No se pudo cargar el reporte. Verifica la conexión y vuelve a intentarlo.');
+        // Mostrar el motivo real cuando el servidor lo da (sesión expirada, sin permisos,
+        // timeout) en vez de un mensaje genérico que no ayuda a saber qué está fallando.
+        const message = err instanceof Error && err.message
+          ? err.message
+          : 'No se pudo cargar el reporte. Verifica la conexión y vuelve a intentarlo.';
+        setFetchError(message);
         setSales([]);
         setSessions([]);
       } finally {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api, setAuthToken } from '@/lib/api';
+import { api, setAuthToken, setSessionExpiredHandler } from '@/lib/api';
 import type { User } from '@/types';
 
 interface AuthState {
@@ -19,6 +19,13 @@ interface AuthState {
   clearCurrentBranch: () => void;
   logout: () => void;
   clearError: () => void;
+  /** El servidor respondió 401 (token vencido o inválido) — cierra sesión y avisa por qué,
+   *  a diferencia de logout() que es la salida manual sin mensaje. */
+  sessionExpired: () => void;
+  /** Nadie tocó la pantalla en 15 min — cierra sesión sola para no dejar una tablet/celular
+   *  con una cuenta abierta indefinidamente si alguien se aleja del mostrador (ver
+   *  useInactivityLogout). También evita, de paso, llegar a la expiración de 24h del token. */
+  logoutForInactivity: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -55,6 +62,24 @@ export const useAuthStore = create<AuthState>()(
         set({ currentUser: null, currentBranchId: null, token: null });
       },
       clearError: () => set({ error: null }),
+      sessionExpired: () => {
+        setAuthToken(null);
+        set({
+          currentUser: null,
+          currentBranchId: null,
+          token: null,
+          error: 'Tu sesión expiró. Ingresa tu PIN nuevamente.',
+        });
+      },
+      logoutForInactivity: () => {
+        setAuthToken(null);
+        set({
+          currentUser: null,
+          currentBranchId: null,
+          token: null,
+          error: 'Sesión cerrada por inactividad. Ingresa tu PIN para continuar.',
+        });
+      },
     }),
     { name: 'pos-merengon/auth' },
   ),
@@ -63,3 +88,12 @@ export const useAuthStore = create<AuthState>()(
 // Restaurar el token en el módulo de API al recargar la página — `persist` ya rehidrató
 // el store de forma síncrona (localStorage) para cuando esta línea corre.
 setAuthToken(useAuthStore.getState().token);
+
+// Si cualquier llamada a la API responde 401 (token vencido tras 24h, o sesión inválida),
+// cerrar sesión automáticamente en vez de dejar a la persona atrapada viendo pantallas que
+// fallan para siempre sin importar cuántas veces le dé "Reintentar" — ver setSessionExpiredHandler.
+setSessionExpiredHandler(() => {
+  if (useAuthStore.getState().currentUser) {
+    useAuthStore.getState().sessionExpired();
+  }
+});
