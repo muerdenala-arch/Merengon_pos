@@ -146,6 +146,11 @@ export const api = {
         notes?: string;
       },
     ) => patch<CashRegisterSession>(withId('/register-sessions', id), data),
+    /** Cierre forzado por un admin de una caja de OTRO cajero (ej. se olvidó de cerrarla) —
+     *  a diferencia de `close`, acá el servidor calcula los totales directo de la base de
+     *  datos en vez de recibirlos del cliente, porque el admin nunca vio ese turno. */
+    adminClose: (id: string, data: { closingAmountCounted: number; notes?: string }) =>
+      patch<CashRegisterSession>(`${withId('/register-sessions', id)}&action=adminClose`, data),
   },
   sales: {
     list: () => get<Sale[]>('/sales'),

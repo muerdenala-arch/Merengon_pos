@@ -43,6 +43,60 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
     );
     res.status(201).json(rows[0]); return;
   }
+  // Cierre FORZADO por un admin de una caja que dejó otro cajero (ej. se olvidó, o el
+  // bloqueo de "no se puede abrir una caja nueva mientras quede una sin cerrar" lo exige).
+  // A diferencia del cierre normal (el propio cajero, con los totales que YA calculó su
+  // propia pantalla), acá el admin nunca vio las ventas de ese turno, así que los montos se
+  // calculan DIRECTO en la base de datos en vez de confiar en algo que el cliente mandó —
+  // además evita el problema de que el store de ventas del navegador solo trae los últimos
+  // 5 días (ver api/sales.ts), que sería insuficiente si la caja lleva más que eso abierta.
+  if (req.method === 'PATCH' && id && req.query.action === 'adminClose') {
+    if (!requireAdmin(req, res)) return;
+    const body = requireBody<{ closingAmountCounted: number; notes?: string }>(req);
+
+    const session = await queryOne<CashRegisterSession>(
+      `select ${SESSION_COLS} from register_sessions where id = $1`, [id],
+    );
+    if (!session) { res.status(404).json({ error: 'Sesión de caja no encontrada' }); return; }
+    if (session.status !== 'abierta') { res.status(200).json(session); return; } // idempotente
+
+    const [salesAgg] = await query<{
+      salesTotal: number; salesCount: number; cashSalesTotal: number; qrSalesTotal: number;
+    }>(
+      `SELECT
+         COALESCE(SUM(total), 0) as "salesTotal",
+         COUNT(*)::int as "salesCount",
+         COALESCE(SUM(CASE WHEN payment->>'method' = 'efectivo' THEN total
+                            WHEN payment->>'method' = 'mixto' THEN COALESCE((payment->>'amountEfectivo')::numeric, 0)
+                            ELSE 0 END), 0) as "cashSalesTotal",
+         COALESCE(SUM(CASE WHEN payment->>'method' = 'qr' THEN total
+                            WHEN payment->>'method' = 'mixto' THEN COALESCE((payment->>'amountQr')::numeric, 0)
+                            ELSE 0 END), 0) as "qrSalesTotal"
+       FROM sales WHERE register_session_id = $1`,
+      [id],
+    );
+    const [expensesAgg] = await query<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE cash_register_id = $1`,
+      [id],
+    );
+
+    const expectedAmount = Number(session.openingAmount) + Number(salesAgg.cashSalesTotal) - Number(expensesAgg.total);
+    const difference = body.closingAmountCounted - expectedAmount;
+
+    const closed = await queryOne<CashRegisterSession>(
+      `update register_sessions set status='cerrada', closed_at=now(),
+         closing_amount_counted=$2, expected_amount=$3, difference=$4,
+         sales_total=$5, sales_count=$6, cash_sales_total=$7, qr_sales_total=$8,
+         notes=coalesce($9, notes)
+       where id=$1 and status='abierta' returning ${SESSION_COLS}`,
+      [id, body.closingAmountCounted, expectedAmount, difference,
+       salesAgg.salesTotal, salesAgg.salesCount, salesAgg.cashSalesTotal, salesAgg.qrSalesTotal,
+       body.notes ?? null],
+    );
+    res.status(200).json(closed ?? session);
+    return;
+  }
+
   if (req.method === 'PATCH' && id) {
     const body = requireBody<{
       closingAmountCounted: number; expectedAmount: number; salesTotal: number;

@@ -26,6 +26,10 @@ interface RegisterState {
   /** Reemplaza la sesión local por la versión confirmada del servidor (llamado por el
    *  SyncManager cuando una apertura/cierre encolado offline finalmente se sincroniza). */
   reconcileSession: (session: CashRegisterSession) => void;
+  /** Cierre forzado por un admin de la caja de OTRO cajero (ver Auditoría de cajas) — a
+   *  diferencia de closeRegister, este SÍ espera a la red porque no hay nada que mostrar
+   *  optimistamente (el admin no tiene los datos del turno, los calcula el servidor). */
+  adminCloseRegister: (sessionId: string, closingAmountCounted: number, notes?: string) => Promise<void>;
   /** La caja abierta del usuario logueado — se deriva de la lista sincronizada en vez de
    *  un id local, así que reconoce una caja abierta desde OTRO dispositivo por el mismo
    *  cajero (ej. abrió en la PC y sigue vendiendo desde el celular). Se filtra también por
@@ -102,6 +106,11 @@ export const useRegisterStore = create<RegisterState>()((set, get) => ({
         ? state.sessions.map((s) => (s.id === session.id ? session : s))
         : [session, ...state.sessions],
     }));
+  },
+
+  adminCloseRegister: async (sessionId, closingAmountCounted, notes) => {
+    const closed = await api.registerSessions.adminClose(sessionId, { closingAmountCounted, notes });
+    set((state) => ({ sessions: state.sessions.map((s) => (s.id === sessionId ? closed : s)) }));
   },
 
   activeSession: (branchId) => {
