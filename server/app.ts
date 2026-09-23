@@ -12,6 +12,7 @@ import uploadHandler from './upload.js';
 import operationsHandler from './operations.js'; // expenses + stock_movements + settings
 import promotionsHandler from './promotions.js';
 import couponsHandler from './coupons.js';
+import cronCloseRegistersHandler from './cron-close-registers.js';
 
 // Express req/res son compatibles con Vercel req/res para nuestros handlers
 function adapt(handler: (req: VercelRequest, res: VercelResponse) => unknown) {
@@ -52,5 +53,6 @@ app.all('/api/promotions', adapt(promotionsHandler));
 app.all('/api/promotions/*', adapt(promotionsHandler));
 app.all('/api/coupons', adapt(couponsHandler));
 app.all('/api/coupons/*', adapt(couponsHandler));
+app.all('/api/cron-close-registers', adapt(cronCloseRegistersHandler));
 
 export default app;

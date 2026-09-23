@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import { requireAuth, requireAdmin } from './_lib/auth.js';
+import { computeSessionAggregates } from './_lib/sessionAggregates.js';
 import type { CashRegisterSession, QrCode } from '../src/types/index.js';
 
 // ── Register Sessions ─────────────────────────────────────────────────────────
@@ -60,27 +61,8 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
     if (!session) { res.status(404).json({ error: 'Sesión de caja no encontrada' }); return; }
     if (session.status !== 'abierta') { res.status(200).json(session); return; } // idempotente
 
-    const [salesAgg] = await query<{
-      salesTotal: number; salesCount: number; cashSalesTotal: number; qrSalesTotal: number;
-    }>(
-      `SELECT
-         COALESCE(SUM(total), 0) as "salesTotal",
-         COUNT(*)::int as "salesCount",
-         COALESCE(SUM(CASE WHEN payment->>'method' = 'efectivo' THEN total
-                            WHEN payment->>'method' = 'mixto' THEN COALESCE((payment->>'amountEfectivo')::numeric, 0)
-                            ELSE 0 END), 0) as "cashSalesTotal",
-         COALESCE(SUM(CASE WHEN payment->>'method' = 'qr' THEN total
-                            WHEN payment->>'method' = 'mixto' THEN COALESCE((payment->>'amountQr')::numeric, 0)
-                            ELSE 0 END), 0) as "qrSalesTotal"
-       FROM sales WHERE register_session_id = $1`,
-      [id],
-    );
-    const [expensesAgg] = await query<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total FROM expenses WHERE cash_register_id = $1`,
-      [id],
-    );
-
-    const expectedAmount = Number(session.openingAmount) + Number(salesAgg.cashSalesTotal) - Number(expensesAgg.total);
+    const agg = await computeSessionAggregates(id);
+    const expectedAmount = Number(session.openingAmount) + agg.cashSalesTotal - agg.expensesTotal;
     const difference = body.closingAmountCounted - expectedAmount;
 
     const closed = await queryOne<CashRegisterSession>(
@@ -90,7 +72,7 @@ async function registerSessionsHandler(req: VercelRequest, res: VercelResponse) 
          notes=coalesce($9, notes)
        where id=$1 and status='abierta' returning ${SESSION_COLS}`,
       [id, body.closingAmountCounted, expectedAmount, difference,
-       salesAgg.salesTotal, salesAgg.salesCount, salesAgg.cashSalesTotal, salesAgg.qrSalesTotal,
+       agg.salesTotal, agg.salesCount, agg.cashSalesTotal, agg.qrSalesTotal,
        body.notes ?? null],
     );
     res.status(200).json(closed ?? session);

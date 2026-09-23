@@ -24,6 +24,10 @@
     { "source": "/api/coupons",             "destination": "/api/coupons.ts"     },
     { "source": "/api/coupons/:id",         "destination": "/api/coupons.ts"     },
     { "source": "/api/upload",              "destination": "/api/upload.ts"      },
+    { "source": "/api/cron-close-registers","destination": "/api/cron-close-registers.ts" },
     { "source": "/(.*)",                    "destination": "/index.html"         }
+  ],
+  "crons": [
+    { "path": "/api/cron-close-registers", "schedule": "0 4 * * *" }
   ]
 }
