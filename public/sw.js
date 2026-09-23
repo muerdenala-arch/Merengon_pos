@@ -2,15 +2,27 @@
  * Service Worker — EL MERENGÓN POS
  * ──────────────────────────────────────────────────────────────────────────────
  * Estrategia:
- *   • Recursos estáticos (HTML, JS, CSS, imágenes): Cache First
- *     → El POS carga INSTANTÁNEAMENTE aunque no haya internet.
+ *   • index.html / navegación de páginas: Network First
+ *     → Siempre se pide la versión más nueva primero; si no hay red, se cae al
+ *     caché. Es CRÍTICO que el shell (index.html) nunca quede "cache-first": cada
+ *     deploy de Vite genera archivos JS/CSS con un hash nuevo en el nombre, y un
+ *     index.html viejo en caché sigue apuntando a hashes que el deploy siguiente
+ *     ya borró — el navegador pedía un .js que ya no existía, Vercel devolvía el
+ *     index.html (por el rewrite de SPA) en su lugar, y el módulo fallaba con
+ *     "Expected a JavaScript-or-Wasm module script" dejando la pantalla en blanco
+ *     hasta que alguien borraba el caché a mano. Bug real, reproducido en prod.
+ *   • JS/CSS/imágenes con hash de contenido (/assets/*): Cache First
+ *     → Son inmutables por versión (el hash cambia si el contenido cambia), así
+ *     que cachearlos agresivamente es seguro y da carga instantánea offline.
  *   • Llamadas a /api/*: Network Only (nunca se cachean datos dinámicos).
  *
- * Para invalidar el caché en una nueva versión, incrementar CACHE_VERSION.
+ * Para forzar que TODOS los dispositivos limpien su caché vieja de una vez,
+ * incrementar CACHE_VERSION (no hace falta para las actualizaciones normales:
+ * la estrategia network-first del shell ya evita quedar con HTML viejo).
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `merengon-pos-${CACHE_VERSION}`;
 
 // Recursos que se precargan al instalar el SW (app shell mínima)
@@ -74,11 +86,33 @@ self.addEventListener('fetch', (event) => {
   // 3. Solo manejar peticiones GET para el resto
   if (event.request.method !== 'GET') return;
 
-  // 4. Cache First con fallback a red y actualización en background
+  // 4. El SHELL (navegación de páginas / index.html): Network First.
+  //    Nunca "cache-first" acá — ver la explicación arriba de CACHE_VERSION.
+  const isShellRequest =
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('.html');
+
+  if (isShellRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // 5. Assets con hash de contenido y demás estáticos: Cache First con
+  //    actualización en background (son inmutables por versión, no hay riesgo
+  //    de quedar sirviendo algo desactualizado bajo un mismo nombre de archivo).
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      // Si tenemos la respuesta en caché, devolverla de inmediato
-      // y en background actualizar el caché con la versión de red.
       if (cached) {
         const fetchPromise = fetch(event.request)
           .then((networkResponse) => {
@@ -89,7 +123,7 @@ self.addEventListener('fetch', (event) => {
             return networkResponse;
           })
           .catch(() => {}); // silenciar errores de red — ya tenemos el caché
-        
+
         // Devolver el caché de inmediato (no esperamos la red)
         void fetchPromise;
         return cached;
@@ -102,8 +136,6 @@ self.addEventListener('fetch', (event) => {
             networkResponse &&
             networkResponse.ok &&
             (url.pathname.startsWith('/assets/') ||
-              url.pathname === '/' ||
-              url.pathname.endsWith('.html') ||
               url.pathname.endsWith('.png') ||
               url.pathname.endsWith('.ico') ||
               url.pathname.endsWith('.json'))
@@ -113,14 +145,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Sin red y sin caché: devolver index.html para que React Router maneje la ruta
-          if (event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html');
-          }
-          // Para otros recursos (imágenes, etc.): respuesta vacía
-          return new Response('', { status: 408 });
-        });
+        .catch(() => new Response('', { status: 408 }));
     })
   );
 });
