@@ -7,6 +7,7 @@ import { ProductFormModal } from '@/components/admin/ProductFormModal';
 import { ToppingFormModal } from '@/components/admin/ToppingFormModal';
 import { ProductRow } from '@/components/admin/ProductRow';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import type { Product, Topping } from '@/types';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -22,6 +23,7 @@ export default function CatalogPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null | 'new'>(null);
   const [editingTopping, setEditingTopping] = useState<Topping | null | 'new'>(null);
   const [search, setSearch] = useState('');
+  const [pendingDeleteTopping, setPendingDeleteTopping] = useState<Topping | null>(null);
 
   // Sin distinción de mayúsculas/minúsculas ni acentos — "fresa" encuentra "Fresa con Crema".
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -152,7 +154,7 @@ export default function CatalogPage() {
                     <Pencil size={15} />
                   </button>
                   <button
-                    onClick={() => deleteTopping(t.id)}
+                    onClick={() => setPendingDeleteTopping(t)}
                     className="flex h-9 w-9 items-center justify-center rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer dark:hover:bg-red-900/20"
                     title="Eliminar topping"
                   >
@@ -183,6 +185,15 @@ export default function CatalogPage() {
         topping={editingTopping === 'new' ? null : editingTopping}
         open={editingTopping !== null}
         onClose={() => setEditingTopping(null)}
+      />
+      <ConfirmDialog
+        open={!!pendingDeleteTopping}
+        title={`¿Eliminar "${pendingDeleteTopping?.name}"?`}
+        description="Esta acción no se puede deshacer. El topping dejará de estar disponible para agregar a los productos."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={() => pendingDeleteTopping && deleteTopping(pendingDeleteTopping.id)}
+        onClose={() => setPendingDeleteTopping(null)}
       />
     </AdminShell>
   );

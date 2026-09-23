@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCatalogStore } from '@/store/catalogStore';
 import type { Product } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -11,10 +13,11 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
   const removeProduct = useCatalogStore((s) => s.removeProduct);
   const totalStock = Object.values(product.stockByBranch).reduce((sum, n) => sum + n, 0);
   const lowStock = totalStock <= product.lowStockThreshold;
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <Card className="flex items-center gap-4 p-3.5">
-      <div className={cn('flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl2 bg-gradient-to-br text-2xl', product.gradient)}>
+    <Card className="flex items-center gap-2 p-3.5 sm:gap-4">
+      <div className={cn('hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl2 bg-gradient-to-br text-2xl sm:flex', product.gradient)}>
         {product.emoji}
       </div>
       <div className="min-w-0 flex-1">
@@ -54,12 +57,22 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
         <Pencil size={17} />
       </button>
       <button
-        onClick={() => removeProduct(product.id)}
+        onClick={() => setConfirmDelete(true)}
         className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-red-50 hover:text-red-600 cursor-pointer"
         aria-label="Eliminar"
       >
         <Trash2 size={17} />
       </button>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`¿Eliminar "${product.name}"?`}
+        description="Esta acción no se puede deshacer. El producto dejará de aparecer en el catálogo y en el punto de venta."
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={() => removeProduct(product.id)}
+        onClose={() => setConfirmDelete(false)}
+      />
     </Card>
   );
 }
