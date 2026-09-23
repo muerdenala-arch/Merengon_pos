@@ -22,7 +22,7 @@
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE_NAME = `merengon-pos-${CACHE_VERSION}`;
 
 // Recursos que se precargan al instalar el SW (app shell mínima)
@@ -37,13 +37,19 @@ const PRECACHE_URLS = [
 ];
 
 // ─── Instalación: precachear el app shell ──────────────────────────────────────
+// NO se llama a self.skipWaiting() automáticamente acá: si se activara de inmediato,
+// clients.claim() (ver "activate" más abajo) tomaría control de TODAS las pestañas abiertas
+// sin avisarles — un cajero con la app abierta en dos dispositivos/pestañas podría quedar
+// con la mitad actualizada a mitad de una venta. En cambio, el nuevo Service Worker queda
+// "esperando" hasta que el usuario toque "Actualizar" en el aviso (ver main.tsx), que le
+// manda el mensaje SKIP_WAITING de abajo — así la actualización solo pasa cuando la persona
+// lo pide, nunca a mitad de una acción, y sin tener que reinstalar ni volver a descargar nada.
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
-      .then(() => self.skipWaiting()) // activar de inmediato sin esperar tab anterior
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS)));
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ─── Activación: eliminar cachés de versiones anteriores ──────────────────────

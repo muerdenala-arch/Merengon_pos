@@ -15,20 +15,31 @@ startSyncManager();
 //   3. Precaching del app shell para arranque offline completo.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // true en cuanto el nuevo SW toma el control — evita que dos pestañas/reintentos
+    // disparen dos reloads encadenados.
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+
     navigator.serviceWorker
       .register('/sw.js')
       .then((reg) => {
         console.info('[SW] Registrado. Scope:', reg.scope);
+        let toastShown = false;
 
         // Escuchar si hay una nueva versión del SW esperando activarse
         reg.addEventListener('updatefound', () => {
           const newWorker = reg.installing;
-          if (!newWorker) return;
+          if (!newWorker || toastShown) return;
 
           newWorker.addEventListener('statechange', () => {
-            // Cuando el nuevo SW está listo y hay un SW previo activo
+            // "installed" + hay un controller ya activo = quedó ESPERANDO (nunca se llama
+            // self.skipWaiting() solo — ver sw.js) hasta que la persona toque "Actualizar".
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Mostrar un toast sutil indicando que hay actualización disponible
+              toastShown = true;
               const toast = document.createElement('div');
               toast.style.cssText = [
                 'position:fixed', 'bottom:24px', 'left:50%', 'transform:translateX(-50%)',
@@ -41,12 +52,19 @@ if ('serviceWorker' in navigator) {
               ].join(';');
               toast.innerHTML = `
                 🆕 Hay una actualización disponible
-                <button onclick="window.location.reload()" style="
+                <button id="sw-update-btn" style="
                   background:#E91E8C;color:#fff;border:none;border-radius:8px;
                   padding:4px 12px;cursor:pointer;font-weight:700;font-size:13px;
                 ">Actualizar</button>
               `;
               document.body.appendChild(toast);
+              // Solo acá se le pide al SW nuevo que tome control (mensaje SKIP_WAITING que
+              // escucha sw.js) — el reload real pasa cuando "controllerchange" confirma que
+              // ya cambió, nunca antes. Así nunca queda a mitad de camino ni hace falta
+              // reinstalar/descargar la app de nuevo: es la MISMA app, solo se refresca.
+              toast.querySelector('#sw-update-btn')?.addEventListener('click', () => {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              });
             }
           });
         });
