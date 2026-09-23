@@ -8,12 +8,18 @@
 
 -- ── Sucursales ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS branches (
-  id         text PRIMARY KEY,
-  name       text NOT NULL,
-  address    text NOT NULL DEFAULT '',
-  phone      text NOT NULL DEFAULT '',
-  active     boolean NOT NULL DEFAULT true,
-  updated_at timestamptz NOT NULL DEFAULT now()
+  id              text PRIMARY KEY,
+  name            text NOT NULL,
+  address         text NOT NULL DEFAULT '',
+  phone           text NOT NULL DEFAULT '',
+  active          boolean NOT NULL DEFAULT true,
+  -- Cada cuántos días el administrador de ESTA sucursal audita/cierra caja (1 = diario,
+  -- 7 = semanal, 30 = mensual, o el número que decida) — distintos administradores tienen
+  -- distintos ritmos, así que no es un valor fijo para todo el sistema. Se usa para avisar
+  -- y para bloquear una apertura nueva mientras quede una caja sin cerrar más allá de este
+  -- plazo (ver api/branches.ts, CashOpenPage).
+  cash_audit_days integer NOT NULL DEFAULT 7,
+  updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
 -- ── Personal / cajeros ───────────────────────────────────────────────────────

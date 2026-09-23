@@ -9,6 +9,7 @@ export interface BranchFormData {
   name: string;
   address: string;
   phone: string;
+  cashAuditDays: number;
 }
 
 interface BranchState {

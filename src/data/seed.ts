@@ -7,6 +7,7 @@ export const BRANCHES: Branch[] = [
     address: 'Av. Principal 123, Centro',
     phone: '700-00001',
     active: true,
+    cashAuditDays: 7,
   },
   {
     id: 'norte',
@@ -14,6 +15,7 @@ export const BRANCHES: Branch[] = [
     address: 'Av. Norte 456, Zona Norte',
     phone: '700-00002',
     active: true,
+    cashAuditDays: 7,
   },
   {
     id: 'sur',
@@ -21,6 +23,7 @@ export const BRANCHES: Branch[] = [
     address: 'Av. Sur 789, Zona Sur',
     phone: '700-00003',
     active: true,
+    cashAuditDays: 7,
   },
 ];
 

@@ -6,6 +6,10 @@ export interface Branch {
   address: string;
   phone: string;
   active: boolean;
+  /** Cada cuántos días el administrador de esta sucursal audita/cierra caja (1 = diario,
+   *  7 = semanal, 30 = mensual, etc.) — usado para avisar/bloquear cuando una caja queda
+   *  abierta más tiempo del que este administrador considera normal. */
+  cashAuditDays: number;
 }
 
 export type Role = 'admin' | 'cajero';

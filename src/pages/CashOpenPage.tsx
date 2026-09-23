@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Wallet } from 'lucide-react';
+import { Wallet, ShieldAlert } from 'lucide-react';
 import { CashierShell } from '@/components/layout/CashierShell';
 import { NumericKeypad } from '@/components/ui/NumericKeypad';
 import { Button } from '@/components/ui/Button';
@@ -9,7 +9,7 @@ import { fieldClasses } from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, formatDateTime } from '@/lib/utils';
 
 export default function CashOpenPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
@@ -17,6 +17,13 @@ export default function CashOpenPage() {
   const activeSession = useRegisterStore((s) => s.activeSession(currentBranchId));
   const openRegister = useRegisterStore((s) => s.openRegister);
   const branch = useBranchStore((s) => s.branches.find((b) => b.id === currentBranchId));
+  // Caja de OTRO cajero que quedó abierta más días de los que esta sucursal tiene
+  // configurado para su auditoría (ver Branch.cashAuditDays) — pedido explícito para que
+  // dejar la caja sin cerrar no permita simplemente abrir una nueva por encima y terminar
+  // con dos cajas abiertas a la vez en la misma sucursal.
+  const staleSession = useRegisterStore((s) =>
+    branch && !activeSession ? s.staleOpenSession(branch.id, branch.cashAuditDays ?? 7) : null,
+  );
   const [amount, setAmount] = useState('');
   const [notes, setNotes] = useState('');
   const navigate = useNavigate();
@@ -26,6 +33,38 @@ export default function CashOpenPage() {
   }
   if (!currentBranchId) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (staleSession) {
+    const days = Math.floor((Date.now() - new Date(staleSession.openedAt).getTime()) / (24 * 60 * 60 * 1000));
+    return (
+      <CashierShell>
+        <div className="flex h-full items-center justify-center px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-sm rounded-xl2 bg-surface p-6 text-center shadow-card"
+          >
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-500/15">
+              <ShieldAlert size={26} />
+            </div>
+            <h1 className="font-display text-lg font-bold text-ink">No se puede abrir una caja nueva</h1>
+            <p className="mt-2 text-sm text-ink-muted">
+              Hay una caja sin cerrar en {branch?.name} desde hace <strong>{days} día{days === 1 ? '' : 's'}</strong>{' '}
+              (abierta por <strong>{staleSession.cashierName}</strong> el {formatDateTime(staleSession.openedAt)}).
+            </p>
+            <p className="mt-2 text-sm text-ink-muted">
+              Un administrador debe cerrarla en <strong>Auditoría de cajas</strong> antes de abrir una nueva —
+              así se evita tener dos cajas abiertas al mismo tiempo en la misma sucursal.
+            </p>
+            <Button variant="outline" className="mt-5 w-full" onClick={() => navigate(-1)}>
+              Volver
+            </Button>
+          </motion.div>
+        </div>
+      </CashierShell>
+    );
   }
 
   function handleOpen() {

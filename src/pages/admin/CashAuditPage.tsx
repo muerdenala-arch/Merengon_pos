@@ -142,9 +142,12 @@ export default function CashAuditPage() {
           <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
             {sessions.map((session) => {
               const hasDifference = session.difference != null && Math.abs(session.difference) >= 0.01;
+              const auditDays = branches.find((b) => b.id === session.branchId)?.cashAuditDays ?? 7;
+              const daysOpen = Math.floor((Date.now() - new Date(session.openedAt).getTime()) / (24 * 60 * 60 * 1000));
+              const isStale = session.status === 'abierta' && daysOpen >= auditDays;
               return (
                 <motion.div key={session.id} variants={staggerItem}>
-                  <Card className="p-4">
+                  <Card className={cn('p-4', isStale && 'border-2 border-red-400 dark:border-red-500/50')}>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -156,9 +159,16 @@ export default function CashAuditPage() {
                           {session.closedAt && ` · Cerró ${formatDateTime(session.closedAt)}`}
                         </p>
                       </div>
-                      <Badge tone={session.status === 'abierta' ? 'secondary' : 'neutral'}>
-                        {session.status === 'abierta' ? 'Abierta' : 'Cerrada'}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        {isStale && (
+                          <Badge tone="danger">
+                            {daysOpen} día{daysOpen === 1 ? '' : 's'} sin cerrar
+                          </Badge>
+                        )}
+                        <Badge tone={session.status === 'abierta' ? 'secondary' : 'neutral'}>
+                          {session.status === 'abierta' ? 'Abierta' : 'Cerrada'}
+                        </Badge>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

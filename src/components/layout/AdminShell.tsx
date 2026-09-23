@@ -5,6 +5,7 @@ import { BarChart3, LogOut, Package, ShieldCheck, Boxes, Users, QrCode, Store, B
 import { useAuthStore } from '@/store/authStore';
 import { useBranchStore } from '@/store/branchStore';
 import { useCatalogStore } from '@/store/catalogStore';
+import { useRegisterStore } from '@/store/registerStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LowStockAlertBell } from '@/components/admin/LowStockAlertBell';
 import { fieldClasses } from '@/components/ui/Input';
@@ -117,8 +118,18 @@ function AdminSidebarContent({
   const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
   const setAdminFilterBranchId = useBranchStore((s) => s.setAdminFilterBranchId);
   const products = useCatalogStore((s) => s.products);
+  const sessions = useRegisterStore((s) => s.sessions);
   const navigate = useNavigate();
   const lowStockCount = products.filter((p) => p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold).length;
+  // Cajas abiertas más tiempo del que su sucursal tiene configurado para auditar (ver
+  // Branch.cashAuditDays) — visible en el nav para que el admin lo note sin tener que
+  // entrar a Auditoría de cajas.
+  const staleSessionCount = sessions.filter((s) => {
+    if (s.status !== 'abierta') return false;
+    const auditDays = branches.find((b) => b.id === s.branchId)?.cashAuditDays ?? 7;
+    const daysOpen = (Date.now() - new Date(s.openedAt).getTime()) / (24 * 60 * 60 * 1000);
+    return daysOpen >= auditDays;
+  }).length;
 
   return (
     <>
@@ -188,6 +199,11 @@ function AdminSidebarContent({
             {to === '/admin/bodega' && lowStockCount > 0 && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
                 {lowStockCount}
+              </span>
+            )}
+            {to === '/admin/auditoria' && staleSessionCount > 0 && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm">
+                {staleSessionCount}
               </span>
             )}
           </NavLink>
