@@ -56,52 +56,66 @@ async function handler(req: VercelRequest, res: VercelResponse) {
         params.push(branchId as string);
       }
 
-      const sales = await query<Sale>(
-        `SELECT ${SELECT_COLUMNS} FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter} ORDER BY created_at DESC`,
-        params
-      );
-
-      const sessions = await query<CashRegisterSession>(
-        `SELECT id, cashier_id as "cashierId", cashier_name as "cashierName", branch_id as "branchId",
-          opened_at as "openedAt", closed_at as "closedAt", opening_amount as "openingAmount",
-          closing_amount_counted as "closingAmountCounted", expected_amount as "expectedAmount",
-          difference, sales_total as "salesTotal", sales_count as "salesCount",
-          cash_sales_total as "cashSalesTotal", qr_sales_total as "qrSalesTotal", status, notes
-         FROM register_sessions WHERE ((opened_at >= $1 AND opened_at <= $2) OR (closed_at IS NULL AND opened_at <= $2)) ${branchFilter} ORDER BY opened_at DESC`,
-        params
-      );
-
-      const monthlyParams: (string | number)[] = [startOfMonth.toISOString(), endOfMonth.toISOString()];
-      const weeklyParams: (string | number)[] = [startOfWeek.toISOString(), endOfWeek.toISOString()];
-      const yearlyParams: (string | number)[] = [startOfYear.toISOString(), endOfYear.toISOString()];
-      
+      // Rangos anidados: día ⊂ semana/mes ⊂ año (todos derivados del mismo año que `start`),
+      // así que un solo SELECT con FILTER puede sacar las 4 sumas de una pasada por la tabla
+      // en vez de una query aparte por rango. Antes esta pantalla hacía 10 round-trips al
+      // pool de Neon (max 5 conexiones) — con latencia de red más alta (wifi de tablet) o la
+      // base de datos recién "despertando", eso superaba el timeout de 10s del cliente y
+      // mostraba "No se pudo cargar el reporte" aunque la conexión estuviera bien.
+      const aggBranchFilter = branchId && branchId !== 'all' ? `AND branch_id = $9` : '';
+      const aggParams: (string | number)[] = [
+        start.toISOString(), end.toISOString(),
+        startOfWeek.toISOString(), endOfWeek.toISOString(),
+        startOfMonth.toISOString(), endOfMonth.toISOString(),
+        startOfYear.toISOString(), endOfYear.toISOString(),
+      ];
       if (branchId && branchId !== 'all') {
-        const branchIdStr = branchId as string;
-        monthlyParams.push(branchIdStr);
-        weeklyParams.push(branchIdStr);
-        yearlyParams.push(branchIdStr);
+        aggParams.push(branchId as string);
       }
 
-      const [monthlyResult, weeklyResult, yearlyResult, discountsResult, expensesDaily, expensesWeekly, expensesMonthly, expensesYearly] = await Promise.all([
-        query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, monthlyParams),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, weeklyParams),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(total), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, yearlyParams),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(discount_amount), 0) as sum FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, params),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, params),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, weeklyParams),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, monthlyParams),
-        query<{ sum: number }>(`SELECT COALESCE(SUM(amount), 0) as sum FROM expenses WHERE created_at >= $1 AND created_at <= $2 ${branchFilter}`, yearlyParams),
+      const [sales, sessions, salesAgg, expensesAgg] = await Promise.all([
+        query<Sale>(
+          `SELECT ${SELECT_COLUMNS} FROM sales WHERE created_at >= $1 AND created_at <= $2 ${branchFilter} ORDER BY created_at DESC`,
+          params
+        ),
+        query<CashRegisterSession>(
+          `SELECT id, cashier_id as "cashierId", cashier_name as "cashierName", branch_id as "branchId",
+            opened_at as "openedAt", closed_at as "closedAt", opening_amount as "openingAmount",
+            closing_amount_counted as "closingAmountCounted", expected_amount as "expectedAmount",
+            difference, sales_total as "salesTotal", sales_count as "salesCount",
+            cash_sales_total as "cashSalesTotal", qr_sales_total as "qrSalesTotal", status, notes
+           FROM register_sessions WHERE ((opened_at >= $1 AND opened_at <= $2) OR (closed_at IS NULL AND opened_at <= $2)) ${branchFilter} ORDER BY opened_at DESC`,
+          params
+        ),
+        query<{ dailyDiscounts: number; weekly: number; monthly: number; yearly: number }>(
+          `SELECT
+             COALESCE(SUM(discount_amount) FILTER (WHERE created_at >= $1 AND created_at <= $2), 0) as "dailyDiscounts",
+             COALESCE(SUM(total) FILTER (WHERE created_at >= $3 AND created_at <= $4), 0) as weekly,
+             COALESCE(SUM(total) FILTER (WHERE created_at >= $5 AND created_at <= $6), 0) as monthly,
+             COALESCE(SUM(total) FILTER (WHERE created_at >= $7 AND created_at <= $8), 0) as yearly
+           FROM sales WHERE created_at >= $7 AND created_at <= $8 ${aggBranchFilter}`,
+          aggParams
+        ),
+        query<{ daily: number; weekly: number; monthly: number; yearly: number }>(
+          `SELECT
+             COALESCE(SUM(amount) FILTER (WHERE created_at >= $1 AND created_at <= $2), 0) as daily,
+             COALESCE(SUM(amount) FILTER (WHERE created_at >= $3 AND created_at <= $4), 0) as weekly,
+             COALESCE(SUM(amount) FILTER (WHERE created_at >= $5 AND created_at <= $6), 0) as monthly,
+             COALESCE(SUM(amount) FILTER (WHERE created_at >= $7 AND created_at <= $8), 0) as yearly
+           FROM expenses WHERE created_at >= $7 AND created_at <= $8 ${aggBranchFilter}`,
+          aggParams
+        ),
       ]);
 
-      const monthlyTotal = Number(monthlyResult[0]?.sum) || 0;
-      const weeklyTotal = Number(weeklyResult[0]?.sum) || 0;
-      const yearlyTotal = Number(yearlyResult[0]?.sum) || 0;
-      const totalDiscounts = Number(discountsResult[0]?.sum) || 0;
-      
-      const dailyExpenses = Number(expensesDaily[0]?.sum) || 0;
-      const weeklyExpenses = Number(expensesWeekly[0]?.sum) || 0;
-      const monthlyExpenses = Number(expensesMonthly[0]?.sum) || 0;
-      const yearlyExpenses = Number(expensesYearly[0]?.sum) || 0;
+      const monthlyTotal = Number(salesAgg[0]?.monthly) || 0;
+      const weeklyTotal = Number(salesAgg[0]?.weekly) || 0;
+      const yearlyTotal = Number(salesAgg[0]?.yearly) || 0;
+      const totalDiscounts = Number(salesAgg[0]?.dailyDiscounts) || 0;
+
+      const dailyExpenses = Number(expensesAgg[0]?.daily) || 0;
+      const weeklyExpenses = Number(expensesAgg[0]?.weekly) || 0;
+      const monthlyExpenses = Number(expensesAgg[0]?.monthly) || 0;
+      const yearlyExpenses = Number(expensesAgg[0]?.yearly) || 0;
 
       res.status(200).json({
         sales,

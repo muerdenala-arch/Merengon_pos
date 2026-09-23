@@ -37,9 +37,9 @@ export function getAuthHeaders(): Record<string, string> {
   return _authToken ? { Authorization: `Bearer ${_authToken}` } : {};
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const url = new URL(`/api${path}`, window.location.origin);
@@ -63,7 +63,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     return (await res.json()) as T;
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error(`Tiempo de espera agotado (${REQUEST_TIMEOUT_MS / 1000}s) al conectar con ${path}`);
+      throw new Error(`Tiempo de espera agotado (${timeoutMs / 1000}s) al conectar con ${path}`);
     }
     throw err;
   } finally {
@@ -71,7 +71,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 }
 
-const get = <T>(path: string) => request<T>(path);
+const get = <T>(path: string, timeoutMs?: number) => request<T>(path, undefined, timeoutMs);
 const post = <T>(path: string, data: unknown) => request<T>(path, { method: 'POST', body: JSON.stringify(data) });
 const patch = <T>(path: string, data: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) });
 const del = (path: string) => request<void>(path, { method: 'DELETE' });
@@ -167,8 +167,11 @@ export const api = {
     remove: (id: string) => del(withId('/coupons', id)),
   },
   adminReports: {
-    get: (startDate: string, endDate: string, branchId?: string) => 
-      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number; dailyExpenses: number; weeklyExpenses: number; monthlyExpenses: number; yearlyExpenses: number; }>(`/sales?action=reports&startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`),
+    // Timeout más generoso que el default (10s): esta consulta trae ventas + sesiones del
+    // período completo y en redes más lentas (wifi de tablet, celular) puede tardar más que
+    // el resto de la app sin que signifique que algo esté realmente caído.
+    get: (startDate: string, endDate: string, branchId?: string) =>
+      get<{ sales: Sale[]; sessions: CashRegisterSession[]; monthlyTotal: number; weeklyTotal: number; yearlyTotal: number; totalDiscounts: number; dailyExpenses: number; weeklyExpenses: number; monthlyExpenses: number; yearlyExpenses: number; }>(`/sales?action=reports&startDate=${startDate}&endDate=${endDate}${branchId ? `&branchId=${branchId}` : ''}`, 25000),
   },
   expenses: {
     list: () => get<Expense[]>('/expenses'),
