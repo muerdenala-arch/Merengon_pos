@@ -72,13 +72,10 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       logoutForInactivity: () => {
+        // Pedido explícito: cerrar sesión sola por inactividad, pero sin mostrar ningún
+        // mensaje en la pantalla de PIN — que simplemente aparezca la pantalla de login.
         setAuthToken(null);
-        set({
-          currentUser: null,
-          currentBranchId: null,
-          token: null,
-          error: 'Sesión cerrada por inactividad. Ingresa tu PIN para continuar.',
-        });
+        set({ currentUser: null, currentBranchId: null, token: null, error: null });
       },
     }),
     { name: 'pos-merengon/auth' },
