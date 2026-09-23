@@ -9,9 +9,11 @@ import { useBranchStore } from '@/store/branchStore';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { sameData } from '@/lib/sync';
 import type { Sale, CashRegisterSession } from '@/types';
 
 type RangeFilter = 'hoy' | 'custom';
+type ReportData = Awaited<ReturnType<typeof api.adminReports.get>>;
 
 export default function ReportsPage() {
   const branches = useBranchStore((s) => s.branches);
@@ -39,11 +41,23 @@ export default function ReportsPage() {
   
   const [viewingReceipt, setViewingReceipt] = useState<Sale | null>(null);
 
+  // Última respuesta cruda del servidor — para comparar contenido (no referencia) en cada
+  // poll de 15s y NO tocar el estado si nada cambió. Sin esto, cada tick recreaba los 10
+  // setState de abajo con arrays/números nuevos aunque el valor fuera idéntico, causando un
+  // re-render completo de la pantalla (y que las barras con animación de framer-motion se
+  // "sacudieran" de nuevo) cada 15 segundos sin que hubiera ninguna venta nueva.
+  const lastReportRef = useRef<ReportData | null>(null);
+  const hasLoadedOnceRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
 
     async function fetchData() {
-      if (isMounted && sales.length === 0) { // Solo mostrar loading la primera vez o si está vacío
+      // Antes se usaba `sales.length === 0` para decidir si mostrar el spinner — en un día
+      // sin ventas eso es SIEMPRE cierto, así que el spinner/fade se reactivaba en cada poll
+      // para siempre. Con un ref que solo se marca una vez, el loading solo se ve en la
+      // primera carga real de la pantalla.
+      if (isMounted && !hasLoadedOnceRef.current) {
         setIsLoading(true);
         setFetchError(null);
       }
@@ -68,7 +82,16 @@ export default function ReportsPage() {
           endDate.toISOString(),
           adminFilterBranchId || 'all'
         );
-        
+
+        if (!isMounted) return;
+        hasLoadedOnceRef.current = true;
+        setFetchError(null);
+
+        if (sameData(lastReportRef.current, data)) {
+          return; // Nada cambió desde el último poll — no re-renderizar de más.
+        }
+        lastReportRef.current = data;
+
         setSales(data.sales);
         setSessions(data.sessions);
         setMonthlyTotal(data.monthlyTotal);
@@ -81,6 +104,8 @@ export default function ReportsPage() {
         setTotalDiscounts(data.totalDiscounts ?? 0);
       } catch (err) {
         console.error('Error fetching reports:', err);
+        if (!isMounted) return;
+        hasLoadedOnceRef.current = true;
         // Mostrar el motivo real cuando el servidor lo da (sesión expirada, sin permisos,
         // timeout) en vez de un mensaje genérico que no ayuda a saber qué está fallando.
         const message = err instanceof Error && err.message
@@ -93,7 +118,7 @@ export default function ReportsPage() {
         if (isMounted) setIsLoading(false);
       }
     }
-    
+
     fetchData();
     const interval = setInterval(() => {
       // Polling sin mostrar loading spinner para que sea silencioso
