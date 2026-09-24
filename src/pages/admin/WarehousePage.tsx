@@ -4,6 +4,7 @@ import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useWarehouseStore } from '@/store/warehouseStore';
 import { useAuthStore } from '@/store/authStore';
@@ -14,11 +15,11 @@ import { SIZELESS_KEY } from '@/types';
 export default function WarehousePage() {
   const [tab, setTab] = useState<'inventory' | 'history'>('inventory');
   const products = useCatalogStore((s) => s.products);
-  const adjustStock = useCatalogStore((s) => s.adjustStock);
   const { movements, fetchMovements, recordMovement } = useWarehouseStore();
   const currentUser = useAuthStore((s) => s.currentUser);
   const [search, setSearch] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
   const [catalogSearch, setCatalogSearch] = useState('');
 
   const [adjustmentModal, setAdjustmentModal] = useState<{ open: boolean; product: Product | null; type: 'add' | 'subtract'; quantity: string; notes: string }>({
@@ -103,25 +104,39 @@ export default function WarehousePage() {
     setAdjustmentModal({ open: false, product: null, type: 'add', quantity: '', notes: '' });
   }
 
-  async function handleResetToZero(product: Product, currentStock: number) {
+  // Antes esto descontaba el stock con un ajuste y DESPUÉS guardaba una copia vieja del
+  // producto (con el stock anterior) — el stock reaparecía y el producto seguía en la
+  // lista, por eso "eliminar" parecía no hacer nada. Ahora se parte del producto ACTUAL y
+  // se guarda todo en un solo cambio.
+  async function handleDeleteFromBodega(productId: string) {
+    const { products: current, upsertProduct, removeProduct } = useCatalogStore.getState();
+    const product = current.find((p) => p.id === productId);
+    if (!product) return;
+
+    const currentStock = product.stockByBranch['bodega']?.[SIZELESS_KEY] ?? 0;
     if (currentStock > 0) {
-      adjustStock(product.id, 'bodega', SIZELESS_KEY, -currentStock);
       await recordMovement({
         id: uid('mov'),
         productId: product.id,
         branchId: 'bodega',
         quantityChange: -currentStock,
         type: 'MANUAL_ADJUSTMENT',
-        notes: 'Vaciado completo de stock (Reset a 0) antes de eliminar',
+        notes: 'Eliminado de bodega (se vació el stock)',
         userId: currentUser?.id || 'admin',
         createdAt: new Date().toISOString(),
       });
     }
 
-    // Remover "bodega" de los branchIds del producto para que desaparezca
-    const newBranchIds = product.branchIds.filter(id => id !== 'bodega');
-    const { upsertProduct } = useCatalogStore.getState();
-    upsertProduct({ ...product, branchIds: newBranchIds });
+    const otherBranches = product.branchIds.filter((id) => id !== 'bodega');
+    if (otherBranches.length === 0) {
+      // Insumo que solo existía en bodega: se elimina por completo.
+      removeProduct(product.id);
+      return;
+    }
+    // También se vende en sucursales: solo sale de bodega, el resto queda como está.
+    const { bodega: _bodega, ...restStock } = product.stockByBranch;
+    void _bodega;
+    upsertProduct({ ...product, branchIds: otherBranches, stockByBranch: restStock });
   }
 
   return (
@@ -224,8 +239,8 @@ export default function WarehousePage() {
                             <Plus size={16} />
                           </button>
                           <button
-                            onClick={() => handleResetToZero(p, stock)}
-                            title="Vaciar stock a 0"
+                            onClick={() => setPendingDelete(p)}
+                            title="Eliminar de bodega"
                             className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 cursor-pointer transition-colors ml-2"
                           >
                             <Trash2 size={16} />
@@ -433,6 +448,20 @@ export default function WarehousePage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title={`¿Eliminar "${pendingDelete?.name}" de bodega?`}
+        description={
+          pendingDelete && pendingDelete.branchIds.some((id) => id !== 'bodega')
+            ? 'Se vacía su stock de bodega y deja de aparecer acá. Sigue disponible en las sucursales donde se vende.'
+            : 'Este insumo solo existe en bodega: se elimina por completo. Esta acción no se puede deshacer.'
+        }
+        confirmLabel="Eliminar"
+        tone="danger"
+        onConfirm={() => pendingDelete && handleDeleteFromBodega(pendingDelete.id)}
+        onClose={() => setPendingDelete(null)}
+      />
     </AdminShell>
   );
 }
