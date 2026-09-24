@@ -82,6 +82,24 @@ export const useAuthStore = create<AuthState>()(
   ),
 );
 
+// Pedido explícito: al CERRAR la app y volver a abrirla siempre se pide el PIN, sea admin o
+// cajero — la sesión guardada en localStorage no debe sobrevivir a cerrar la app.
+// sessionStorage vive mientras la app siga abierta (sobrevive a recargas, al botón de
+// recargar y a las actualizaciones automáticas) y se borra al cerrarla, así que su ausencia
+// significa "arranque nuevo". Si el navegador no deja usar sessionStorage no se cierra nada
+// (mejor dejar la sesión que atrapar a la persona en un bucle de login).
+const LAUNCH_FLAG = 'pos-merengon/launched';
+try {
+  if (!sessionStorage.getItem(LAUNCH_FLAG)) {
+    sessionStorage.setItem(LAUNCH_FLAG, '1');
+    if (useAuthStore.getState().currentUser) {
+      useAuthStore.setState({ currentUser: null, currentBranchId: null, token: null, error: null });
+    }
+  }
+} catch {
+  /* sin sessionStorage: se conserva el comportamiento anterior */
+}
+
 // Restaurar el token en el módulo de API al recargar la página — `persist` ya rehidrató
 // el store de forma síncrona (localStorage) para cuando esta línea corre.
 setAuthToken(useAuthStore.getState().token);
