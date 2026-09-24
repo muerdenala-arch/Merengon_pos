@@ -111,8 +111,8 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
       </div>
 
         {/* ── Tamaños (chips) ──────────────────────────────────────────── */}
-        <SectionTitle>Tamaño</SectionTitle>
-        <div className={cn('mb-4 grid gap-2', product.sizes.length <= 2 ? 'grid-cols-2' : 'grid-cols-4')}>
+        {product.sizes.length > 0 && <SectionTitle>Tamaño</SectionTitle>}
+        <div className={cn('grid gap-2', product.sizes.length > 0 && 'mb-4', product.sizes.length <= 2 ? 'grid-cols-2' : 'grid-cols-4')}>
           {product.sizes.map((s) => {
             const active = s.id === sizeId;
             const outOfStock = stockFor(product, branchId, s.id) <= 0;
@@ -152,7 +152,7 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
         {/* ── Toppings (grid 3 col) ────────────────────────────────────── */}
         {availableToppings.length > 0 && (
           <>
-            <SectionTitle>Agregados</SectionTitle>
+            <SectionTitle>Agregar más topping (se cobra aparte)</SectionTitle>
             <div className="mb-4 grid grid-cols-3 gap-1.5">
               {availableToppings.map((t) => {
                 const outOfStock = (t.stockByBranch[branchId] ?? 0) <= 0;
@@ -176,6 +176,9 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
                       />
                     )}
                     <span className="font-semibold leading-tight">{t.name}</span>
+                    <span className={cn('text-[10px] font-semibold', active ? 'text-white/90' : 'text-secondary-700')}>
+                      {outOfStock ? 'Agotado' : `+${formatCurrency(t.priceExtra)}`}
+                    </span>
                   </button>
                 );
               })}
