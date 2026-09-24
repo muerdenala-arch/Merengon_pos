@@ -9,6 +9,7 @@ import { staggerContainer, staggerItem, cardHover } from '@/lib/motion';
 import { cn, formatCurrency } from '@/lib/utils';
 import { fieldClasses } from '@/components/ui/Input';
 import { applyPromoDiscount } from '@/store/cartStore';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface ProductGridProps {
   branchId: string;
@@ -194,8 +195,8 @@ const ProductCard = memo(function ProductCard({
         </div>
       )}
       <div className="flex flex-1 flex-col gap-1 p-3.5">
-        <p className="font-display text-sm font-bold leading-tight text-ink sm:text-base">{product.name}</p>
-        <p className="text-xs text-ink-muted line-clamp-1">{product.description}</p>
+        <Marquee as="p" className="font-display text-sm font-bold leading-tight text-ink sm:text-base">{product.name}</Marquee>
+        <Marquee as="p" className="text-xs text-ink-muted">{product.description}</Marquee>
         <div className="mt-auto flex items-center justify-between pt-1.5">
           <div className="flex flex-col">
             {hasPromo && (

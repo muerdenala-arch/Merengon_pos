@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { useCatalogStore } from '@/store/catalogStore';
 import type { Product } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 export function ProductRow({ product, onEdit }: { product: Product; onEdit: () => void }) {
   const toggleActive = useCatalogStore((s) => s.toggleActive);
@@ -33,13 +34,13 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
       )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className="truncate font-display font-bold text-ink">{product.name}</p>
+          <Marquee as="p" className="font-display font-bold text-ink">{product.name}</Marquee>
           {!product.active && <Badge tone="neutral">Inactivo</Badge>}
           {lowStock && product.active && <Badge tone="warning">Stock bajo</Badge>}
         </div>
-        <p className="truncate text-sm text-ink-muted">
+        <Marquee as="p" className="text-sm text-ink-muted">
           {product.category} · {formatCurrency(product.basePrice)} · Stock total: {totalStock}
-        </p>
+        </Marquee>
       </div>
 
       <motion.button

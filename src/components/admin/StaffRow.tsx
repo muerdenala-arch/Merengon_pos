@@ -6,6 +6,7 @@ import { useRegisterStore } from '@/store/registerStore';
 import { useBranchStore } from '@/store/branchStore';
 import type { User } from '@/types';
 import { cn, formatDateTime } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface StaffRowProps {
   user: User;
@@ -45,7 +46,7 @@ export function StaffRow({ user, onEdit, onToggleBlocked, onResetPin, onDelete }
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
-            <p className="truncate font-display font-bold text-ink">{user.name}</p>
+            <Marquee as="p" className="font-display font-bold text-ink">{user.name}</Marquee>
             {user.protected && (
               <span title="Administrador principal">
                 <ShieldCheck size={14} className="text-accent-600" />

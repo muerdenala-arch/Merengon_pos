@@ -6,6 +6,7 @@ import { useCouponStore } from '@/store/couponStore';
 import { Button } from '@/components/ui/Button';
 import { useCatalogStore } from '@/store/catalogStore';
 import { cn, formatCurrency } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface CartPanelProps {
   onCheckout: () => void;
@@ -89,7 +90,7 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-display text-sm font-bold text-ink">{item.product.name}</p>
+                  <Marquee as="p" className="font-display text-sm font-bold text-ink">{item.product.name}</Marquee>
                   <p className="text-xs text-ink-muted">
                     {item.modifiers.size?.label}
                   </p>

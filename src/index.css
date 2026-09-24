@@ -132,3 +132,18 @@
   animation: flash-highlight 1.1s ease-in-out 2;
   border-radius: 1rem;
 }
+
+/* Marquee: texto largo que se desliza para mostrarse completo (ver components/ui/Marquee). */
+@keyframes marquee-slide {
+  0%, 18% { transform: translateX(0); }
+  50%, 68% { transform: translateX(var(--marquee-shift)); }
+  100% { transform: translateX(0); }
+}
+.marquee-run {
+  display: inline-block;
+  animation: marquee-slide 8s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .marquee-run { animation: none; display: inline; }
+}

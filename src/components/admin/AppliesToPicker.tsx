@@ -4,6 +4,7 @@ import { useCatalogStore } from '@/store/catalogStore';
 import { joinTargets, parseTargets } from '@/lib/appliesTo';
 import { normalizeSearch } from '@/lib/search';
 import { cn } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 /** Selector "Aplica a" de promociones y cupones: se buscan productos escribiendo y cada clic
  *  los va agregando a la lista (se pueden juntar varios). Sin ninguno elegido aplica a todos.
@@ -63,7 +64,7 @@ export function AppliesToPicker({ value, onChange }: { value: string; onChange: 
               key={t}
               className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary-500 py-1 pl-3 pr-1.5 text-xs font-semibold text-white"
             >
-              <span className="truncate">{labelOf(t)}</span>
+              <Marquee className="">{labelOf(t)}</Marquee>
               <button
                 type="button"
                 onClick={() => toggle(t)}
@@ -134,10 +135,10 @@ export function AppliesToPicker({ value, onChange }: { value: string; onChange: 
                   on ? 'bg-primary-50 font-semibold text-primary-700' : 'text-ink hover:bg-cream-200',
                 )}
               >
-                <span className="min-w-0 truncate">
+                <Marquee className="flex-1">
                   {p.name}
                   <span className="ml-1.5 text-xs font-normal text-ink-soft">({p.category})</span>
-                </span>
+                </Marquee>
                 <span
                   className={cn(
                     'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border',

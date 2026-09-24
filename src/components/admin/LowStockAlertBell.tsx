@@ -6,6 +6,7 @@ import { useCatalogStore } from '@/store/catalogStore';
 import { useBranchStore } from '@/store/branchStore';
 import { SIZELESS_KEY } from '@/types';
 import { cn } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface LowStockItem {
   key: string;
@@ -155,7 +156,7 @@ export function LowStockAlertBell() {
                           <PackageX size={15} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-ink">{item.name}</p>
+                          <Marquee as="p" className="text-sm font-semibold text-ink">{item.name}</Marquee>
                           <p className="text-xs text-ink-muted">
                             {item.kind} · {item.branchName} ·{' '}
                             {item.stock <= 0 ? 'Agotado' : `Quedan ${item.stock}`}

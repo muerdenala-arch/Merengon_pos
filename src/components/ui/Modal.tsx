@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { modalOverlay, modalPanel } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useBackToClose } from '@/hooks/useBackToClose';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface ModalProps {
   open: boolean;
@@ -50,7 +51,7 @@ export function Modal({ open, onClose, title, children, className, size = 'md' }
           >
             {title && (
               <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-6 py-4">
-                <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
+                <Marquee as="h2" className="min-w-0 flex-1 font-display text-xl font-semibold text-ink">{title}</Marquee>
                 <button
                   onClick={onClose}
                   aria-label="Cerrar"

@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import type { QrCode } from '@/types';
 import { cn, formatDateTime } from '@/lib/utils';
 import { staggerItem } from '@/lib/motion';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface QrCardProps {
   qr: QrCode;
@@ -56,8 +57,8 @@ export function QrCard({ qr, branchName, onActivate, onEdit, onDelete }: QrCardP
 
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div>
-            <p className="truncate font-display font-bold text-ink">{qr.alias}</p>
-            <p className="truncate text-sm text-ink-muted">{qr.bankOrHolder || 'Sin banco/titular'}</p>
+            <Marquee as="p" className="font-display font-bold text-ink">{qr.alias}</Marquee>
+            <Marquee as="p" className="text-sm text-ink-muted">{qr.bankOrHolder || 'Sin banco/titular'}</Marquee>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">

@@ -12,6 +12,7 @@ import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn } from '@/lib/utils';
 import { useNavHighlight } from '@/hooks/useNavHighlight';
 import { normalizeSearch } from '@/lib/search';
+import { Marquee } from '@/components/ui/Marquee';
 
 export default function InventoryPage() {
   const products = useCatalogStore((s) => s.products);
@@ -198,7 +199,7 @@ function ProductStockCard({ product, branchId, highlighted }: { product: Product
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate font-display font-bold text-ink">{product.name}</p>
+              <Marquee as="p" className="font-display font-bold text-ink">{product.name}</Marquee>
               {anyOut ? (
                 <Badge tone="danger">Algún tamaño agotado</Badge>
               ) : anyLow ? (
@@ -270,9 +271,9 @@ function SizeStockRow({
 
   return (
     <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-1.5', out ? 'bg-red-50 dark:bg-red-500/10' : low ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-cream-100 dark:bg-zinc-800/60')}>
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">
+      <Marquee className="flex-1 text-sm font-semibold text-ink">
         {label ?? 'Stock'}
-      </span>
+      </Marquee>
 
       <motion.button
         whileTap={{ scale: 0.9 }}
@@ -369,7 +370,7 @@ function StockRow({
       <Card className="flex items-center gap-4 p-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate font-display font-bold text-ink">{name}</p>
+            <Marquee as="p" className="font-display font-bold text-ink">{name}</Marquee>
             {out ? (
               <Badge tone="danger">Agotado</Badge>
             ) : low ? (

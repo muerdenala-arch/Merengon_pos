@@ -11,6 +11,7 @@ import { cn, formatCurrency } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
 import type { Sale, CashRegisterSession } from '@/types';
+import { Marquee } from '@/components/ui/Marquee';
 
 type RangeFilter = 'hoy' | 'custom';
 type ReportData = Awaited<ReturnType<typeof api.adminReports.get>>;
@@ -317,7 +318,7 @@ export default function ReportsPage() {
                       : 'border-border bg-field hover:border-primary-200',
                   )}
                 >
-                  <p className="truncate text-sm font-semibold text-ink">{branch.name}</p>
+                  <Marquee as="p" className="text-sm font-semibold text-ink">{branch.name}</Marquee>
                   <p className="font-display text-xl font-extrabold tabular-nums text-ink">{formatCurrency(total)}</p>
                   <p className="mb-2 text-xs text-ink-muted">{count} venta{count === 1 ? '' : 's'}</p>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-cream-300">
@@ -371,7 +372,7 @@ export default function ReportsPage() {
               <div className="max-h-60 space-y-2 overflow-y-auto no-scrollbar">
                 {branchFilteredSales.slice(0, 8).map((sale) => (
                   <div key={sale.id} className="flex items-center justify-between gap-2 rounded-lg bg-cream-100 px-3 py-2 text-sm">
-                    <span className="truncate font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</span>
+                    <Marquee className="font-semibold text-ink">#{sale.ticketNumber} · {sale.cashierName}</Marquee>
                     <div className="flex flex-shrink-0 items-center gap-2">
                       {sale.couponCode && (
                         <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">

@@ -10,6 +10,7 @@ import { usePromotionStore } from '@/store/promotionStore';
 import { applyPromoDiscount } from '@/store/cartStore';
 import type { CartModifiers, Product, Topping } from '@/types';
 import { cn, formatCurrency } from '@/lib/utils';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface ModifierModalProps {
   product: Product | null;
@@ -95,7 +96,7 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
           <span className="text-3xl">{product.emoji}</span>
         )}
         <div className="min-w-0">
-          <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
+          <Marquee as="p" className="text-xs opacity-90">{product.description}</Marquee>
           <div className="flex items-baseline gap-2">
             {hasPromo && (
               <p className="font-display text-sm font-bold line-through opacity-60">

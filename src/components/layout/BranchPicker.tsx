@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Store } from 'lucide-react';
 import type { Branch } from '@/types';
 import { staggerContainer, staggerItem } from '@/lib/motion';
+import { Marquee } from '@/components/ui/Marquee';
 
 interface BranchPickerProps {
   userName: string;
@@ -33,8 +34,8 @@ export function BranchPicker({ userName, branches, onSelect }: BranchPickerProps
               <MapPin size={20} />
             </div>
             <div className="min-w-0">
-              <p className="truncate font-display font-bold text-ink">{b.name}</p>
-              <p className="truncate text-xs text-ink-muted">{b.address}</p>
+              <Marquee as="p" className="font-display font-bold text-ink">{b.name}</Marquee>
+              <Marquee as="p" className="text-xs text-ink-muted">{b.address}</Marquee>
             </div>
           </motion.button>
         ))}

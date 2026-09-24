@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 import { cn, uid } from '@/lib/utils';
 import type { Product } from '@/types';
 import { SIZELESS_KEY } from '@/types';
+import { Marquee } from '@/components/ui/Marquee';
 
 export default function WarehousePage() {
   const [tab, setTab] = useState<'inventory' | 'history'>('inventory');
@@ -217,7 +218,7 @@ export default function WarehousePage() {
                   return (
                     <Card key={p.id} id={`hl-${p.id}`} className={cn('p-4 flex flex-col justify-between', highlightId === p.id && 'flash-highlight')}>
                       <div>
-                        <h3 className="font-display font-bold text-ink">{p.name}</h3>
+                        <Marquee as="h3" className="font-display font-bold text-ink">{p.name}</Marquee>
                         <p className="text-xs text-ink-muted">{p.category}</p>
                       </div>
                       <div className="mt-4 flex items-center justify-between">
