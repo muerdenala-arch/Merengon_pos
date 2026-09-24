@@ -15,7 +15,13 @@ import { cn, formatCurrency } from '@/lib/utils';
 type Tab = 'productos' | 'toppings';
 
 export default function CatalogPage() {
-  const products = useCatalogStore((s) => s.products);
+  const allProducts = useCatalogStore((s) => s.products);
+  // Los insumos que existen SOLO en bodega (servilletas, bolsas, lavandina...) se gestionan
+  // desde Bodega, no desde el catálogo de venta.
+  const products = useMemo(
+    () => allProducts.filter((p) => !(p.branchIds.length > 0 && p.branchIds.every((b) => b === 'bodega'))),
+    [allProducts],
+  );
   const toppings = useCatalogStore((s) => s.toppings);
   const deleteTopping = useCatalogStore((s) => s.deleteTopping);
 

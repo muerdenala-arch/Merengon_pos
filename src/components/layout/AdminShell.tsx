@@ -7,6 +7,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { ReloadButton } from '@/components/ui/ReloadButton';
 import { LowStockAlertBell } from '@/components/admin/LowStockAlertBell';
 import { fieldClasses } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <img src={logoMark} alt={APP_CONFIG.storeName} className="h-full w-full object-cover" />
           </div>
           <LowStockAlertBell />
+          <ReloadButton />
           <ThemeToggle />
         </div>
       </header>
@@ -160,6 +162,7 @@ function AdminSidebarContent({
         ) : (
           <div className="flex flex-shrink-0 items-center gap-1">
             <LowStockAlertBell />
+            <ReloadButton />
             <ThemeToggle />
           </div>
         )}

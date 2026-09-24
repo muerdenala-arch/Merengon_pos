@@ -8,6 +8,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useCartStore } from '@/store/cartStore';
 import { useCouponStore } from '@/store/couponStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { ReloadButton } from '@/components/ui/ReloadButton';
 import { APP_CONFIG } from '@/config/app';
 import logoMark from '@/assets/brand/logo-mark.png';
 import { logoGlowClasses } from '@/lib/brand';
@@ -98,6 +99,7 @@ export function CashierShell({ children }: { children: ReactNode }) {
               )}
             </p>
           </div>
+          <ReloadButton className="ml-1 sm:ml-2" />
           <ThemeToggle className="ml-1 flex-shrink-0 sm:ml-2" />
           {/* Indicador de estado de red y ventas pendientes de sincronizar */}
           {(!isOnline || pendingCount > 0) && (
