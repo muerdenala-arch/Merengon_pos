@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Pencil, Trash2, Zap } from 'lucide-react';
+import { CheckCircle2, Pencil, Trash2, Zap, ZoomIn } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import type { QrCode } from '@/types';
 import { cn, formatDateTime } from '@/lib/utils';
 import { staggerItem } from '@/lib/motion';
@@ -15,6 +17,8 @@ interface QrCardProps {
 }
 
 export function QrCard({ qr, branchName, onActivate, onEdit, onDelete }: QrCardProps) {
+  const [viewing, setViewing] = useState(false);
+
   return (
     <motion.div variants={staggerItem}>
       <Card
@@ -29,9 +33,26 @@ export function QrCard({ qr, branchName, onActivate, onEdit, onDelete }: QrCardP
           </div>
         )}
 
-        <div className="flex items-center justify-center bg-white p-4 dark:bg-zinc-100">
+        <button
+          type="button"
+          onClick={() => setViewing(true)}
+          aria-label={`Ver el QR de ${qr.alias} en grande`}
+          className="group relative flex items-center justify-center bg-white p-4 cursor-zoom-in dark:bg-zinc-100"
+        >
           <img src={qr.image} alt={qr.alias} className="h-32 w-32 object-contain" />
-        </div>
+          <span className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+            <ZoomIn size={22} className="text-white" />
+          </span>
+        </button>
+
+        <Modal open={viewing} onClose={() => setViewing(false)} title={qr.alias} size="sm">
+          <div className="flex flex-col items-center gap-3 px-6 pb-6 pt-2">
+            <div className="overflow-hidden rounded-xl2 border border-border bg-white p-4 dark:bg-zinc-100">
+              <img src={qr.image} alt={qr.alias} className="max-h-[60vh] w-full max-w-sm object-contain" />
+            </div>
+            {qr.bankOrHolder && <p className="text-sm font-semibold text-ink-muted">{qr.bankOrHolder}</p>}
+          </div>
+        </Modal>
 
         <div className="flex flex-1 flex-col gap-2 p-4">
           <div>
