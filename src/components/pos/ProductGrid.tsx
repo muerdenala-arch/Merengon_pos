@@ -15,11 +15,17 @@ interface ProductGridProps {
   onSelect: (product: Product) => void;
 }
 
+// Lo primero que se vende en todas las sucursales — va siempre arriba y con la etiqueta
+// "Más vendido", aunque todavía no haya ventas registradas para calcularlo.
+const FEATURED_CATEGORY = 'Fresas con Crema';
+const STAR_TAB = '⭐ Más Vendidos';
+const isFeatured = (p: Product) => p.category === FEATURED_CATEGORY;
+
 export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
   const products = useCatalogStore((s) => s.products);
   const sales = useSalesStore((s) => s.sales);
   const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
-  const [category, setCategory] = useState<string>('Todos');
+  const [category, setCategory] = useState<string>(STAR_TAB);
   const [query, setQuery] = useState('');
 
   const branchProducts = useMemo(
@@ -43,31 +49,37 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
 
   const categories = useMemo(() => {
     const cats = ['Todos', ...Array.from(new Set(branchProducts.map((p) => p.category)))];
-    if (topSellingProductIds.length > 0) {
-      cats.splice(1, 0, '⭐ Más Vendidos');
+    if (topSellingProductIds.length > 0 || branchProducts.some(isFeatured)) {
+      cats.unshift(STAR_TAB);
     }
     return cats;
   }, [branchProducts, topSellingProductIds]);
 
+  // Si la pestaña elegida ya no existe en esta sucursal, se cae a "Todos".
+  const activeCategory = categories.includes(category) ? category : 'Todos';
+
   const filtered = useMemo(() => {
+    const rank = (p: Product) => topSellingProductIds.indexOf(p.id);
     return branchProducts
       .filter((p) => {
         if (!p.active) return false;
-        if (category === '⭐ Más Vendidos') {
-          if (!topSellingProductIds.includes(p.id)) return false;
-        } else if (category !== 'Todos' && p.category !== category) {
+        if (activeCategory === STAR_TAB) {
+          if (!isFeatured(p) && !topSellingProductIds.includes(p.id)) return false;
+        } else if (activeCategory !== 'Todos' && p.category !== activeCategory) {
           return false;
         }
         if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false;
         return true;
       })
       .sort((a, b) => {
-        if (category === '⭐ Más Vendidos') {
-          return topSellingProductIds.indexOf(a.id) - topSellingProductIds.indexOf(b.id);
-        }
+        // Las fresas con crema primero (de menor a mayor precio: 250, 350, 500, 750 ml),
+        // después lo más vendido según las ventas reales.
+        if (isFeatured(a) !== isFeatured(b)) return isFeatured(a) ? -1 : 1;
+        if (isFeatured(a) && isFeatured(b)) return a.basePrice - b.basePrice;
+        if (activeCategory === STAR_TAB) return rank(a) - rank(b);
         return 0;
       });
-  }, [branchProducts, category, query, topSellingProductIds]);
+  }, [branchProducts, activeCategory, query, topSellingProductIds]);
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -88,7 +100,7 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
               onClick={() => setCategory(c)}
               className={cn(
                 'flex-shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors cursor-pointer',
-                category === c ? 'bg-primary-500 text-white' : 'bg-cream-300 text-ink-muted hover:bg-cream-200',
+                activeCategory === c ? 'bg-primary-500 text-white' : 'bg-cream-300 text-ink-muted hover:bg-cream-200',
               )}
             >
               {c}
@@ -111,6 +123,7 @@ export function ProductGrid({ branchId, onSelect }: ProductGridProps) {
             product={product}
             branchId={branchId}
             promo={activePromotionFor({ id: product.id, category: product.category }, branchId)}
+            featured={isFeatured(product)}
             onSelect={onSelect}
           />
         ))}
@@ -129,11 +142,13 @@ const ProductCard = memo(function ProductCard({
   product,
   branchId,
   promo,
+  featured,
   onSelect,
 }: {
   product: Product;
   branchId: string;
   promo: Promotion | null;
+  featured: boolean;
   onSelect: (p: Product) => void;
 }) {
   // Total de TODOS los tamaños de este producto en la sucursal — la tarjeta solo se
@@ -159,6 +174,11 @@ const ProductCard = memo(function ProductCard({
       onClick={() => onSelect(product)}
       className="group relative flex flex-col overflow-hidden rounded-xl2 bg-surface text-left shadow-soft transition-shadow hover:shadow-card disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
     >
+      {featured && (
+        <div className="absolute left-2 top-2 z-10 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
+          ⭐ Más vendido
+        </div>
+      )}
       {/* Badge de promo */}
       {hasPromo && (
         <div className="absolute right-2 top-2 z-10 rounded-full bg-green-500 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm">
