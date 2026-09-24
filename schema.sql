@@ -72,6 +72,12 @@ CREATE TABLE IF NOT EXISTS products (
   topping_ids          jsonb NOT NULL DEFAULT '[]',
   branch_ids           jsonb NOT NULL DEFAULT '[]',
   active               boolean NOT NULL DEFAULT true,
+  -- Forma: { [branchId]: { [sizeId]: cantidad } } — cada tamaño/presentación (250ml,
+  -- 350ml, etc.) tiene su propio stock independiente por sucursal; vender un tamaño ya no
+  -- descuenta del mismo pozo compartido que los demás. Productos sin tamaños (sizes: [],
+  -- ej. insumos de bodega) usan la clave SIZELESS_KEY ('_default', ver src/types/index.ts)
+  -- como si fuera "el único tamaño". Migrado desde el formato viejo { [branchId]: cantidad }
+  -- repartiendo el total existente en partes iguales entre los tamaños de cada producto.
   stock_by_branch      jsonb NOT NULL DEFAULT '{}',
   low_stock_threshold  integer NOT NULL DEFAULT 0,
   unit                 text NOT NULL DEFAULT 'vasos',
@@ -267,6 +273,12 @@ INSERT INTO categories (id, name, active) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- ── Productos ────────────────────────────────────────────────────────────────
+-- NOTA: los stock_by_branch de abajo quedaron en el formato VIEJO ({branchId: cantidad})
+-- de antes de separar el stock por tamaño — nunca se re-tocaron porque este bloque es solo
+-- para una instalación nueva desde cero, no corre contra la base de datos real (que ya fue
+-- migrada al formato nuevo { [branchId]: { [sizeId]: cantidad } }, ver comentario en la
+-- columna más arriba). Si alguna vez se usa este seed para instalar de cero, conviene
+-- primero repartir estos números entre los tamaños de cada producto.
 INSERT INTO products (
   id, name, category, description, base_price, gradient, emoji, sizes,
   topping_ids, active, stock_by_branch,

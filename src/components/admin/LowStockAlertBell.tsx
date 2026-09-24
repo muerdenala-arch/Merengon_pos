@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, PackageX, PackageSearch } from 'lucide-react';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useBranchStore } from '@/store/branchStore';
+import { SIZELESS_KEY } from '@/types';
 import { cn } from '@/lib/utils';
 
 interface LowStockItem {
@@ -27,17 +28,21 @@ function useLowStockItems(): LowStockItem[] {
 
     for (const p of products) {
       for (const branchId of p.branchIds) {
-        const stock = p.stockByBranch[branchId] ?? 0;
-        if (stock <= p.lowStockThreshold) {
-          items.push({
-            key: `p-${p.id}-${branchId}`,
-            name: p.name,
-            kind: 'Producto',
-            branchId,
-            branchName: branchName(branchId),
-            stock,
-            threshold: p.lowStockThreshold,
-          });
+        const sizesToCheck = p.sizes.length > 0 ? p.sizes : [{ id: SIZELESS_KEY, label: '' }];
+        for (const size of sizesToCheck) {
+          const stock = p.stockByBranch[branchId]?.[size.id] ?? 0;
+          if (stock <= p.lowStockThreshold) {
+            items.push({
+              key: `p-${p.id}-${branchId}-${size.id}`,
+              // Con varios tamaños, aclarar cuál para que el admin sepa qué reponer.
+              name: p.sizes.length > 0 ? `${p.name} (${size.label})` : p.name,
+              kind: 'Producto',
+              branchId,
+              branchName: branchName(branchId),
+              stock,
+              threshold: p.lowStockThreshold,
+            });
+          }
         }
       }
     }

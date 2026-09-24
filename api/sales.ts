@@ -3,6 +3,7 @@ import { query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { Sale, CashRegisterSession } from '../src/types/index.js';
+import { SIZELESS_KEY } from '../src/types/index.js';
 
 const SELECT_COLUMNS = `
   id, ticket_number as "ticketNumber", items, subtotal,
@@ -185,12 +186,21 @@ async function handler(req: VercelRequest, res: VercelResponse) {
       // su descuento de stock, ni dos ventas concurrentes se pisan el stock entre sí (ver
       // scripts/fix_stock.ts, scripts/clear_bodega.ts: así se corrompió el stock antes).
       for (const item of items) {
+        // Cada tamaño tiene su propio contador de stock (ver Product.stockByBranch) — se
+        // descuenta el tamaño que efectivamente se vendió, no un total compartido del
+        // producto. SIZELESS_KEY para productos sin tamaños (ej. insumos vendidos sueltos).
+        const sizeId = item.modifiers?.size?.id ?? SIZELESS_KEY;
         await tx(
           `UPDATE products SET stock_by_branch = jsonb_set(
              coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
-             to_jsonb(GREATEST(0, COALESCE((stock_by_branch->>$2)::int,0) - $3::int))
+             jsonb_set(
+               coalesce(stock_by_branch->$2::text, '{}'::jsonb), ARRAY[$4::text],
+               to_jsonb(GREATEST(0, COALESCE((stock_by_branch->$2::text->>$4::text)::int,0) - $3::int)),
+               true
+             ),
+             true
            ), updated_at = now() WHERE id = $1`,
-          [item.product.id, body.branchId, item.quantity],
+          [item.product.id, body.branchId, item.quantity, sizeId],
         );
         await tx(
           `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)

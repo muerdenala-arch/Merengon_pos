@@ -6,10 +6,8 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { query, queryOne, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import { requireAdmin } from './_lib/auth.js';
-import type { Product, Topping, Category } from '../src/types/index.js';
-
-/** Ajuste atómico de stock para UNA sucursal: `delta` suma/resta, `set` fija el valor. */
-interface StockOp { branchId: string; delta?: number; set?: number }
+import type { Product, Topping, Category, StockOp } from '../src/types/index.js';
+import { SIZELESS_KEY } from '../src/types/index.js';
 
 // ── Products ──────────────────────────────────────────────────────────────────
 const PRODUCT_COLS = `
@@ -50,11 +48,13 @@ async function productsHandler(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method === 'PATCH' && id) {
     const body = requireBody<Partial<Product> & { stockOp?: StockOp }>(req);
-    // stockOp: ajuste ATÓMICO de una sola sucursal (jsonb_set en el propio UPDATE) — a
-    // diferencia de mandar `stockByBranch` completo, esto no pierde cambios concurrentes
-    // de otro cajero/dispositivo ni pisa el stock de las demás sucursales (ver bugs
-    // históricos en scripts/fix_stock.ts, scripts/clear_bodega.ts).
+    // stockOp: ajuste ATÓMICO de UNA sucursal + UN tamaño (jsonb_set anidado en el propio
+    // UPDATE) — a diferencia de mandar `stockByBranch` completo, esto no pierde cambios
+    // concurrentes de otro cajero/dispositivo ni pisa el stock de las demás sucursales o
+    // tamaños (ver bugs históricos en scripts/fix_stock.ts, scripts/clear_bodega.ts). Cada
+    // tamaño tiene su propio contador — vender un tamaño no descuenta el de los demás.
     const op = body.stockOp;
+    const sizeId = op?.sizeId ?? SIZELESS_KEY;
     const product = await queryOne<Product>(
       `update products set name=coalesce($2,name), category=coalesce($3,category),
          description=coalesce($4,description), base_price=coalesce($5,base_price),
@@ -65,8 +65,14 @@ async function productsHandler(req: VercelRequest, res: VercelResponse) {
            WHEN $15::text IS NOT NULL THEN jsonb_set(
              coalesce(stock_by_branch,'{}'::jsonb),
              ARRAY[$15::text],
-             to_jsonb(GREATEST(0, CASE WHEN $16::boolean THEN $17::int
-               ELSE COALESCE((stock_by_branch->>$15)::int,0) + $17::int END))
+             jsonb_set(
+               coalesce(stock_by_branch->$15::text, '{}'::jsonb),
+               ARRAY[$19::text],
+               to_jsonb(GREATEST(0, CASE WHEN $16::boolean THEN $17::int
+                 ELSE COALESCE((stock_by_branch->$15::text->>$19::text)::int,0) + $17::int END)),
+               true
+             ),
+             true
            )
            ELSE coalesce($12::jsonb, stock_by_branch)
          END,
@@ -80,7 +86,7 @@ async function productsHandler(req: VercelRequest, res: VercelResponse) {
        body.active??null,op?null:(body.stockByBranch?JSON.stringify(body.stockByBranch):null),
        body.lowStockThreshold??null,body.unit??null,
        op?.branchId??null, op?.set!==undefined, op?(op.set??op.delta??0):null,
-       body.imageUrl??null],
+       body.imageUrl??null, sizeId],
     );
     if (!product) { res.status(404).json({ error: 'Producto no encontrado' }); return; }
     res.status(200).json(product); return;

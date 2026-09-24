@@ -136,7 +136,10 @@ const ProductCard = memo(function ProductCard({
   promo: Promotion | null;
   onSelect: (p: Product) => void;
 }) {
-  const stock = product.stockByBranch[branchId] ?? 0;
+  // Total de TODOS los tamaños de este producto en la sucursal — la tarjeta solo se
+  // deshabilita si no queda nada vendible en NINGÚN tamaño; qué tamaño específico está
+  // agotado se resuelve dentro del selector de tamaños (ModifierModal).
+  const stock = useCatalogStore((s) => s.totalStockFor(product, branchId));
   const lowStock = stock <= product.lowStockThreshold;
   const outOfStock = stock <= 0;
 

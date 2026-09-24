@@ -20,6 +20,7 @@ interface ModifierModalProps {
 
 export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierModalProps) {
   const toppingsCatalog = useCatalogStore((s) => s.toppings);
+  const stockFor = useCatalogStore((s) => s.stockFor);
   const addItem = useCartStore((s) => s.addItem);
   const activePromotionFor = usePromotionStore((s) => s.activePromotionFor);
 
@@ -37,6 +38,10 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
   if (!product) return null;
 
   const size = product.sizes.find((s) => s.id === sizeId) ?? product.sizes[0];
+  // Cada tamaño tiene su propio stock (ver Product.stockByBranch) — el máximo a vender
+  // depende de CUÁL tamaño está elegido, no de un total compartido del producto.
+  const sizeStock = stockFor(product, branchId, size?.id);
+  const sizeOutOfStock = sizeStock <= 0;
   const promo = activePromotionFor({ id: product.id, category: product.category, sizeId: size?.id }, branchId);
   const toppings: Topping[] = availableToppings.filter((t) => selectedToppings.includes(t.id));
   const toppingsTotal = toppings.reduce((sum, t) => sum + t.priceExtra, 0);
@@ -50,6 +55,14 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
     setSelectedToppings((prev) =>
       prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
     );
+  }
+
+  function selectSize(id: string) {
+    setSizeId(id);
+    // Si la cantidad ya elegida supera el stock del tamaño nuevo, la recorta — evita
+    // arrastrar una cantidad que ya no es vendible al cambiar de tamaño.
+    const newStock = stockFor(product!, branchId, id);
+    setQuantity((q) => Math.max(1, Math.min(q, Math.max(1, newStock))));
   }
 
   function handleReset() {
@@ -102,12 +115,14 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
         <div className={cn('mb-4 grid gap-2', product.sizes.length <= 2 ? 'grid-cols-2' : 'grid-cols-4')}>
           {product.sizes.map((s) => {
             const active = s.id === sizeId;
+            const outOfStock = stockFor(product, branchId, s.id) <= 0;
             return (
               <button
                 key={s.id}
-                onClick={() => setSizeId(s.id)}
+                disabled={outOfStock}
+                onClick={() => selectSize(s.id)}
                 className={cn(
-                  'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 px-2 py-2.5 text-center text-sm font-semibold transition-all',
+                  'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 px-2 py-2.5 text-center text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40',
                   active
                     ? 'border-primary-500 bg-primary-500 text-white shadow-md'
                     : 'border-border bg-surface text-ink hover:border-primary-300',
@@ -122,6 +137,11 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
                 {s.price > 0 && (
                   <span className={cn('text-[10px] font-semibold', active ? 'text-white/90' : 'text-primary-500')}>
                     {formatCurrency(s.price)}
+                  </span>
+                )}
+                {outOfStock && (
+                  <span className={cn('text-[9px] font-bold uppercase', active ? 'text-white/90' : 'text-red-500')}>
+                    Agotado
                   </span>
                 )}
               </button>
@@ -196,16 +216,19 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
             <span className="w-6 text-center font-display text-lg font-bold">{quantity}</span>
             <motion.button
               whileTap={{ scale: 0.88 }}
-              onClick={() => {
-                const maxQuantity = product.stockByBranch[branchId] ?? 0;
-                setQuantity((q) => Math.min(maxQuantity, q + 1));
-              }}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+              onClick={() => setQuantity((q) => Math.min(sizeStock, q + 1))}
+              disabled={quantity >= sizeStock}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-surface shadow-soft cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Plus size={15} />
             </motion.button>
           </div>
         </div>
+        {sizeOutOfStock && (
+          <p className="mt-2 text-center text-xs font-semibold text-red-600">
+            {product.sizes.length > 0 ? `El tamaño "${size?.label}" está agotado en esta sucursal.` : 'Este producto está agotado en esta sucursal.'}
+          </p>
+        )}
       </div>
 
       {/* Footer sticky — siempre visible */}
@@ -217,7 +240,7 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
         >
           Cancelar
         </Button>
-        <Button onClick={handleAdd} className="flex-1" size="lg">
+        <Button onClick={handleAdd} disabled={sizeOutOfStock} className="flex-1" size="lg">
           <span className="font-bold">Agregar</span>
           {hasPromo ? (
             <span className="ml-1 opacity-90">

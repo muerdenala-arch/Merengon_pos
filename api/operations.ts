@@ -6,6 +6,7 @@ import { query, withTransaction } from './_lib/db.js';
 import { methodNotAllowed, requireBody, withErrorHandling } from './_lib/http.js';
 import { requireAuth, requireAdmin } from './_lib/auth.js';
 import type { Expense } from '../src/types/index.js';
+import { SIZELESS_KEY } from '../src/types/index.js';
 
 // ── Expenses ──────────────────────────────────────────────────────────────────
 const EXPENSE_COLS = `
@@ -57,6 +58,10 @@ const MOVEMENT_COLS = `
 interface TransferBody {
   id: string; productId: string; fromBranchId: string; toBranchId: string;
   quantity: number; userId: string; notes?: string;
+  /** Tamaño del producto que se transfiere — SIZELESS_KEY si no se indica (ej. insumos de
+   *  bodega sin tamaños). Cada tamaño tiene su propio stock, así que la transferencia debe
+   *  saber cuál mover. */
+  sizeId?: string;
 }
 
 async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
@@ -87,6 +92,7 @@ async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
     if (!body.id || !body.productId || !body.fromBranchId || !body.toBranchId || !body.userId || !(body.quantity > 0)) {
       res.status(400).json({ error: 'Faltan campos requeridos para la transferencia.' }); return;
     }
+    const sizeId = body.sizeId ?? SIZELESS_KEY;
     try {
       const result = await withTransaction(async (tx) => {
         const existing = await tx<StockMovement>(
@@ -94,11 +100,11 @@ async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
         );
         if (existing.length > 0) return { alreadyDone: true as const };
 
-        const [product] = await tx<{ stockByBranch: Record<string, number> }>(
+        const [product] = await tx<{ stockByBranch: Record<string, Record<string, number>> }>(
           `SELECT stock_by_branch as "stockByBranch" FROM products WHERE id = $1 FOR UPDATE`,
           [body.productId],
         );
-        const available = product ? (product.stockByBranch[body.fromBranchId] ?? 0) : 0;
+        const available = product ? (product.stockByBranch[body.fromBranchId]?.[sizeId] ?? 0) : 0;
         if (available < body.quantity) {
           throw new Error(`Stock insuficiente en bodega: quedan ${available}.`);
         }
@@ -106,16 +112,26 @@ async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
         await tx(
           `UPDATE products SET stock_by_branch = jsonb_set(
              coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
-             to_jsonb(GREATEST(0, COALESCE((stock_by_branch->>$2)::int,0) - $3::int))
+             jsonb_set(
+               coalesce(stock_by_branch->$2::text, '{}'::jsonb), ARRAY[$4::text],
+               to_jsonb(GREATEST(0, COALESCE((stock_by_branch->$2::text->>$4::text)::int,0) - $3::int)),
+               true
+             ),
+             true
            ), updated_at = now() WHERE id = $1`,
-          [body.productId, body.fromBranchId, body.quantity],
+          [body.productId, body.fromBranchId, body.quantity, sizeId],
         );
         await tx(
           `UPDATE products SET stock_by_branch = jsonb_set(
              coalesce(stock_by_branch,'{}'::jsonb), ARRAY[$2::text],
-             to_jsonb(COALESCE((stock_by_branch->>$2)::int,0) + $3::int)
+             jsonb_set(
+               coalesce(stock_by_branch->$2::text, '{}'::jsonb), ARRAY[$4::text],
+               to_jsonb(COALESCE((stock_by_branch->$2::text->>$4::text)::int,0) + $3::int),
+               true
+             ),
+             true
            ), updated_at = now() WHERE id = $1`,
-          [body.productId, body.toBranchId, body.quantity],
+          [body.productId, body.toBranchId, body.quantity, sizeId],
         );
         await tx(
           `INSERT INTO stock_movements (id, product_id, branch_id, quantity_change, type, notes, user_id)
@@ -127,7 +143,7 @@ async function stockMovementsHandler(req: VercelRequest, res: VercelResponse) {
            VALUES ($1,$2,$3,$4,'RESTOCK',$5,$6)`,
           [`${body.id}_in`, body.productId, body.toBranchId, body.quantity, body.notes ?? 'Ingreso desde bodega', body.userId],
         );
-        const [updatedProduct] = await tx<{ stockByBranch: Record<string, number> }>(
+        const [updatedProduct] = await tx<{ stockByBranch: Record<string, Record<string, number>> }>(
           `SELECT stock_by_branch as "stockByBranch" FROM products WHERE id = $1`, [body.productId],
         );
         return { alreadyDone: false as const, stockByBranch: updatedProduct?.stockByBranch ?? {} };

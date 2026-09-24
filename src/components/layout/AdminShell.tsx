@@ -120,7 +120,11 @@ function AdminSidebarContent({
   const products = useCatalogStore((s) => s.products);
   const sessions = useRegisterStore((s) => s.sessions);
   const navigate = useNavigate();
-  const lowStockCount = products.filter((p) => p.branchIds.includes('bodega') && (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold).length;
+  const lowStockCount = products.filter((p) => {
+    if (!p.branchIds.includes('bodega')) return false;
+    const stock = Object.values(p.stockByBranch['bodega'] ?? {}).reduce((sum, n) => sum + n, 0);
+    return stock <= p.lowStockThreshold;
+  }).length;
   // Cajas abiertas más tiempo del que su sucursal tiene configurado para auditar (ver
   // Branch.cashAuditDays) — visible en el nav para que el admin lo note sin tener que
   // entrar a Auditoría de cajas.

@@ -27,12 +27,30 @@ export const BRANCHES: Branch[] = [
   },
 ];
 
-/** Reparte un stock base entre las 3 sucursales semilla (60% / 35% sobre el valor central). */
+/** Reparte un stock base entre las 3 sucursales semilla (60% / 35% sobre el valor central).
+ *  Usado solo para TOPPINGS, que no tienen tamaños (stock plano por sucursal). */
 function stockPerBranch(central: number): Record<string, number> {
   return {
     central,
     norte: Math.max(0, Math.round(central * 0.6)),
     sur: Math.max(0, Math.round(central * 0.35)),
+  };
+}
+
+/** Igual que stockPerBranch, pero para PRODUCTOS: además reparte el total en partes
+ *  iguales entre los tamaños del producto (cada tamaño tiene su propio stock). Solo se usa
+ *  para la data semilla de respaldo — el reparto real de productos existentes se hizo una
+ *  vez en la base de datos, no acá. */
+function productStockPerBranch(central: number, sizeIds: string[]): Record<string, Record<string, number>> {
+  const distribute = (total: number) => {
+    const base = Math.floor(total / sizeIds.length);
+    const remainder = total - base * sizeIds.length;
+    return Object.fromEntries(sizeIds.map((id, i) => [id, base + (i < remainder ? 1 : 0)]));
+  };
+  return {
+    central: distribute(central),
+    norte: distribute(Math.max(0, Math.round(central * 0.6))),
+    sur: distribute(Math.max(0, Math.round(central * 0.35))),
   };
 }
 
@@ -43,6 +61,7 @@ export const SIZES: SizeOption[] = [
   { id: 'grande',   label: 'Grande',    ounces: 16, price: 10 },
   { id: 'familiar', label: 'Familiar',  ounces: 24, price: 18 },
 ];
+const SIZE_IDS = SIZES.map((s) => s.id);
 
 // --- TOPPINGS / EXTRAS (precios en Bs) ----------------------------------------
 export const TOPPINGS: Topping[] = [
@@ -122,7 +141,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['leche-cond', 'nutella', 'oreo', 'chispas', 'chantilly', 'gomitas', 'manjar'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(50),
+  stockByBranch: productStockPerBranch(50, SIZE_IDS),
     lowStockThreshold: 10,
     unit: 'vasos',
   },
@@ -138,7 +157,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas', 'gomitas', 'manjar'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(40),
+  stockByBranch: productStockPerBranch(40, SIZE_IDS),
     lowStockThreshold: 10,
     unit: 'vasos',
   },
@@ -154,7 +173,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas', 'gomitas'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(35),
+  stockByBranch: productStockPerBranch(35, SIZE_IDS),
     lowStockThreshold: 8,
     unit: 'vasos',
   },
@@ -170,7 +189,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas', 'leche-cond'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(35),
+  stockByBranch: productStockPerBranch(35, SIZE_IDS),
     lowStockThreshold: 8,
     unit: 'vasos',
   },
@@ -188,7 +207,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['leche-cond', 'chantilly', 'oreo', 'gomitas', 'granola'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(30),
+  stockByBranch: productStockPerBranch(30, SIZE_IDS),
     lowStockThreshold: 8,
     unit: 'vasos',
   },
@@ -204,7 +223,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['leche-cond', 'chantilly', 'oreo', 'granola', 'coco', 'miel'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(25),
+  stockByBranch: productStockPerBranch(25, SIZE_IDS),
     lowStockThreshold: 6,
     unit: 'vasos',
   },
@@ -223,7 +242,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'chispas', 'nutella', 'leche-cond'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(15),
+  stockByBranch: productStockPerBranch(15, ['individual', 'doble']),
     lowStockThreshold: 5,
     unit: 'porciones',
   },
@@ -244,7 +263,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(30),
+  stockByBranch: productStockPerBranch(30, ['mediano', 'grande']),
     lowStockThreshold: 8,
     unit: 'vasos',
   },
@@ -263,7 +282,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas', 'leche-cond'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(30),
+  stockByBranch: productStockPerBranch(30, ['mediano', 'grande']),
     lowStockThreshold: 8,
     unit: 'vasos',
   },
@@ -282,7 +301,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'oreo', 'chispas'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-  stockByBranch: stockPerBranch(25),
+  stockByBranch: productStockPerBranch(25, ['mediano', 'grande']),
     lowStockThreshold: 6,
     unit: 'vasos',
   },
@@ -301,7 +320,7 @@ export const PRODUCTS: Product[] = [
     toppingIds: ['chantilly', 'gomitas'],
     active: true,
     branchIds: ['central', 'norte', 'sur'],
-    stockByBranch: stockPerBranch(40),
+    stockByBranch: productStockPerBranch(40, ['mediano', 'grande']),
     lowStockThreshold: 10,
     unit: 'vasos',
   },

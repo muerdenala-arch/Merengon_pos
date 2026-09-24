@@ -203,8 +203,8 @@ export const api = {
      *  descuenta+acredita+registra el kardex en una sola transacción del servidor. */
     transfer: (data: {
       id: string; productId: string; fromBranchId: string; toBranchId: string;
-      quantity: number; userId: string; notes?: string;
-    }) => post<{ alreadyDone: boolean; stockByBranch?: Record<string, number> }>(
+      quantity: number; userId: string; notes?: string; sizeId?: string;
+    }) => post<{ alreadyDone: boolean; stockByBranch?: Record<string, Record<string, number>> }>(
       '/stock_movements?action=transfer', data,
     ),
   },

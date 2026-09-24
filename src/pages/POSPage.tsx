@@ -17,6 +17,7 @@ import { useCouponStore } from '@/store/couponStore';
 import { formatCurrency, uid } from '@/lib/utils';
 import { api } from '@/lib/api';
 import type { Payment, Product, Sale } from '@/types';
+import { SIZELESS_KEY } from '@/types';
 
 export default function POSPage() {
   const currentUser = useAuthStore((s) => s.currentUser)!;
@@ -97,7 +98,8 @@ export default function POSPage() {
     // forma atómica dentro de la MISMA transacción que crea la venta, ver api/sales.ts,
     // así que no hace falta ni conviene mandar un PATCH de stock aparte desde aquí).
     items.forEach((item) => {
-      applyLocalStockDelta(item.product.id, currentBranchId!, -item.quantity);
+      const sizeId = item.modifiers.size?.id ?? SIZELESS_KEY;
+      applyLocalStockDelta(item.product.id, currentBranchId!, sizeId, -item.quantity);
       item.modifiers.toppings.forEach((t) => applyLocalToppingStockDelta(t.id, currentBranchId!, -item.quantity));
     });
 

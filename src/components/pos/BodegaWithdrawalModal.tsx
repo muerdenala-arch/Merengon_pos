@@ -4,6 +4,7 @@ import { useCatalogStore } from '@/store/catalogStore';
 import { useAuthStore } from '@/store/authStore';
 import { api } from '@/lib/api';
 import { uid } from '@/lib/utils';
+import { SIZELESS_KEY } from '@/types';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -23,11 +24,13 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
   const [quantity, setQuantity] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const bodegaProducts = products.filter(p => (p.stockByBranch['bodega'] || 0) > 0);
+  // Los insumos de bodega no tienen tamaños (sizes: []), así que su stock vive siempre
+  // bajo la clave SIZELESS_KEY dentro de stockByBranch['bodega'].
+  const bodegaProducts = products.filter(p => (p.stockByBranch['bodega']?.[SIZELESS_KEY] || 0) > 0);
   const filteredProducts = bodegaProducts.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
-  const maxStock = selectedProduct?.stockByBranch['bodega'] || 0;
+  const maxStock = selectedProduct?.stockByBranch['bodega']?.[SIZELESS_KEY] || 0;
 
   async function handleWithdraw() {
     if (!selectedProduct || !currentBranchId || !currentUser) return;
@@ -48,11 +51,12 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
         quantity: qty,
         userId: currentUser.id,
         notes: `Retiro hacia sucursal por ${currentUser.name}`,
+        sizeId: SIZELESS_KEY,
       });
 
       // Reflejar el cambio en la UI al instante (el servidor ya lo persistió).
-      applyLocalStockDelta(selectedProduct.id, 'bodega', -qty);
-      applyLocalStockDelta(selectedProduct.id, currentBranchId, qty);
+      applyLocalStockDelta(selectedProduct.id, 'bodega', SIZELESS_KEY, -qty);
+      applyLocalStockDelta(selectedProduct.id, currentBranchId, SIZELESS_KEY, qty);
 
       onClose();
       setQuantity('');
@@ -87,7 +91,7 @@ export function BodegaWithdrawalModal({ open, onClose }: BodegaWithdrawalModalPr
               }`}
             >
               <span className="font-bold text-sm text-ink">{p.name}</span>
-              <span className="text-xs text-ink-soft">Disp: {p.stockByBranch['bodega']}</span>
+              <span className="text-xs text-ink-soft">Disp: {p.stockByBranch['bodega']?.[SIZELESS_KEY] ?? 0}</span>
             </button>
           ))}
           {filteredProducts.length === 0 && (

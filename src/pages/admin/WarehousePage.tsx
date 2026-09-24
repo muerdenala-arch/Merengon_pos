@@ -9,6 +9,7 @@ import { useWarehouseStore } from '@/store/warehouseStore';
 import { useAuthStore } from '@/store/authStore';
 import { cn, uid } from '@/lib/utils';
 import type { Product } from '@/types';
+import { SIZELESS_KEY } from '@/types';
 
 export default function WarehousePage() {
   const [tab, setTab] = useState<'inventory' | 'history'>('inventory');
@@ -34,9 +35,11 @@ export default function WarehousePage() {
     }
   }, [tab, fetchMovements]);
 
+  // Los insumos de bodega no tienen tamaños (sizes: []), así que su stock vive siempre
+  // bajo la clave SIZELESS_KEY dentro de stockByBranch['bodega'].
   // Solo productos que tienen asignada la sucursal 'bodega' o que ya tienen stock en bodega
   const bodegaProducts = products.filter(
-    (p) => p.branchIds.includes('bodega') || (p.stockByBranch['bodega'] || 0) > 0
+    (p) => p.branchIds.includes('bodega') || (p.stockByBranch['bodega']?.[SIZELESS_KEY] || 0) > 0
   );
 
   const filteredProducts = bodegaProducts.filter((p) =>
@@ -45,7 +48,7 @@ export default function WarehousePage() {
 
   // Productos con stock bajo en bodega (solo los que están registrados en bodega)
   const lowStockProducts = bodegaProducts.filter(
-    (p) => (p.stockByBranch['bodega'] || 0) <= p.lowStockThreshold
+    (p) => (p.stockByBranch['bodega']?.[SIZELESS_KEY] || 0) <= p.lowStockThreshold
   );
   const lowStockCount = lowStockProducts.length;
 
@@ -73,7 +76,10 @@ export default function WarehousePage() {
       
     const newStockByBranch = {
       ...product.stockByBranch,
-      bodega: Math.max(0, (product.stockByBranch['bodega'] ?? 0) + delta)
+      bodega: {
+        ...(product.stockByBranch['bodega'] ?? {}),
+        [SIZELESS_KEY]: Math.max(0, (product.stockByBranch['bodega']?.[SIZELESS_KEY] ?? 0) + delta),
+      },
     };
 
     const { upsertProduct } = useCatalogStore.getState();
@@ -99,7 +105,7 @@ export default function WarehousePage() {
 
   async function handleResetToZero(product: Product, currentStock: number) {
     if (currentStock > 0) {
-      adjustStock(product.id, 'bodega', -currentStock);
+      adjustStock(product.id, 'bodega', SIZELESS_KEY, -currentStock);
       await recordMovement({
         id: uid('mov'),
         productId: product.id,
@@ -189,7 +195,7 @@ export default function WarehousePage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredProducts.map((p) => {
-                  const stock = p.stockByBranch['bodega'] || 0;
+                  const stock = p.stockByBranch['bodega']?.[SIZELESS_KEY] || 0;
                   const isLow = stock <= p.lowStockThreshold && stock > 0;
                   return (
                     <Card key={p.id} className="p-4 flex flex-col justify-between">
@@ -346,7 +352,7 @@ export default function WarehousePage() {
               toppingIds: [],
               active: true,
               branchIds: ['bodega'],
-              stockByBranch: { bodega: stock },
+              stockByBranch: { bodega: { [SIZELESS_KEY]: stock } },
               lowStockThreshold: lowStock,
               unit: 'unidades',
             });

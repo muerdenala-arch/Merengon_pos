@@ -125,7 +125,7 @@ export function CartPanel({ onCheckout, branchId, variant = 'sidebar' }: CartPan
                   <motion.button
                     whileTap={{ scale: 0.9 }}
                     onClick={() => {
-                      const stock = useCatalogStore.getState().stockFor(item.product, branchId);
+                      const stock = useCatalogStore.getState().stockFor(item.product, branchId, item.modifiers.size?.id);
                       if (item.quantity < stock) {
                         updateQuantity(item.lineId, item.quantity + 1);
                       }

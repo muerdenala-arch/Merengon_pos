@@ -11,7 +11,10 @@ import { cn, formatCurrency } from '@/lib/utils';
 export function ProductRow({ product, onEdit }: { product: Product; onEdit: () => void }) {
   const toggleActive = useCatalogStore((s) => s.toggleActive);
   const removeProduct = useCatalogStore((s) => s.removeProduct);
-  const totalStock = Object.values(product.stockByBranch).reduce((sum, n) => sum + n, 0);
+  const totalStock = Object.values(product.stockByBranch).reduce(
+    (sum, sizes) => sum + Object.values(sizes).reduce((s, n) => s + n, 0),
+    0,
+  );
   const lowStock = totalStock <= product.lowStockThreshold;
   const [confirmDelete, setConfirmDelete] = useState(false);
 

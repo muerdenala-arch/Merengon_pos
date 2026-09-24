@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { PRODUCTS, TOPPINGS } from '@/data/seed';
 import type { Product, Topping, Category } from '@/types';
+import { SIZELESS_KEY } from '@/types';
 import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
@@ -17,16 +18,23 @@ interface CatalogState {
   createProduct: (data: Omit<Product, 'id'>) => Product;
   removeProduct: (id: string) => void;
   toggleActive: (id: string) => void;
-  adjustStock: (id: string, branchId: string, delta: number) => void;
-  setStock: (id: string, branchId: string, value: number) => void;
+  /** `sizeId` es obligatorio para reflejar que cada tamaño tiene su propio stock — usar
+   *  SIZELESS_KEY para productos sin tamaños configurados. */
+  adjustStock: (id: string, branchId: string, sizeId: string, delta: number) => void;
+  setStock: (id: string, branchId: string, sizeId: string, value: number) => void;
   adjustToppingStock: (id: string, branchId: string, delta: number) => void;
   setToppingStock: (id: string, branchId: string, value: number) => void;
   /** Solo actualiza el estado local (sin red) — para reflejar al instante un descuento de
    *  stock que el SERVIDOR ya aplicó atómicamente como parte de otra operación (ej. una
    *  venta: ver api/sales.ts). No usar para ajustes que deban persistirse por su cuenta. */
-  applyLocalStockDelta: (id: string, branchId: string, delta: number) => void;
+  applyLocalStockDelta: (id: string, branchId: string, sizeId: string, delta: number) => void;
   applyLocalToppingStockDelta: (id: string, branchId: string, delta: number) => void;
-  stockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string) => number;
+  /** Stock de UN tamaño específico en una sucursal (SIZELESS_KEY si el producto no tiene
+   *  tamaños). Para el total del producto en esa sucursal, ver `totalStockFor`. */
+  stockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string, sizeId?: string) => number;
+  /** Suma el stock de TODOS los tamaños de un producto en una sucursal — para vistas que
+   *  muestran "cuánto queda en total" (catálogo, alertas, bodega). */
+  totalStockFor: (product: Pick<Product, 'stockByBranch'>, branchId: string) => number;
   /** CRUD de toppings */
   createTopping: (data: Omit<Topping, 'id'>) => Topping;
   upsertTopping: (topping: Topping) => void;
@@ -107,29 +115,33 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
   // concurrentes (dos cajeros, o un cajero + un retiro de bodega) nunca se pisan entre sí
   // ni pisan el stock de otras sucursales. El estado local se actualiza optimistamente para
   // que la UI responda al instante, y se reconcilia con lo que devuelve el servidor.
-  adjustStock: (id, branchId, delta) => {
+  adjustStock: (id, branchId, sizeId, delta) => {
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
-    const optimistic = Math.max(0, (product.stockByBranch[branchId] ?? 0) + delta);
+    const optimistic = Math.max(0, (product.stockByBranch[branchId]?.[sizeId] ?? 0) + delta);
     set((state) => ({
       products: state.products.map((p) =>
-        p.id === id ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: optimistic } } : p,
+        p.id === id
+          ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: { ...(p.stockByBranch[branchId] ?? {}), [sizeId]: optimistic } } }
+          : p,
       ),
     }));
-    api.products.update(id, { stockOp: { branchId, delta } })
+    api.products.update(id, { stockOp: { branchId, sizeId, delta } })
       .then((updated) => set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) })))
       .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
-  setStock: (id, branchId, value) => {
+  setStock: (id, branchId, sizeId, value) => {
     const product = get().products.find((p) => p.id === id);
     if (!product) return;
     const optimistic = Math.max(0, value);
     set((state) => ({
       products: state.products.map((p) =>
-        p.id === id ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: optimistic } } : p,
+        p.id === id
+          ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: { ...(p.stockByBranch[branchId] ?? {}), [sizeId]: optimistic } } }
+          : p,
       ),
     }));
-    api.products.update(id, { stockOp: { branchId, set: value } })
+    api.products.update(id, { stockOp: { branchId, sizeId, set: value } })
       .then((updated) => set((state) => ({ products: state.products.map((p) => (p.id === id ? updated : p)) })))
       .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
@@ -159,11 +171,20 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
       .then((updated) => set((state) => ({ toppings: state.toppings.map((t) => (t.id === id ? updated : t)) })))
       .catch((err) => console.error('No se pudo ajustar el stock:', err));
   },
-  applyLocalStockDelta: (id, branchId, delta) => {
+  applyLocalStockDelta: (id, branchId, sizeId, delta) => {
     set((state) => ({
       products: state.products.map((p) =>
         p.id === id
-          ? { ...p, stockByBranch: { ...p.stockByBranch, [branchId]: Math.max(0, (p.stockByBranch[branchId] ?? 0) + delta) } }
+          ? {
+              ...p,
+              stockByBranch: {
+                ...p.stockByBranch,
+                [branchId]: {
+                  ...(p.stockByBranch[branchId] ?? {}),
+                  [sizeId]: Math.max(0, (p.stockByBranch[branchId]?.[sizeId] ?? 0) + delta),
+                },
+              },
+            }
           : p,
       ),
     }));
@@ -177,7 +198,9 @@ export const useCatalogStore = create<CatalogState>()((set, get) => ({
       ),
     }));
   },
-  stockFor: (product, branchId) => product.stockByBranch[branchId] ?? 0,
+  stockFor: (product, branchId, sizeId) => product.stockByBranch[branchId]?.[sizeId ?? SIZELESS_KEY] ?? 0,
+  totalStockFor: (product, branchId) =>
+    Object.values(product.stockByBranch[branchId] ?? {}).reduce((sum, n) => sum + n, 0),
 
   createTopping: (data) => {
     const topping: Topping = { ...data, id: uid('top') };

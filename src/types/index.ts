@@ -78,8 +78,12 @@ export interface Product {
   toppingIds: string[];
   branchIds: string[];
   active: boolean;
-  /** Stock independiente por sucursal: { [branchId]: cantidad }. */
-  stockByBranch: Record<string, number>;
+  /** Stock independiente por sucursal Y por tamaño: { [branchId]: { [sizeId]: cantidad } }.
+   *  Cada tamaño/presentación (250ml, 350ml, etc.) tiene su propio contador — vender un
+   *  tamaño ya NO descuenta del mismo pozo compartido que los demás tamaños del producto.
+   *  Los productos sin tamaños (`sizes: []`, ej. insumos de bodega) usan la clave
+   *  SIZELESS_KEY como si fuera "el único tamaño". */
+  stockByBranch: Record<string, Record<string, number>>;
   lowStockThreshold: number;
   unit: string; // 'unidades', 'porciones'
 }
@@ -216,15 +220,23 @@ export interface Expense {
   createdAt: string;
 }
 
-/** Ajuste atómico de stock para UNA sucursal, resuelto en el propio UPDATE de la DB
- *  (jsonb_set) — `delta` suma/resta, `set` fija el valor. Nunca se manda `stockByBranch`
- *  completo para modificar una sola sucursal: eso pisaría cambios concurrentes de otro
- *  dispositivo y el stock de las demás sucursales (ver api/catalog.ts). */
+/** Ajuste atómico de stock para UNA sucursal (y, para productos, UN tamaño), resuelto en
+ *  el propio UPDATE de la DB (jsonb_set) — `delta` suma/resta, `set` fija el valor. Nunca
+ *  se manda `stockByBranch` completo para modificar una sola sucursal/tamaño: eso pisaría
+ *  cambios concurrentes de otro dispositivo y el stock de las demás sucursales/tamaños
+ *  (ver api/catalog.ts). `sizeId` se omite para toppings (no tienen tamaños); para
+ *  productos, se usa SIZELESS_KEY si el producto no tiene tamaños configurados. */
 export interface StockOp {
   branchId: string;
+  sizeId?: string;
   delta?: number;
   set?: number;
 }
+
+/** Clave usada dentro de `stockByBranch[branchId]` para productos SIN tamaños (ej. insumos
+ *  de bodega) — así el stock de todo producto vive siempre en la misma forma anidada
+ *  { [branchId]: { [sizeId]: cantidad } }, tenga o no tamaños reales configurados. */
+export const SIZELESS_KEY = '_default';
 
 export interface StockMovement {
   id: string;

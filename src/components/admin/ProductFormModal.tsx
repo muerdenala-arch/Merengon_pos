@@ -8,6 +8,7 @@ import { useCatalogStore } from '@/store/catalogStore';
 import { useBranchStore } from '@/store/branchStore';
 import { SIZES, CATEGORIES } from '@/data/seed';
 import type { Product, SizeOption } from '@/types';
+import { SIZELESS_KEY } from '@/types';
 import { cn, uid } from '@/lib/utils';
 import { fileToCompressedDataUrl } from '@/lib/image';
 import { api } from '@/lib/api';
@@ -51,6 +52,16 @@ const emptyForm = {
 };
 
 const UNITS = ['vasos', 'unidades', 'botellas', 'latas', 'porciones', 'cajas'];
+
+/** Reparte un stock total en partes lo más iguales posible entre los tamaños del producto
+ *  (o bajo SIZELESS_KEY si no tiene tamaños) — el resto de una división no exacta va a los
+ *  primeros tamaños, así el total cargado nunca se pierde por redondeo. */
+function distributeStockAcrossSizes(total: number, sizes: SizeOption[]): Record<string, number> {
+  const ids = sizes.length > 0 ? sizes.map((s) => s.id) : [SIZELESS_KEY];
+  const base = Math.floor(total / ids.length);
+  const remainder = total - base * ids.length;
+  return Object.fromEntries(ids.map((id, i) => [id, base + (i < remainder ? 1 : 0)]));
+}
 
 export function ProductFormModal({ product, open, onClose }: ProductFormModalProps) {
   const toppings = useCatalogStore((s) => s.toppings);
@@ -191,9 +202,12 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
   // ── Guardar ─────────────────────────────────────────────────────────────────
   function handleSave() {
     if (!form.name.trim()) return;
+    // Cada tamaño tiene su propio stock independiente — el "stock inicial" que carga el
+    // admin se reparte en partes iguales entre los tamaños del producto (el resto, si no
+    // divide exacto, va a los primeros tamaños para no perder unidades por redondeo).
     const stockByBranch = product
       ? product.stockByBranch
-      : Object.fromEntries(branches.map((b) => [b.id, Number(form.stock) || 0]));
+      : Object.fromEntries(branches.map((b) => [b.id, distributeStockAcrossSizes(Number(form.stock) || 0, form.sizes)]));
     const base = {
       name: form.name.trim(),
       category: form.category,
