@@ -32,12 +32,6 @@ interface RegisterState {
    *  sucursal: un cajero con turno en varias sucursales no debe heredar la caja abierta de
    *  OTRA sucursal solo por compartir cajero. */
   activeSession: (branchId?: string | null) => CashRegisterSession | null;
-  /** Caja abierta en esa sucursal (de CUALQUIER cajero) que superó los días de auditoría
-   *  configurados para esa sucursal (ver Branch.cashAuditDays) — pedido explícito: dos
-   *  administradores distintos auditan con ritmos distintos (diario vs. semanal), así que
-   *  el umbral no es fijo. Se usa para bloquear una apertura nueva y para las alertas de
-   *  admin en Auditoría de cajas / el panel. */
-  staleOpenSession: (branchId: string, cashAuditDays: number) => CashRegisterSession | null;
 }
 
 export const useRegisterStore = create<RegisterState>()((set, get) => ({
@@ -110,15 +104,6 @@ export const useRegisterStore = create<RegisterState>()((set, get) => ({
     return (
       get().sessions.find(
         (s) => s.cashierId === user.id && s.status === 'abierta' && (!branchId || s.branchId === branchId),
-      ) ?? null
-    );
-  },
-
-  staleOpenSession: (branchId, cashAuditDays) => {
-    const cutoff = Date.now() - cashAuditDays * 24 * 60 * 60 * 1000;
-    return (
-      get().sessions.find(
-        (s) => s.branchId === branchId && s.status === 'abierta' && new Date(s.openedAt).getTime() < cutoff,
       ) ?? null
     );
   },
