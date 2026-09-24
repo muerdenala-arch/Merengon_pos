@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
+import { AppliesToPicker } from '@/components/admin/AppliesToPicker';
 import { usePromotionStore } from '@/store/promotionStore';
 import { useCouponStore } from '@/store/couponStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -58,8 +59,22 @@ export default function PromotionsPage() {
   const { promotions, createPromotion, deletePromotion, toggleActive: togglePromo } = usePromotionStore();
   const { coupons, createCoupon, deleteCoupon, toggleActive: toggleCoupon } = useCouponStore();
   const branches = useBranchStore((s) => s.branches);
-  const categories = useCatalogStore((s) => s.categories);
   const products = useCatalogStore((s) => s.products);
+
+  // "PRODUCT:abc" / "SIZE:abc:x" se guardan como código — en pantalla se muestra el nombre.
+  function appliesToLabel(appliesTo: string): string {
+    if (appliesTo === 'ALL') return 'Todos los productos';
+    if (appliesTo.startsWith('PRODUCT:')) {
+      return products.find((p) => p.id === appliesTo.slice(8))?.name ?? 'Producto eliminado';
+    }
+    if (appliesTo.startsWith('SIZE:')) {
+      const [, productId, sizeId] = appliesTo.split(':');
+      const product = products.find((p) => p.id === productId);
+      const size = product?.sizes.find((s) => s.id === sizeId);
+      return product && size ? `${product.name} - ${size.label}` : 'Producto eliminado';
+    }
+    return `Categoría ${appliesTo}`;
+  }
 
   const [tab, setTab] = useState<'promos' | 'coupons'>('promos');
   const [promoModalOpen, setPromoModalOpen] = useState(false);
@@ -192,7 +207,7 @@ export default function PromotionsPage() {
                       <p className="text-sm text-ink-muted">
                         {promo.discountType === 'PERCENTAGE' ? `${promo.discountValue}% OFF` : `−${formatCurrency(promo.discountValue)}`}
                         {' · '}
-                        {promo.appliesTo === 'ALL' ? 'Todos los productos' : promo.appliesTo}
+                        {appliesToLabel(promo.appliesTo)}
                         {' · '}
                         {branches.filter((b) => promo.branchIds.includes(b.id)).map((b) => b.name).join(', ')}
                         {promo.startDate && ` · Desde ${new Date(promo.startDate).toLocaleDateString()}`}
@@ -347,32 +362,10 @@ export default function PromotionsPage() {
 
           <div>
             <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Aplica a</label>
-            <select
+            <AppliesToPicker
               value={promoForm.appliesTo}
-              onChange={(e) => setPromoForm((f) => ({ ...f, appliesTo: e.target.value }))}
-              className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
-            >
-              <option value="ALL">Todos los productos</option>
-              <optgroup label="Categorías Completas">
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
-                ))}
-              </optgroup>
-              <optgroup label="Productos Específicos">
-                {products.map((p) => (
-                  <option key={`p_${p.id}`} value={`PRODUCT:${p.id}`}>{p.name} ({p.category})</option>
-                ))}
-              </optgroup>
-              <optgroup label="Tamaños Específicos">
-                {products.filter((p) => p.sizes.length > 0).map((p) => (
-                  p.sizes.map((s) => (
-                    <option key={`p_${p.id}_s_${s.id}`} value={`SIZE:${p.id}:${s.id}`}>
-                      {p.name} - {s.label}
-                    </option>
-                  ))
-                ))}
-              </optgroup>
-            </select>
+              onChange={(v) => setPromoForm((f) => ({ ...f, appliesTo: v }))}
+            />
           </div>
 
           <div>
@@ -528,32 +521,10 @@ export default function PromotionsPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Aplica a</label>
-              <select
+              <AppliesToPicker
                 value={couponForm.appliesTo}
-                onChange={(e) => setCouponForm((f) => ({ ...f, appliesTo: e.target.value }))}
-                className="w-full rounded-xl border border-border bg-field px-3 py-2.5 text-sm text-ink focus:border-primary-400 focus:outline-none"
-              >
-                <option value="ALL">Todos los productos</option>
-                <optgroup label="Categorías Completas">
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Productos Específicos">
-                  {products.map((p) => (
-                    <option key={`p_${p.id}`} value={`PRODUCT:${p.id}`}>{p.name} ({p.category})</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Tamaños Específicos">
-                  {products.filter((p) => p.sizes.length > 0).map((p) => (
-                    p.sizes.map((s) => (
-                      <option key={`p_${p.id}_s_${s.id}`} value={`SIZE:${p.id}:${s.id}`}>
-                        {p.name} - {s.label}
-                      </option>
-                    ))
-                  ))}
-                </optgroup>
-              </select>
+                onChange={(v) => setCouponForm((f) => ({ ...f, appliesTo: v }))}
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-ink-muted uppercase tracking-wide">Sucursal (opcional)</label>

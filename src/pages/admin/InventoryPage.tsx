@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
+import { AlertTriangle, Boxes, Minus, Plus, Search, X } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -10,6 +10,8 @@ import type { Product } from '@/types';
 import { SIZELESS_KEY } from '@/types';
 import { staggerContainer, staggerItem } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { useNavHighlight } from '@/hooks/useNavHighlight';
+import { normalizeSearch } from '@/lib/search';
 
 export default function InventoryPage() {
   const products = useCatalogStore((s) => s.products);
@@ -18,6 +20,8 @@ export default function InventoryPage() {
   const branches = useBranchStore((s) => s.branches);
   const adminFilterBranchId = useBranchStore((s) => s.adminFilterBranchId);
 
+  const highlightId = useNavHighlight();
+  const [query, setQuery] = useState('');
   const [selectedBranchId, setSelectedBranchId] = useState(
     () => adminFilterBranchId ?? branches[0]?.id ?? '',
   );
@@ -37,6 +41,17 @@ export default function InventoryPage() {
   const branchToppings = useMemo(
     () => toppings.filter((t) => t.branchIds.includes(selectedBranchId)),
     [toppings, selectedBranchId],
+  );
+
+  // Buscador: filtra mientras se escribe (por nombre o categoría, sin importar tildes).
+  const q = normalizeSearch(query);
+  const shownProducts = useMemo(
+    () => (q ? branchProducts.filter((p) => normalizeSearch(`${p.name} ${p.category}`).includes(q)) : branchProducts),
+    [branchProducts, q],
+  );
+  const shownToppings = useMemo(
+    () => (q ? branchToppings.filter((t) => normalizeSearch(t.name).includes(q)) : branchToppings),
+    [branchToppings, q],
   );
 
   // Cada tamaño cuenta como un ítem aparte para la alerta — un producto con 3 tamaños
@@ -77,6 +92,27 @@ export default function InventoryPage() {
             ))}
           </div>
 
+          <div className="relative mt-4 max-w-md">
+            <Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar producto o topping..."
+              className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-10 text-sm focus:border-primary-400 focus:outline-none"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Borrar búsqueda"
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-ink-muted hover:bg-cream-300 cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
           {lowStockCount > 0 && (
             <div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
               <AlertTriangle size={16} />
@@ -93,11 +129,18 @@ export default function InventoryPage() {
           animate="animate"
           className="mb-8 space-y-2.5"
         >
-          {branchProducts.length === 0 ? (
-            <p className="text-sm text-ink-muted">No hay productos habilitados para esta sucursal.</p>
+          {shownProducts.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              {q ? 'Ningún producto coincide con la búsqueda.' : 'No hay productos habilitados para esta sucursal.'}
+            </p>
           ) : (
-            branchProducts.map((product) => (
-              <ProductStockCard key={product.id} product={product} branchId={selectedBranchId} />
+            shownProducts.map((product) => (
+              <ProductStockCard
+                key={product.id}
+                product={product}
+                branchId={selectedBranchId}
+                highlighted={highlightId === product.id}
+              />
             ))
           )}
         </motion.div>
@@ -110,12 +153,16 @@ export default function InventoryPage() {
           animate="animate"
           className="space-y-2.5"
         >
-          {branchToppings.length === 0 ? (
-            <p className="text-sm text-ink-muted">No hay agregados habilitados para esta sucursal.</p>
+          {shownToppings.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              {q ? 'Ningún agregado coincide con la búsqueda.' : 'No hay agregados habilitados para esta sucursal.'}
+            </p>
           ) : (
-            branchToppings.map((topping) => (
+            shownToppings.map((topping) => (
               <StockRow
                 key={topping.id}
+                rowId={topping.id}
+                highlighted={highlightId === topping.id}
                 name={topping.name}
                 category="Topping"
                 stock={topping.stockByBranch[selectedBranchId] ?? 0}
@@ -134,7 +181,7 @@ export default function InventoryPage() {
 
 /** Tarjeta de un producto con UNA fila de stock por cada tamaño/presentación — cada
  *  tamaño se descuenta y se repone de forma independiente (ver Product.stockByBranch). */
-function ProductStockCard({ product, branchId }: { product: Product; branchId: string }) {
+function ProductStockCard({ product, branchId, highlighted }: { product: Product; branchId: string; highlighted: boolean }) {
   const adjustStock = useCatalogStore((s) => s.adjustStock);
   const setStock = useCatalogStore((s) => s.setStock);
 
@@ -146,7 +193,7 @@ function ProductStockCard({ product, branchId }: { product: Product; branchId: s
   const anyLow = !anyOut && stocks.some((n) => n <= product.lowStockThreshold);
 
   return (
-    <motion.div variants={staggerItem}>
+    <motion.div variants={staggerItem} id={`hl-${product.id}`} className={cn(highlighted && 'flash-highlight')}>
       <Card className="p-3.5">
         <div className="mb-2.5 flex items-center justify-between gap-2">
           <div className="min-w-0">
@@ -275,6 +322,8 @@ function SizeStockRow({
 }
 
 function StockRow({
+  rowId,
+  highlighted,
   name,
   category,
   stock,
@@ -283,6 +332,8 @@ function StockRow({
   onAdjust,
   onSetStock,
 }: {
+  rowId: string;
+  highlighted: boolean;
   name: string;
   category: string;
   stock: number;
@@ -314,7 +365,7 @@ function StockRow({
   };
 
   return (
-    <motion.div variants={staggerItem}>
+    <motion.div variants={staggerItem} id={`hl-${rowId}`} className={cn(highlighted && 'flash-highlight')}>
       <Card className="flex items-center gap-4 p-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

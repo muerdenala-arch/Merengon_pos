@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavHighlight } from '@/hooks/useNavHighlight';
 import { PackageSearch, History, Plus, Minus, Search, AlertTriangle, Trash2, Info } from 'lucide-react';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { Card } from '@/components/ui/Card';
@@ -17,6 +18,7 @@ export default function WarehousePage() {
   const products = useCatalogStore((s) => s.products);
   const { movements, fetchMovements, recordMovement } = useWarehouseStore();
   const currentUser = useAuthStore((s) => s.currentUser);
+  const highlightId = useNavHighlight();
   const [search, setSearch] = useState('');
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Product | null>(null);
@@ -213,7 +215,7 @@ export default function WarehousePage() {
                   const stock = p.stockByBranch['bodega']?.[SIZELESS_KEY] || 0;
                   const isLow = stock <= p.lowStockThreshold && stock > 0;
                   return (
-                    <Card key={p.id} className="p-4 flex flex-col justify-between">
+                    <Card key={p.id} id={`hl-${p.id}`} className={cn('p-4 flex flex-col justify-between', highlightId === p.id && 'flash-highlight')}>
                       <div>
                         <h3 className="font-display font-bold text-ink">{p.name}</h3>
                         <p className="text-xs text-ink-muted">{p.category}</p>

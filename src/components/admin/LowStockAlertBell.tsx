@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 
 interface LowStockItem {
   key: string;
+  /** Id del producto/topping — la pantalla destino lo marca al llegar. */
+  refId: string;
   name: string;
   kind: 'Producto' | 'Topping';
   branchId: string;
@@ -34,6 +36,7 @@ function useLowStockItems(): LowStockItem[] {
           if (stock <= p.lowStockThreshold) {
             items.push({
               key: `p-${p.id}-${branchId}-${size.id}`,
+              refId: p.id,
               // Con varios tamaños, aclarar cuál para que el admin sepa qué reponer.
               name: p.sizes.length > 0 ? `${p.name} (${size.label})` : p.name,
               kind: 'Producto',
@@ -52,6 +55,7 @@ function useLowStockItems(): LowStockItem[] {
         if (stock <= t.lowStockThreshold) {
           items.push({
             key: `t-${t.id}-${branchId}`,
+            refId: t.id,
             name: t.name,
             kind: 'Topping',
             branchId,
@@ -80,10 +84,10 @@ export function LowStockAlertBell() {
   function goTo(item: LowStockItem) {
     setOpen(false);
     if (item.branchId === 'bodega') {
-      navigate('/admin/bodega');
+      navigate('/admin/bodega', { state: { highlightId: item.refId } });
     } else {
       setAdminFilterBranchId(item.branchId);
-      navigate('/admin/inventario');
+      navigate('/admin/inventario', { state: { highlightId: item.refId } });
     }
   }
 

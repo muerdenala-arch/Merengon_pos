@@ -99,7 +99,6 @@ export function CashierShell({ children }: { children: ReactNode }) {
               )}
             </p>
           </div>
-          <ReloadButton className="ml-1 sm:ml-2" />
           <ThemeToggle className="ml-1 flex-shrink-0 sm:ml-2" />
           {/* Indicador de estado de red y ventas pendientes de sincronizar */}
           {(!isOnline || pendingCount > 0) && (
@@ -138,7 +137,10 @@ export function CashierShell({ children }: { children: ReactNode }) {
           >
             <ArrowLeft size={20} />
           </button>
-          
+
+          {/* Mismo estilo que "atrás" y el menú, en la barra derecha para que siempre se vea. */}
+          <ReloadButton className="h-11 w-11 rounded-xl border-2 border-border bg-surface hover:border-primary-300 hover:bg-surface hover:text-primary-700" />
+
           <div className="flex flex-shrink-0 items-center gap-2 rounded-full bg-cream-300 py-1.5 pl-1.5 pr-1.5 sm:pr-3">
             <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${currentUser?.color}`}>
               {currentUser?.name.charAt(0)}
