@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useThemeEffect } from '@/hooks/useThemeEffect';
 import { useDataSync, useIsDataHydrated } from '@/hooks/useDataSync';
 import { useInactivityLogout } from '@/hooks/useInactivityLogout';
+import { UpdateBanner } from '@/components/layout/UpdateBanner';
 import { LoadingScreen } from '@/components/layout/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
 import POSPage from '@/pages/POSPage';
@@ -49,10 +50,17 @@ export default function App() {
   // Después del primer fetch exitoso, el polling en segundo plano se sigue actualizando
   // sin volver a mostrar esta pantalla — solo bloquea el primer render.
   if (!dataReady) {
-    return <LoadingScreen timedOut={syncTimedOut} onRetry={() => window.location.reload()} />;
+    return (
+      <>
+        <LoadingScreen timedOut={syncTimedOut} onRetry={() => window.location.reload()} />
+        <UpdateBanner />
+      </>
+    );
   }
 
   return (
+    <>
+    <UpdateBanner />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
@@ -178,5 +186,6 @@ export default function App() {
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
