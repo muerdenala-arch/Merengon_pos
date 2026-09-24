@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { modalOverlay, modalPanel } from '@/lib/motion';
 import { cn } from '@/lib/utils';
+import { useBackToClose } from '@/hooks/useBackToClose';
 
 interface ModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ const sizeClasses = {
 };
 
 export function Modal({ open, onClose, title, children, className, size = 'md' }: ModalProps) {
+  useBackToClose(open, onClose);
   return (
     <AnimatePresence>
       {open && (

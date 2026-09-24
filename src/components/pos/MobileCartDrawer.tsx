@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { CartPanel } from '@/components/pos/CartPanel';
+import { useBackToClose } from '@/hooks/useBackToClose';
 
 interface MobileCartDrawerProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface MobileCartDrawerProps {
  * escritorio (CartPanel), solo que aquí entra deslizando desde abajo.
  */
 export function MobileCartDrawer({ open, onClose, onCheckout, branchId }: MobileCartDrawerProps) {
+  useBackToClose(open, onClose);
   return (
     <AnimatePresence>
       {open && (

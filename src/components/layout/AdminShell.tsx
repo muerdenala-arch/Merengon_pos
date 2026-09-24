@@ -7,6 +7,7 @@ import { useBranchStore } from '@/store/branchStore';
 import { useCatalogStore } from '@/store/catalogStore';
 import { useRegisterStore } from '@/store/registerStore';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useBackToClose } from '@/hooks/useBackToClose';
 import { ReloadButton } from '@/components/ui/ReloadButton';
 import { LowStockAlertBell } from '@/components/admin/LowStockAlertBell';
 import { fieldClasses } from '@/components/ui/Input';
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
 export function AdminShell({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navigate = useNavigate();
+  useBackToClose(mobileNavOpen, () => setMobileNavOpen(false));
 
   return (
     <div className="flex h-dvh flex-col bg-cream lg:flex-row">
