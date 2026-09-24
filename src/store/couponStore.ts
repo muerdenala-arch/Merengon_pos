@@ -3,6 +3,7 @@ import type { Coupon, CartItem } from '@/types';
 import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
+import { appliesToMatches } from '@/lib/appliesTo';
 
 export type CouponStatus = 'idle' | 'validating' | 'valid' | 'error';
 
@@ -97,14 +98,7 @@ export const useCouponStore = create<CouponState>()((set, get) => ({
     if (!coupon) return 0;
     
     const eligibleItems = items.filter(item => {
-      if (coupon.appliesTo === 'ALL') return true;
-      if (coupon.appliesTo.startsWith('PRODUCT:')) {
-        return coupon.appliesTo === `PRODUCT:${item.product.id}`;
-      }
-      if (coupon.appliesTo.startsWith('SIZE:')) {
-        return coupon.appliesTo === `SIZE:${item.product.id}:${item.modifiers.size?.id}`;
-      }
-      return coupon.appliesTo === item.product.category;
+      return appliesToMatches(coupon.appliesTo, item.product, item.modifiers.size?.id);
     });
 
     if (eligibleItems.length === 0) return 0;

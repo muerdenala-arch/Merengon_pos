@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { AppliesToPicker } from '@/components/admin/AppliesToPicker';
+import { parseTargets } from '@/lib/appliesTo';
 import { usePromotionStore } from '@/store/promotionStore';
 import { useCouponStore } from '@/store/couponStore';
 import { useBranchStore } from '@/store/branchStore';
@@ -61,19 +62,22 @@ export default function PromotionsPage() {
   const branches = useBranchStore((s) => s.branches);
   const products = useCatalogStore((s) => s.products);
 
-  // "PRODUCT:abc" / "SIZE:abc:x" se guardan como código — en pantalla se muestra el nombre.
+  // "PRODUCT:abc" / "SIZE:abc:x" se guardan como código (varios separados por |) — en pantalla
+  // se muestran los nombres.
   function appliesToLabel(appliesTo: string): string {
-    if (appliesTo === 'ALL') return 'Todos los productos';
-    if (appliesTo.startsWith('PRODUCT:')) {
-      return products.find((p) => p.id === appliesTo.slice(8))?.name ?? 'Producto eliminado';
-    }
-    if (appliesTo.startsWith('SIZE:')) {
-      const [, productId, sizeId] = appliesTo.split(':');
-      const product = products.find((p) => p.id === productId);
-      const size = product?.sizes.find((s) => s.id === sizeId);
-      return product && size ? `${product.name} - ${size.label}` : 'Producto eliminado';
-    }
-    return `Categoría ${appliesTo}`;
+    const targets = parseTargets(appliesTo).filter((t) => t !== 'ALL');
+    if (targets.length === 0) return 'Todos los productos';
+    const names = targets.map((t) => {
+      if (t.startsWith('PRODUCT:')) return products.find((p) => p.id === t.slice(8))?.name ?? 'Producto eliminado';
+      if (t.startsWith('SIZE:')) {
+        const [, productId, sizeId] = t.split(':');
+        const product = products.find((p) => p.id === productId);
+        const size = product?.sizes.find((s) => s.id === sizeId);
+        return product && size ? `${product.name} - ${size.label}` : 'Producto eliminado';
+      }
+      return `Categoría ${t}`;
+    });
+    return names.length > 3 ? `${names.slice(0, 3).join(', ')} y ${names.length - 3} más` : names.join(', ');
   }
 
   const [tab, setTab] = useState<'promos' | 'coupons'>('promos');

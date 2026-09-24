@@ -3,6 +3,7 @@ import type { Promotion } from '@/types';
 import { api } from '@/lib/api';
 import { sameData } from '@/lib/sync';
 import { uid } from '@/lib/utils';
+import { appliesToMatches } from '@/lib/appliesTo';
 
 interface PromotionState {
   promotions: Promotion[];
@@ -93,10 +94,7 @@ export const usePromotionStore = create<PromotionState>()((set, get) => ({
             if (now > end) return false;
           }
 
-          return p.appliesTo === 'ALL' || 
-                 p.appliesTo === product.category || 
-                 p.appliesTo === `PRODUCT:${product.id}` ||
-                 (!!product.sizeId && p.appliesTo === `SIZE:${product.id}:${product.sizeId}`);
+          return appliesToMatches(p.appliesTo, product, product.sizeId);
         }
       ) ?? null
     );
