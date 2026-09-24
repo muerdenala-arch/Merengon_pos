@@ -17,9 +17,17 @@ export function ProductRow({ product, onEdit }: { product: Product; onEdit: () =
 
   return (
     <Card className="flex items-center gap-2 p-3.5 sm:gap-4">
-      <div className={cn('hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl2 bg-gradient-to-br text-2xl sm:flex', product.gradient)}>
-        {product.emoji}
-      </div>
+      {product.imageUrl ? (
+        <img
+          src={product.imageUrl}
+          alt={product.name}
+          className="hidden h-14 w-14 flex-shrink-0 rounded-xl2 object-cover sm:block"
+        />
+      ) : (
+        <div className={cn('hidden h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl2 bg-gradient-to-br text-2xl sm:flex', product.gradient)}>
+          {product.emoji}
+        </div>
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <p className="truncate font-display font-bold text-ink">{product.name}</p>

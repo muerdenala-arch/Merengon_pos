@@ -163,9 +163,13 @@ const ProductCard = memo(function ProductCard({
         </div>
       )}
 
-      <div className={cn('flex h-24 items-center justify-center bg-gradient-to-br text-4xl sm:h-28', product.gradient || 'from-cream-200 to-cream-300')}>
-        {product.emoji || '🍓'}
-      </div>
+      {product.imageUrl ? (
+        <img src={product.imageUrl} alt={product.name} className="h-24 w-full object-cover sm:h-28" />
+      ) : (
+        <div className={cn('flex h-24 items-center justify-center bg-gradient-to-br text-4xl sm:h-28', product.gradient || 'from-cream-200 to-cream-300')}>
+          {product.emoji || '🍓'}
+        </div>
+      )}
       <div className="flex flex-1 flex-col gap-1 p-3.5">
         <p className="font-display text-sm font-bold leading-tight text-ink sm:text-base">{product.name}</p>
         <p className="text-xs text-ink-muted line-clamp-1">{product.description}</p>

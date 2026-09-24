@@ -76,7 +76,11 @@ export function ModifierModal({ product, branchId, onClose, onAdded }: ModifierM
       <div className="px-5 pb-4 pt-3">
         {/* Banner del producto — más compacto */}
         <div className={cn('mb-4 flex items-center gap-3 rounded-xl p-3 text-white bg-gradient-to-br', product.gradient)}>
-        <span className="text-3xl">{product.emoji}</span>
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} className="h-12 w-12 flex-shrink-0 rounded-lg object-cover" />
+        ) : (
+          <span className="text-3xl">{product.emoji}</span>
+        )}
         <div className="min-w-0">
           <p className="text-xs opacity-90 line-clamp-1">{product.description}</p>
           <div className="flex items-baseline gap-2">

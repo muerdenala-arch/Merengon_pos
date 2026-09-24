@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS products (
   base_price           numeric(10, 2) NOT NULL DEFAULT 0,
   gradient             text NOT NULL DEFAULT '',
   emoji                text NOT NULL DEFAULT '',
+  image_url            text,
   sizes                jsonb NOT NULL DEFAULT '[]',
 
   topping_ids          jsonb NOT NULL DEFAULT '[]',

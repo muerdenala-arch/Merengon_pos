@@ -16,7 +16,7 @@ function ensureConfigured() {
   configured = true;
 }
 
-export type ImageFolder = 'receipts' | 'qr-codes';
+export type ImageFolder = 'receipts' | 'qr-codes' | 'products';
 
 /** Sube una imagen (data URL base64, ya comprimida en el navegador) a Cloudinary y
  *  devuelve su URL pública HTTPS permanente. */

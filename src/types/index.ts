@@ -71,6 +71,9 @@ export interface Product {
   basePrice: number;
   gradient: string; // clases tailwind para la tarjeta
   emoji: string; // acento visual (no se usa como ícono funcional)
+  /** Foto real del producto (Cloudinary) — si está presente, se muestra en vez del
+   *  emoji/gradiente en el catálogo, el POS y el modal de tamaños. */
+  imageUrl?: string;
   sizes: SizeOption[];
   toppingIds: string[];
   branchIds: string[];

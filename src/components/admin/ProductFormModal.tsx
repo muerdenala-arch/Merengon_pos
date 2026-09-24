@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Trash2, Camera, Image as ImageIcon, X } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Input, fieldClasses, fieldLabelClasses } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -9,6 +9,8 @@ import { useBranchStore } from '@/store/branchStore';
 import { SIZES, CATEGORIES } from '@/data/seed';
 import type { Product, SizeOption } from '@/types';
 import { cn, uid } from '@/lib/utils';
+import { fileToCompressedDataUrl } from '@/lib/image';
+import { api } from '@/lib/api';
 
 interface ProductFormModalProps {
   product: Product | null;
@@ -41,6 +43,7 @@ const emptyForm = {
   lowStockThreshold: '8',
   emoji: EMOJI_OPTIONS[0],
   gradient: GRADIENT_OPTIONS[0],
+  imageUrl: '',
   toppingIds: [] as string[],
   branchIds: [] as string[],
   unit: 'vasos',
@@ -64,6 +67,10 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
   const [useCalculator, setUseCalculator] = useState(false);
   const [boxes, setBoxes] = useState('');
   const [unitsPerBox, setUnitsPerBox] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (product) {
@@ -76,6 +83,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
         lowStockThreshold: String(product.lowStockThreshold),
         emoji: product.emoji,
         gradient: product.gradient,
+        imageUrl: product.imageUrl ?? '',
         toppingIds: product.toppingIds,
         branchIds: product.branchIds || [],
         unit: product.unit || 'vasos',
@@ -90,7 +98,25 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
     }
     setIsAddingCategory(false);
     setNewCategoryName('');
+    setPhotoError(null);
   }, [product, open, branches]);
+
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError(null);
+    setUploadingPhoto(true);
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file, { maxWidth: 800, quality: 0.8 });
+      const { url } = await api.upload.image(dataUrl, 'products');
+      setForm((f) => ({ ...f, imageUrl: url }));
+    } catch {
+      setPhotoError('No se pudo cargar la foto. Intenta de nuevo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  }
 
   async function handleAddCategory() {
     if (!newCategoryName.trim()) {
@@ -175,6 +201,7 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
       basePrice: Number(form.basePrice) || 0,
       gradient: form.gradient,
       emoji: form.emoji,
+      imageUrl: form.imageUrl || undefined,
       sizes: form.sizes.map((s) => ({
         ...s,
         ounces: Number(s.ounces) || 0,
@@ -435,9 +462,76 @@ export function ProductFormModal({ product, open, onClose }: ProductFormModalPro
           </p>
         </div>
 
+        {/* ── Foto del producto ──────────────────────────────────────────────── */}
+        <div className="sm:col-span-2">
+          <p className={fieldLabelClasses}>Foto del producto</p>
+          <p className="mb-2 text-xs text-ink-soft">
+            Si subes una foto, se muestra en vez del ícono/emoji en el catálogo y en el punto de venta.
+          </p>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+
+          {uploadingPhoto ? (
+            <div className="flex min-h-touch-lg w-full flex-col items-center justify-center gap-1.5 rounded-xl2 border-2 border-dashed border-primary-300 bg-primary-50 px-4 py-6 text-center dark:bg-primary-500/10">
+              <ImageIcon size={24} className="animate-pulse text-primary-500" />
+              <span className="font-display text-sm font-bold text-ink">Subiendo foto…</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              {form.imageUrl && (
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={form.imageUrl}
+                    alt="Foto del producto"
+                    className="h-16 w-16 rounded-xl2 border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, imageUrl: '' }))}
+                    aria-label="Quitar foto"
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white shadow cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              )}
+              <div className="flex flex-1 gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border-strong bg-field py-3 text-sm font-semibold text-ink-muted transition-colors hover:border-primary-400 hover:bg-primary-50 cursor-pointer dark:hover:bg-primary-500/10"
+                >
+                  <Camera size={16} /> Tomar foto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border-strong bg-field py-3 text-sm font-semibold text-ink-muted transition-colors hover:border-primary-400 hover:bg-primary-50 cursor-pointer dark:hover:bg-primary-500/10"
+                >
+                  <ImageIcon size={16} /> Subir de galería
+                </button>
+              </div>
+            </div>
+          )}
+          {photoError && <p className="mt-1.5 text-xs font-semibold text-red-600">{photoError}</p>}
+        </div>
+
         {/* ── Ícono ───────────────────────────────────────────────────────── */}
         <div className="sm:col-span-2">
-          <p className={fieldLabelClasses}>Ícono</p>
+          <p className={fieldLabelClasses}>Ícono {form.imageUrl && '(se usa si quitas la foto)'}</p>
           <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
             {EMOJI_OPTIONS.map((e) => (
               <button
